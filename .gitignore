@@ -1,0 +1,158 @@
+# ============================================================================
+# .gitignore - Instacar Automóveis Disparador
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Arquivos de Ambiente e Credenciais
+# ----------------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.env
+secrets.json
+credentials.json
+
+# Tokens e chaves expostas (se houver)
+*token*
+*key*
+*secret*
+*password*
+
+# ----------------------------------------------------------------------------
+# Arquivos do Sistema Operacional
+# ----------------------------------------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# ----------------------------------------------------------------------------
+# IDEs e Editores
+# ----------------------------------------------------------------------------
+# VSCode
+.vscode/
+*.code-workspace
+
+# Cursor
+.cursor/
+
+# JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ----------------------------------------------------------------------------
+# Logs e Arquivos Temporários
+# ----------------------------------------------------------------------------
+*.log
+*.tmp
+*.temp
+logs/
+tmp/
+temp/
+
+# ----------------------------------------------------------------------------
+# Arquivos de Backup
+# ----------------------------------------------------------------------------
+*.bak
+*.backup
+*.old
+*~
+
+# ----------------------------------------------------------------------------
+# Arquivos de Dados Sensíveis
+# ----------------------------------------------------------------------------
+# Planilhas com dados reais (manter apenas exemplos)
+# Descomente se não quiser versionar planilhas:
+# docs/planilhas-vendas-instacar/*.xlsx
+
+# Arquivos de configuração com credenciais
+config.json
+settings.json
+interface-web/config.js
+
+# ----------------------------------------------------------------------------
+# Node.js (se houver scripts Node)
+# ----------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ----------------------------------------------------------------------------
+# Python (se houver scripts Python)
+# ----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# ----------------------------------------------------------------------------
+# Arquivos de Build e Compilação
+# ----------------------------------------------------------------------------
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# ----------------------------------------------------------------------------
+# Arquivos de Teste
+# ----------------------------------------------------------------------------
+coverage/
+.nyc_output/
+*.test.js
+*.spec.js
+
+# ----------------------------------------------------------------------------
+# Arquivos Específicos do Projeto
+# ----------------------------------------------------------------------------
+# Fluxos N8N - NÃO versionar (podem conter credenciais)
+# IMPORTANTE: Os fluxos N8N podem conter tokens, chaves e credenciais
+# Mantenha apenas versões limpas (sem credenciais) se necessário versionar
+fluxos-n8n/*.json
+
+# Arquivos de dump do banco
+*.sql.dump
+*.dump
+*.sql.backup
+
+# Arquivos de exportação
+exports/
+*.csv
+*.xlsx
+!docs/planilhas-vendas-instacar/*.xlsx  # Manter exemplos
+
+# ----------------------------------------------------------------------------
+# Outros
+# ----------------------------------------------------------------------------
+*.swp
+*.swo
+*~
+.cache/
+.parcel-cache/
+

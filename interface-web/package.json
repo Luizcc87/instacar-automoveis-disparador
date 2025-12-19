@@ -1,0 +1,17 @@
+{
+  "name": "instacar-campanhas-interface",
+  "version": "1.0.0",
+  "description": "Interface web para gerenciamento de campanhas WhatsApp - Instacar Automóveis",
+  "scripts": {
+    "inject-env": "node inject-env.js",
+    "dev": "npm run inject-env && npx http-server . -p 8080 -o",
+    "build": "npm run inject-env"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "dotenv": "^16.0.0"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "event": "message",
+  "instance": "i91011ijkl",
+  "data": {
+    "id": "r1a2b3c4",
+    "messageid": "3EB0123456789ABCDEF",
+    "chatid": "r5f6g7h8",
+    "sender": "5511999999999@s.whatsapp.net",
+    "senderName": "João Silva",
+    "isGroup": false,
+    "fromMe": false,
+    "messageType": "image",
+    "source": "whatsapp",
+    "messageTimestamp": 1706112000000,
+    "status": "RECEIVED",
+    "text": "Legenda da imagem",
+    "fileURL": "https://uazapi.com/files/image_123.jpg",
+    "content": {
+      "type": "image",
+      "mimetype": "image/jpeg",
+      "caption": "Legenda da imagem",
+      "url": "https://uazapi.com/files/image_123.jpg"
+    },
+    "wasSentByApi": false,
+    "sender_pn": "5511999999999",
+    "sender_lid": "81896604192873@lid"
+  }
+}
+

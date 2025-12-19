@@ -1,0 +1,38 @@
+{
+  "event": "message",
+  "instance": "i91011ijkl",
+  "data": {
+    "chatid": "554399806366@s.whatsapp.net",
+    "content": "Bom dia",
+    "convertOptions": "",
+    "edited": "",
+    "fromMe": false,
+    "groupName": "Unknown",
+    "id": "554396711808:AC429C9CDF29E4C66D35EB8F8546C675",
+    "isGroup": false,
+    "mediaType": "",
+    "messageTimestamp": 1765454975000,
+    "messageType": "Conversation",
+    "messageid": "AC429C9CDF29E4C66D35EB8F8546C675",
+    "owner": "554396711808",
+    "quoted": "",
+    "reaction": "",
+    "sender": "180182702931994@lid",
+    "senderName": "Eliane",
+    "sender_lid": "180182702931994@lid",
+    "sender_pn": "554399806366@s.whatsapp.net",
+    "source": "android",
+    "status": "",
+    "text": "Bom dia",
+    "track_id": "",
+    "track_source": "",
+    "type": "text",
+    "vote": "",
+    "wasSentByApi": false
+  },
+  "owner": "554396711808",
+  "token": "cffe239e-d9b8-4d3a-9a6a-cc57f061face",
+  "webhookUrl": "https://n8n-n8n-start.vioey0.easypanel.host/webhook/recebe-mensagem-uazapi-02",
+  "executionMode": "production"
+}
+

@@ -1,0 +1,129 @@
+{
+  "templates": [
+    {
+      "periodo": "janeiro",
+      "nome": "Ano Novo, Carro Novo",
+      "mes": 1,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Parabenize o cliente pelo Ano Novo\n- Mencione que é um ótimo momento para renovar o veículo\n- Seja calorosa, mas profissional\n- Use o nome do cliente e informações do veículo atual\n- Convide para conhecer as oportunidades disponíveis\n\nMantenha a mensagem concisa (máximo 3 parágrafos) e amigável.",
+      "exemplo_mensagem": "Olá [Nome]! 🎉 Desejamos um Feliz Ano Novo repleto de realizações!\n\nSabemos que você possui um [Veículo] e este é o momento perfeito para pensar em renovar seu veículo. Temos oportunidades especiais para começar 2025 com o pé direito!\n\nQue tal agendar uma visita para conhecer as melhores opções? Estamos à disposição! 🚗✨"
+    },
+    {
+      "periodo": "fevereiro",
+      "nome": "Carnaval com Segurança",
+      "mes": 2,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Mencione o período de Carnaval\n- Enfatize a importância de viajar com segurança\n- Ofereça serviços de revisão ou seguro\n- Seja descontraída mas profissional\n- Use o nome do cliente e informações do veículo\n\nMantenha a mensagem concisa e festiva.",
+      "exemplo_mensagem": "Olá [Nome]! 🎭 Está se preparando para o Carnaval?\n\nAntes de pegar a estrada com seu [Veículo], que tal garantir que está tudo em ordem? Oferecemos revisão completa e as melhores condições de seguro para você viajar tranquilo!\n\nEntre em contato e vamos cuidar do seu veículo para você curtir a folia! 🚗🎉"
+    },
+    {
+      "periodo": "marco",
+      "nome": "Renovação de Frota",
+      "mes": 3,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Mencione que estamos no primeiro trimestre do ano\n- Enfatize oportunidades de renovação de frota\n- Seja profissional e direta\n- Use o nome do cliente e informações do veículo atual\n- Convide para conhecer as opções disponíveis\n\nMantenha a mensagem concisa e focada em valor.",
+      "exemplo_mensagem": "Olá [Nome]! 👋\n\nEstamos no primeiro trimestre de 2025 e este é um excelente momento para renovar seu [Veículo]. Temos condições especiais de financiamento e uma seleção incrível de veículos seminovos e novos.\n\nQue tal agendar uma visita para conhecer as melhores oportunidades? Estamos à sua disposição! 🚗"
+    },
+    {
+      "periodo": "abril",
+      "nome": "Páscoa Especial",
+      "mes": 4,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Deseje uma Feliz Páscoa\n- Mencione oportunidades especiais do período\n- Seja calorosa e festiva\n- Use o nome do cliente e informações do veículo\n- Convide para conhecer as ofertas\n\nMantenha a mensagem concisa e com toque festivo.",
+      "exemplo_mensagem": "Olá [Nome]! 🐰 Feliz Páscoa!\n\nQue este período seja repleto de alegria e novas conquistas! Pensando nisso, temos oportunidades especiais para você renovar seu [Veículo].\n\nQue tal aproveitar para conhecer nossas condições especiais? Estamos à disposição para ajudar você a encontrar o veículo ideal! 🚗✨"
+    },
+    {
+      "periodo": "maio",
+      "nome": "Dia das Mães",
+      "mes": 5,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Parabenize pelo Dia das Mães (se aplicável)\n- Mencione que é uma ótima oportunidade para presentear ou renovar\n- Seja calorosa e emocional\n- Use o nome do cliente e informações do veículo\n- Destaque veículos familiares ou seguros (se relevante)\n\nMantenha a mensagem concisa e tocante.",
+      "exemplo_mensagem": "Olá [Nome]! 💐\n\nNo mês das mães, queremos celebrar com você! Que tal pensar em um presente especial ou renovar seu [Veículo]? Temos opções perfeitas para toda a família, com segurança e conforto.\n\nEntre em contato e vamos encontrar o veículo ideal para você! 🚗💕"
+    },
+    {
+      "periodo": "junho",
+      "nome": "Meio do Ano, Meio Desconto",
+      "mes": 6,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Mencione que estamos no meio do ano\n- Enfatize oportunidades e descontos especiais\n- Seja direta e focada em valor\n- Use o nome do cliente e informações do veículo\n- Convide para aproveitar as ofertas\n\nMantenha a mensagem concisa e com senso de urgência.",
+      "exemplo_mensagem": "Olá [Nome]! 📅\n\nEstamos no meio do ano e este é o momento ideal para renovar seu [Veículo]! Temos condições especiais e descontos exclusivos para você.\n\nQue tal agendar uma visita para conhecer as melhores oportunidades? Não perca! 🚗💥"
+    },
+    {
+      "periodo": "julho",
+      "nome": "Férias em Família",
+      "mes": 7,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Mencione o período de férias escolares\n- Enfatize veículos ideais para viagens em família\n- Seja descontraída e focada em aventura\n- Use o nome do cliente e informações do veículo\n- Destaque SUVs ou veículos espaçosos (se relevante)\n\nMantenha a mensagem concisa e inspiradora.",
+      "exemplo_mensagem": "Olá [Nome]! 🏖️\n\nAs férias escolares chegaram! É hora de planejar aquela viagem em família. Que tal renovar seu [Veículo] com um modelo perfeito para aventuras?\n\nTemos SUVs e veículos espaçosos ideais para levar toda a família com conforto e segurança. Vamos conversar? 🚗🗺️"
+    },
+    {
+      "periodo": "agosto",
+      "nome": "Dia dos Pais",
+      "mes": 8,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Parabenize pelo Dia dos Pais (se aplicável)\n- Mencione que é uma ótima oportunidade para presentear ou renovar\n- Seja calorosa e respeitosa\n- Use o nome do cliente e informações do veículo\n- Destaque veículos robustos ou esportivos (se relevante)\n\nMantenha a mensagem concisa e respeitosa.",
+      "exemplo_mensagem": "Olá [Nome]! 👔\n\nNo mês dos pais, queremos celebrar com você! Que tal pensar em renovar seu [Veículo] ou presentear alguém especial? Temos opções incríveis para todos os gostos.\n\nEntre em contato e vamos encontrar o veículo perfeito! 🚗🎁"
+    },
+    {
+      "periodo": "setembro",
+      "nome": "Primavera Automotiva",
+      "mes": 9,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Mencione a chegada da primavera\n- Enfatize renovação e novos começos\n- Seja positiva e inspiradora\n- Use o nome do cliente e informações do veículo\n- Convide para conhecer as novidades\n\nMantenha a mensagem concisa e otimista.",
+      "exemplo_mensagem": "Olá [Nome]! 🌸\n\nA primavera chegou e com ela novas oportunidades! Que tal renovar seu [Veículo] e começar uma nova estação com estilo?\n\nTemos as melhores opções e condições especiais para você. Vamos conversar? 🚗✨"
+    },
+    {
+      "periodo": "outubro",
+      "nome": "Outubro Rosa + Preparação Fim de Ano",
+      "mes": 10,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Mencione o Outubro Rosa (conscientização)\n- Enfatize preparação para o fim de ano\n- Seja solidária e profissional\n- Use o nome do cliente e informações do veículo\n- Convide para aproveitar oportunidades antes do fim de ano\n\nMantenha a mensagem concisa e respeitosa.",
+      "exemplo_mensagem": "Olá [Nome]! 💗\n\nOutubro é um mês especial de conscientização e também de preparação para o fim de ano. Que tal pensar em renovar seu [Veículo] antes das festas?\n\nTemos condições especiais e uma seleção incrível. Vamos conversar? 🚗🎄"
+    },
+    {
+      "periodo": "novembro",
+      "nome": "Black Friday Automotiva",
+      "mes": 11,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Mencione a Black Friday\n- Enfatize descontos e oportunidades imperdíveis\n- Crie senso de urgência\n- Use o nome do cliente e informações do veículo\n- Convide para aproveitar as ofertas\n\nMantenha a mensagem concisa, urgente mas profissional.",
+      "exemplo_mensagem": "Olá [Nome]! 🛍️🔥\n\nA Black Friday chegou e trouxe oportunidades imperdíveis para renovar seu [Veículo]! Descontos exclusivos e condições especiais de financiamento.\n\nNão perca esta chance única! Entre em contato agora e garanta sua oferta! 🚗💥"
+    },
+    {
+      "periodo": "dezembro",
+      "nome": "Natal e Ano Novo",
+      "mes": 12,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Deseje Feliz Natal e Próspero Ano Novo\n- Mencione oportunidades de fim de ano\n- Seja calorosa e festiva\n- Use o nome do cliente e informações do veículo\n- Convide para começar o próximo ano com um novo veículo\n\nMantenha a mensagem concisa e festiva. IMPORTANTE: Evite enviar entre 24-31 de dezembro.",
+      "exemplo_mensagem": "Olá [Nome]! 🎄🎉\n\nDesejamos um Feliz Natal e um Próspero Ano Novo repleto de realizações!\n\nQue tal começar 2025 com um novo [Veículo]? Temos condições especiais de fim de ano e as melhores oportunidades para você.\n\nEntre em contato e vamos realizar seus sonhos! 🚗✨"
+    },
+    {
+      "periodo": "black-friday",
+      "nome": "Black Friday",
+      "mes": 11,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Mencione a Black Friday (maior evento de descontos do ano)\n- Enfatize descontos exclusivos e oportunidades imperdíveis\n- Crie senso de urgência e escassez\n- Use o nome do cliente e informações do veículo\n- Convide para aproveitar as ofertas enquanto durar\n\nMantenha a mensagem concisa, urgente mas profissional. Use emojis de forma moderada.",
+      "exemplo_mensagem": "Olá [Nome]! 🛍️🔥 BLACK FRIDAY!\n\nO maior evento de descontos do ano chegou! Oportunidades imperdíveis para renovar seu [Veículo] com condições especiais e descontos exclusivos.\n\nNão perca esta chance única! Entre em contato agora e garanta sua oferta antes que acabe! 🚗💥"
+    },
+    {
+      "periodo": "dia-maes",
+      "nome": "Dia das Mães",
+      "mes": 5,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Parabenize pelo Dia das Mães (se aplicável)\n- Mencione que é uma ótima oportunidade para presentear uma mãe especial\n- Seja calorosa, emocional e respeitosa\n- Use o nome do cliente e informações do veículo\n- Destaque veículos seguros, confortáveis e ideais para família\n\nMantenha a mensagem concisa e tocante. Evite ser muito comercial.",
+      "exemplo_mensagem": "Olá [Nome]! 💐\n\nNo Dia das Mães, queremos celebrar todas as mães especiais! Que tal pensar em um presente único ou renovar seu [Veículo] com um modelo perfeito para a família?\n\nTemos opções seguras, confortáveis e ideais para quem mais importa. Vamos conversar? 🚗💕"
+    },
+    {
+      "periodo": "dia-pais",
+      "nome": "Dia dos Pais",
+      "mes": 8,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Parabenize pelo Dia dos Pais (se aplicável)\n- Mencione que é uma ótima oportunidade para presentear um pai especial\n- Seja calorosa, respeitosa e inspiradora\n- Use o nome do cliente e informações do veículo\n- Destaque veículos robustos, esportivos ou familiares (conforme relevante)\n\nMantenha a mensagem concisa e respeitosa. Evite ser muito comercial.",
+      "exemplo_mensagem": "Olá [Nome]! 👔\n\nNo Dia dos Pais, queremos celebrar todos os pais especiais! Que tal pensar em renovar seu [Veículo] ou presentear alguém importante?\n\nTemos opções incríveis para todos os gostos e necessidades. Vamos encontrar o veículo perfeito? 🚗🎁"
+    },
+    {
+      "periodo": "natal",
+      "nome": "Natal",
+      "mes": 12,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Deseje um Feliz Natal\n- Mencione oportunidades especiais de fim de ano\n- Seja calorosa, festiva e respeitosa\n- Use o nome do cliente e informações do veículo\n- Convide para começar o próximo ano com um novo veículo\n\nMantenha a mensagem concisa e festiva. IMPORTANTE: Evite enviar entre 24-26 de dezembro.",
+      "exemplo_mensagem": "Olá [Nome]! 🎄\n\nDesejamos um Feliz Natal repleto de alegria, paz e realizações!\n\nQue tal pensar em começar o próximo ano com um novo [Veículo]? Temos condições especiais de fim de ano e as melhores oportunidades.\n\nEntre em contato e vamos realizar seus sonhos! 🚗✨"
+    },
+    {
+      "periodo": "ano-novo",
+      "nome": "Ano Novo",
+      "mes": 1,
+      "prompt_base_ia": "Você é um especialista em marketing automotivo. Crie uma mensagem personalizada para WhatsApp que:\n- Parabenize pelo Ano Novo\n- Mencione que é um ótimo momento para renovar o veículo e realizar sonhos\n- Seja calorosa, inspiradora e otimista\n- Use o nome do cliente e informações do veículo atual\n- Convide para conhecer as oportunidades disponíveis\n\nMantenha a mensagem concisa e inspiradora. IMPORTANTE: Evite enviar em 1º de janeiro.",
+      "exemplo_mensagem": "Olá [Nome]! 🎉\n\nDesejamos um Feliz Ano Novo repleto de realizações e conquistas!\n\nEste é o momento perfeito para renovar seu [Veículo] e começar 2025 com o pé direito. Temos oportunidades especiais e condições imperdíveis!\n\nQue tal agendar uma visita? Estamos à disposição para ajudar você a realizar seus sonhos! 🚗✨"
+    }
+  ],
+  "observacoes": {
+    "uso": "Estes templates servem como base para o prompt da IA. O sistema combina o template com informações específicas do cliente (nome, veículo, etc.) para gerar mensagens personalizadas.",
+    "personalizacao": "Cada template contém um prompt_base_ia que será usado pela OpenAI GPT-4 para gerar mensagens únicas para cada cliente.",
+    "periodos_especiais": "Alguns períodos como Black Friday, Dia das Mães e Dia dos Pais têm templates específicos além dos templates mensais.",
+    "restricoes": "Templates de dezembro e janeiro devem evitar envios em datas festivas (24-31 dez, 1 jan) para respeitar o período de recesso."
+  }
+}
