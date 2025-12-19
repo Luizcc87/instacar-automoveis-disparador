@@ -18,23 +18,23 @@ Certifique-se de que:
 4. Configure:
    - **Project name**: `instacar-campanhas`
    - **Production branch**: `main`
-   - **Build command**: (deixe vazio)
+   - **Build command**: `cd interface-web && npm install && npm run inject-env`
    - **Build output directory**: `interface-web`
 
-### 3. Configurar Credenciais
+### 3. Configurar Variáveis de Ambiente
 
-**Opção A: Arquivo config.js (Recomendado para desenvolvimento)**
+**⚠️ OBRIGATÓRIO:** Configure as variáveis de ambiente do Supabase:
 
-1. Crie `interface-web/config.js` localmente
-2. Copie de `config.example.js` e preencha
-3. **⚠️ NÃO commite este arquivo com credenciais reais!**
+1. Vá em **Settings** > **Environment Variables**
+2. Adicione:
+   - `SUPABASE_URL` = `https://seu-projeto-id.supabase.co`
+   - `SUPABASE_ANON_KEY` = `sua-anon-key-aqui`
 
-**Opção B: Configuração Manual (Recomendado para produção)**
+**⚠️ IMPORTANTE:**
 
-1. Deixe `config.js` vazio ou com placeholders
-2. Após deploy, acesse a interface
-3. Configure manualmente na interface web
-4. Credenciais serão salvas no localStorage
+- Use apenas a **Anon Key**, nunca a Service Role Key
+- As variáveis serão injetadas automaticamente durante o build via `inject-env.js`
+- Configure o **Build Command**: `cd interface-web && npm install && npm run inject-env`
 
 ### 4. Deploy Automático
 

@@ -22,6 +22,7 @@ Este projeto implementa um sistema completo de disparo escalonado de mensagens v
 - ✅ **Clientes Sem WhatsApp**: Registra corretamente números sem WhatsApp sem interromper o fluxo
 - ✅ **Sistema de Campanhas**: Múltiplas campanhas ao longo do ano com agendamento automático
 - ✅ **Interface Web de Gerenciamento**: Modal completo para visualizar, editar e gerenciar clientes
+- ✅ **Design System Moderno**: Interface padronizada com shadcn-ui e boas práticas de UX
 
 ## 🎯 Sistema de Campanhas (NOVO)
 
@@ -383,9 +384,42 @@ Tabela `instacar_erros_criticos` (Dead Letter Queue):
 - [Guia de Agendamento Cron](docs/campanhas/guia-agendamento-cron.md)
 - [Templates por Época](docs/campanhas/templates-epoca.json)
 
+### Primeiro Commit e Deploy
+
+#### Verificação de Segurança Antes do Commit
+
+Antes de fazer o primeiro commit, verifique se os arquivos sensíveis estão ignorados:
+
+```powershell
+git check-ignore .env
+git check-ignore interface-web\config.js
+git check-ignore fluxos-n8n\*.json
+git check-ignore interface-web\node_modules
+```
+
+**Arquivos que NÃO devem ser commitados:**
+
+- ❌ `.env` - Variáveis de ambiente
+- ❌ `interface-web/config.js` - Configuração real
+- ❌ `fluxos-n8n/*.json` - Fluxos N8N com credenciais
+- ❌ `interface-web/node_modules/` - Dependências
+
+#### Primeiro Commit
+
+```powershell
+# Inicializar Git (se ainda não foi feito)
+git init
+git remote add origin https://github.com/USERNAME/instacar-automoveis-disparador.git
+
+# Adicionar arquivos e fazer commit
+git add .
+git commit -m "feat: primeiro commit - sistema de disparo WhatsApp Instacar"
+git branch -M main
+git push -u origin main
+```
+
 ### Deploy
 
-- [Guia de Deploy](docs/deploy/README.md)
 - [Deploy no Cloudflare Pages](docs/deploy/cloudflare-pages.md) ⭐ (Gratuito, recomendado)
 
 ### Interface Web - Execução Local
@@ -467,6 +501,39 @@ O campo `status_whatsapp` pode ser utilizado para evitar chamadas desnecessária
 
 ## 🔧 Melhorias e Correções Recentes
 
+### Versão 2.2 (Dezembro 2025 - Melhorias de UI/UX)
+
+#### Melhorias de Interface
+
+1. **Design System shadcn-ui**
+
+   - ✅ Padronização completa de componentes (botões, inputs, cards, badges)
+   - ✅ Tipografia moderna com hierarquia clara
+   - ✅ Paleta de cores consistente (#111827, #6b7280, #e5e7eb)
+   - ✅ Espaçamento padronizado (múltiplos de 4px)
+   - ✅ Border radius consistente (8px, 12px, 16px)
+
+2. **Layout de Lista de Campanhas**
+
+   - ✅ Visualização seguindo padrão das instâncias Uazapi
+   - ✅ Layout horizontal com informações à esquerda e ações à direita
+   - ✅ Badges inline para status e período
+   - ✅ Meta informações em linha horizontal
+
+3. **Responsividade**
+
+   - ✅ Otimizações para mobile (até 639px)
+   - ✅ Layout adaptativo para tablet (640px - 991px)
+   - ✅ Layout completo para desktop (992px+)
+   - ✅ Ajustes para telas grandes (1200px+)
+
+4. **Correções de Bugs**
+   - ✅ Badge de status duplicado/contraditório corrigido
+   - ✅ Cores de texto nas estimativas corrigidas
+   - ✅ Alinhamento de botões em telas grandes ajustado
+
+📖 **Changelog completo**: [docs/interface-web/CHANGELOG-UI-UX-2025-12.md](docs/interface-web/CHANGELOG-UI-UX-2025-12.md)
+
 ### Versão 2.1 (2025-12-14)
 
 #### Correções Aplicadas
@@ -521,5 +588,5 @@ O campo `status_whatsapp` pode ser utilizado para evitar chamadas desnecessária
 
 ---
 
-**Última atualização**: 2025-12-14  
-**Versão**: 2.1 (Correções e Melhorias)
+**Última atualização**: Dezembro 2025  
+**Versão**: 2.2 (Melhorias de UI/UX e Design System)

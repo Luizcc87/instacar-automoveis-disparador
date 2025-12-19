@@ -16,84 +16,122 @@ A interface suporta upload de planilhas XLSX e CSV para importação em massa de
 
 ## 🚀 Iniciando em Desenvolvimento
 
-### Opção 1: Servidor HTTP Simples com Python (Recomendado)
+### Opção 1: Script Automatizado (Recomendado)
 
-Se você tem Python instalado:
+O script `start-dev.bat` (Windows) ou `start-dev.sh` (Linux/Mac) automatiza todo o processo:
 
 ```bash
-# Navegue até a pasta interface-web
 cd interface-web
+.\start-dev.bat  # Windows
+# ou
+./start-dev.sh   # Linux/Mac
+```
 
-# Python 3
+O script:
+
+1. ✅ Verifica se Node.js está instalado
+2. ✅ Injeta variáveis de ambiente do `.env` no HTML
+3. ✅ Inicia o servidor HTTP na porta 8000
+
+Acesse: http://localhost:8000
+
+### Opção 2: NPM Script
+
+```bash
+cd interface-web
+npm install  # Primeira vez apenas
+npm run dev  # Injeta variáveis e inicia servidor
+```
+
+### Opção 3: Servidor HTTP Simples
+
+Se você já executou `npm run inject-env` manualmente:
+
+```bash
+# Python
 python -m http.server 8000
 
-# Ou Python 2
-python -m SimpleHTTPServer 8000
+# Ou Node.js
+npx http-server . -p 8000
 ```
-
-Acesse: http://localhost:8000
-
-### Opção 2: Servidor HTTP com Node.js
-
-Se você tem Node.js instalado:
-
-```bash
-# Instale o http-server globalmente (uma vez)
-npm install -g http-server
-
-# Navegue até a pasta interface-web
-cd interface-web
-
-# Inicie o servidor
-http-server -p 8000
-```
-
-Acesse: http://localhost:8000
-
-### Opção 3: Abrir Diretamente no Navegador
-
-**⚠️ Nota**: Pode ter problemas com CORS do Supabase se abrir diretamente.
-
-1. Abra `index.html` diretamente no navegador
-2. Se houver erros de CORS, use uma das opções acima
-
-### Opção 4: VS Code Live Server (Recomendado para VS Code)
-
-1. Instale a extensão "Live Server" no VS Code
-2. Clique com botão direito em `index.html`
-3. Selecione "Open with Live Server"
 
 ## ⚙️ Configuração
 
-1. Abra a interface no navegador
-2. Configure a conexão com Supabase:
-   - **URL do Supabase**: `https://seu-projeto.supabase.co`
-   - **Anon Key**: Sua chave anon do Supabase (não a service key!)
-3. Clique em "Conectar"
+### Variáveis de Ambiente (Obrigatório)
 
-## 📝 Notas Importantes
+As credenciais do Supabase devem ser configuradas via **variáveis de ambiente**:
 
-- Use a **Anon Key** do Supabase, não a Service Key
+**Desenvolvimento Local:**
+
+1. Crie um arquivo `.env` na **raiz do projeto** (não na pasta interface-web):
+
+```bash
+SUPABASE_URL=https://seu-projeto-id.supabase.co
+SUPABASE_ANON_KEY=sua-anon-key-aqui
+```
+
+2. Execute o script de injeção antes de servir os arquivos:
+
+```bash
+npm run inject-env
+```
+
+3. Ou use o script de desenvolvimento que já faz isso automaticamente:
+
+```bash
+.\start-dev.bat  # Windows
+# ou
+npm run dev
+```
+
+**Produção (Cloudflare Pages):**
+
+Configure as variáveis em **Settings > Environment Variables** do Cloudflare Pages.
+
+### 📝 Notas Importantes
+
+- Use apenas a **Anon Key** do Supabase, nunca a Service Key
 - A Anon Key é segura para uso no frontend
-- As políticas RLS garantem que apenas usuários autenticados possam modificar campanhas
-- Para desenvolvimento local, você pode precisar configurar CORS no Supabase
+- As políticas RLS (Row Level Security) protegem os dados
+- **NUNCA** commite credenciais no código - use sempre variáveis de ambiente
 
 ## 🔧 Troubleshooting
 
+### Variáveis de Ambiente não encontradas
+
+**Erro:** "Variáveis de ambiente do Supabase não encontradas"
+
+**Solução:**
+
+1. Verifique se o arquivo `.env` existe na raiz do projeto com `SUPABASE_URL` e `SUPABASE_ANON_KEY`
+2. Execute `npm run inject-env` antes de iniciar o servidor
+3. Ou use `.\start-dev.bat` que faz isso automaticamente
+
 ### Erro de CORS
 
-Se você ver erros de CORS ao abrir diretamente o arquivo:
+Se você ver erros de CORS:
 
-1. Use um servidor HTTP (Opções 1, 2 ou 4 acima)
-2. Ou configure CORS no Supabase:
+1. Use um servidor HTTP (não abra o arquivo diretamente)
+2. Configure CORS no Supabase:
    - Vá em Settings > API
    - Adicione `http://localhost:8000` nas URLs permitidas
 
 ### Erro de Conexão
 
-- Verifique se a URL do Supabase está correta
+- Verifique se as variáveis de ambiente foram injetadas corretamente (veja o console do navegador)
 - Verifique se está usando a Anon Key (não Service Key)
 - Verifique se as políticas RLS estão configuradas corretamente
+
+## 🎨 Melhorias de UI/UX
+
+A interface foi atualizada com:
+
+- **Design System shadcn-ui**: Componentes padronizados e modernos
+- **Layout de Lista**: Visualização de campanhas seguindo padrão das instâncias Uazapi
+- **Responsividade**: Otimizado para mobile, tablet e desktop
+- **Acessibilidade**: Cores e contrastes melhorados
+
+📖 **Changelog completo**: [../docs/interface-web/CHANGELOG-UI-UX-2025-12.md](../docs/interface-web/CHANGELOG-UI-UX-2025-12.md)
 
 ## 🎯 Próximos Passos
 

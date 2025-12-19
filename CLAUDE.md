@@ -14,7 +14,7 @@ Este é um sistema automatizado de disparo de mensagens via WhatsApp para a Inst
 - **OpenAI GPT-4**: Geração de mensagens personalizadas
 - **Google Sheets**: Fonte de dados dos clientes (9 planilhas)
 
-**Versão Atual:** 2.1 (Dezembro 2025 - múltiplas correções críticas aplicadas)
+**Versão Atual:** 2.2 (Dezembro 2025 - melhorias de UI/UX e design system)
 
 ## Arquitetura
 
@@ -340,7 +340,21 @@ Veja [docs/n8n/sintaxe-n8n-variaveis.md](docs/n8n/sintaxe-n8n-variaveis.md) para
 5. **Formato de telefone:** Deve ser números brasileiros (55XX...) - sem suporte internacional
 6. **Limite de Google Sheets:** Configurado para máximo de 9 planilhas (pode ser estendido no array SHEET_IDS)
 
-## Mudanças Recentes (Versão 2.1 - 2025-12-14)
+## Mudanças Recentes
+
+### Versão 2.2 (Dezembro 2025 - Melhorias de UI/UX)
+
+Melhorias de interface e experiência do usuário:
+
+1. **Design System shadcn-ui**: Padronização completa de componentes (botões, inputs, cards, badges)
+2. **Layout de Lista**: Visualização de campanhas seguindo padrão das instâncias Uazapi
+3. **Responsividade**: Otimizações para mobile, tablet e desktop
+4. **Correções de Bugs**: Badge de status duplicado, cores de texto nas estimativas, alinhamento em telas grandes
+5. **Consistência Visual**: Paleta de cores, espaçamento e transições padronizados
+
+📖 **Changelog completo**: [docs/interface-web/CHANGELOG-UI-UX-2025-12.md](docs/interface-web/CHANGELOG-UI-UX-2025-12.md)
+
+### Versão 2.1 (2025-12-14 - Correções Críticas)
 
 Sete correções importantes aplicadas:
 

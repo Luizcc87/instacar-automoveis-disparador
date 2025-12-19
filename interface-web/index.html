@@ -21,11 +21,10 @@
     <!-- Variáveis de ambiente (injetadas em build time via inject-env.js) -->
     <script id="env-config">
       // Variáveis de ambiente injetadas em build time
-      // Este script é substituído pelo inject-env.js durante o build
-      // Configure SUPABASE_URL e SUPABASE_ANON_KEY no Cloudflare Pages ou arquivo .env
       window.ENV = {
-        SUPABASE_URL: "",
-        SUPABASE_ANON_KEY: "",
+        SUPABASE_URL: "https://rirrnhelyutzunwicmkg.supabase.co",
+        SUPABASE_ANON_KEY:
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpcnJuaGVseXV0enVud2ljbWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3OTIyMzAsImV4cCI6MjA2ODM2ODIzMH0.L2nJDqybzrl8sC4g5Oo9B92yfx2xfGAoTnZihCPtwg0",
       };
     </script>
     <!-- Configuração opcional (apenas para Uazapi e N8N) -->
@@ -49,33 +48,41 @@
         max-width: 1200px;
         margin: 0 auto;
         background: white;
-        border-radius: 12px;
+        border-radius: 16px;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        padding: 30px;
+        padding: 32px;
       }
 
       h1 {
-        color: #333;
-        margin-bottom: 10px;
-        font-size: 2em;
+        color: #111827;
+        margin-bottom: 12px;
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
       }
 
       .subtitle {
-        color: #666;
-        margin-bottom: 30px;
+        color: #6b7280;
+        margin-bottom: 32px;
+        font-size: 0.9375rem;
+        line-height: 1.5;
       }
 
       .config-section {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 30px;
+        background: #f9fafb;
+        padding: 24px;
+        border-radius: 12px;
+        margin-bottom: 32px;
+        border: 1px solid #e5e7eb;
       }
 
       .config-section h2 {
-        color: #333;
-        margin-bottom: 15px;
-        font-size: 1.3em;
+        color: #111827;
+        margin-bottom: 20px;
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
       }
 
       .form-group {
@@ -84,53 +91,86 @@
 
       label {
         display: block;
-        margin-bottom: 5px;
-        color: #555;
+        margin-bottom: 8px;
+        color: #374151;
         font-weight: 500;
+        font-size: 0.875rem;
+        line-height: 1.5;
       }
 
       input,
       textarea,
       select {
         width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 14px;
+        padding: 10px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.875rem;
         font-family: inherit;
+        background: white;
+        color: #111827;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      input:hover,
+      textarea:hover,
+      select:hover {
+        border-color: #9ca3af;
       }
 
       textarea {
         min-height: 100px;
         resize: vertical;
+        line-height: 1.5;
       }
 
       button {
         background: #667eea;
         color: white;
         border: none;
-        padding: 12px 24px;
-        border-radius: 6px;
+        padding: 10px 20px;
+        border-radius: 8px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 0.875rem;
         font-weight: 500;
-        transition: background 0.3s;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
       }
 
-      button:hover {
+      button:hover:not(:disabled) {
         background: #5568d3;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+      }
+
+      button:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       }
 
       button:disabled {
-        background: #ccc;
+        background: #d1d5db;
+        color: #9ca3af;
         cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
       }
 
       .btn-danger {
         background: #dc3545;
       }
 
-      .btn-danger:hover {
+      .btn-danger:hover:not(:disabled) {
         background: #c82333;
       }
 
@@ -138,7 +178,7 @@
         background: #28a745;
       }
 
-      .btn-success:hover {
+      .btn-success:hover:not(:disabled) {
         background: #218838;
       }
 
@@ -146,7 +186,7 @@
         background: #6c757d;
       }
 
-      .btn-secondary:hover {
+      .btn-secondary:hover:not(:disabled) {
         background: #5a6268;
       }
 
@@ -157,43 +197,301 @@
         margin-top: 20px;
       }
 
+      .campanhas-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 20px;
+      }
+
       .campanha-card {
         background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 20px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       .campanha-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        border-color: #d1d5db;
+      }
+
+      /* Estilos para visualização em lista - Baseado no layout de instâncias Uazapi */
+      .campanhas-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .campanhas-list .campanha-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: #f9fafb;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        min-height: auto;
+      }
+
+      /* Hover state melhorado */
+      .campanhas-list .campanha-card:hover {
+        background: #ffffff;
+        border-color: #9ca3af;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      /* Container de informações (lado esquerdo) */
+      .campanhas-list .campanha-card .campanha-info {
+        flex: 1 1 0;
+        min-width: 200px;
+      }
+
+      .campanhas-list .campanha-card .campanha-info h3 {
+        margin: 0 0 8px 0;
+        font-size: 1rem;
+        color: #111827;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .campanhas-list .campanha-card .campanha-info .badges {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 5px;
+        flex-wrap: wrap;
+      }
+
+      .campanhas-list .campanha-card .campanha-info .descricao {
+        color: #6b7280;
+        font-size: 0.75rem;
+        line-height: 1.4;
+        margin: 4px 0 0 0;
+      }
+
+      .campanhas-list .campanha-card .campanha-info .meta-info {
+        color: #6b7280;
+        font-size: 0.75rem;
+        margin-top: 4px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .campanhas-list .campanha-card .campanha-info .meta-info span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      /* Container de ações (lado direito) */
+      .campanhas-list .campanha-card .actions {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      /* Badges de status inline (como nas instâncias) */
+      .campanhas-list .campanha-card .status-badge-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .campanhas-list
+        .campanha-card
+        .campanha-status
+        .status-consolidado
+        .status-icon {
+        font-size: 16px;
+        line-height: 1;
+      }
+
+      .campanhas-list
+        .campanha-card
+        .campanha-status
+        .status-consolidado
+        .status-text {
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      /* Ajustes para background baseado em status */
+      .campanhas-list .campanha-card {
+        background: #f9fafb;
+      }
+
+      .campanhas-list .campanha-card:hover {
+        background: #ffffff;
+      }
+
+      /* Botões estilo instâncias Uazapi */
+      .campanhas-list .campanha-card .actions button {
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 1px solid transparent;
+      }
+
+      /* Ação primária (Disparar) com destaque visual melhorado */
+      .campanhas-list
+        .campanha-card
+        .actions
+        button.btn-success:not(:disabled) {
+        background: #28a745;
+        color: white;
+        border-color: #28a745;
+      }
+
+      .campanhas-list
+        .campanha-card
+        .actions
+        button.btn-success:not(:disabled):hover {
+        background: #218838;
+        border-color: #218838;
+      }
+
+      /* Botões desabilitados com feedback visual claro */
+      .campanhas-list .campanha-card .actions button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .campanhas-list .campanha-card .actions button:first-child {
+        margin-top: 0;
+      }
+
+      /* Efeito de ripple nos botões (opcional, moderno) */
+      .campanhas-list .campanha-card .actions button::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.3s, height 0.3s;
+      }
+
+      .campanhas-list .campanha-card .actions button:active::before {
+        width: 300px;
+        height: 300px;
+      }
+
+      /* Controle de visualização */
+      .view-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+        padding: 10px;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #e0e0e0;
+      }
+
+      .view-toggle-label {
+        font-size: 14px;
+        color: #666;
+        font-weight: 500;
+      }
+
+      .view-toggle-buttons {
+        display: flex;
+        gap: 5px;
+        background: #f0f0f0;
+        border-radius: 6px;
+        padding: 3px;
+      }
+
+      .view-toggle-btn {
+        background: transparent;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.2s;
+        color: #666;
+      }
+
+      .view-toggle-btn:hover {
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+      }
+
+      .view-toggle-btn.active {
+        background: #667eea;
+        color: white;
+        box-shadow: 0 1px 2px rgba(102, 126, 234, 0.2);
       }
 
       .campanha-card h3 {
-        color: #333;
-        margin-bottom: 10px;
-        font-size: 1.2em;
+        color: #111827;
+        margin-bottom: 12px;
+        font-size: 1.125rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        line-height: 1.4;
       }
 
       .campanha-card .periodo {
-        display: inline-block;
-        background: #667eea;
+        display: inline-flex;
+        align-items: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 12px;
-        margin-bottom: 10px;
+        padding: 6px 14px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 0.025em;
+        margin-bottom: 0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+      }
+
+      .campanha-card .periodo:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
       }
 
       .campanha-card .status {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 14px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
         margin-bottom: 10px;
+        border: 1px solid transparent;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
       }
 
       .status.ativa {
@@ -212,9 +510,10 @@
       }
 
       .campanha-card .descricao {
-        color: #666;
-        font-size: 14px;
-        margin-bottom: 15px;
+        color: #6b7280;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        margin-bottom: 16px;
         min-height: 40px;
       }
 
@@ -232,8 +531,8 @@
       }
 
       .alert {
-        padding: 15px 20px;
-        border-radius: 6px;
+        padding: 16px 20px;
+        border-radius: 12px;
         margin-bottom: 15px;
         font-weight: 500;
         position: fixed;
@@ -242,8 +541,10 @@
         z-index: 10000;
         min-width: 300px;
         max-width: 500px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        animation: slideIn 0.3s ease-out;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid transparent;
       }
 
       @keyframes slideIn {
@@ -258,15 +559,15 @@
       }
 
       .alert-success {
-        background: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #065f46;
+        border-color: #6ee7b7;
       }
 
       .alert-error {
-        background: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        color: #991b1b;
+        border-color: #fca5a5;
       }
 
       .loading {
@@ -294,23 +595,30 @@
 
       .modal-content {
         background: white;
-        padding: 30px;
-        border-radius: 12px;
+        padding: 32px;
+        border-radius: 16px;
         max-width: 600px;
         width: 90%;
         max-height: 90vh;
         overflow-y: auto;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
       }
 
       .modal-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #e5e7eb;
       }
 
       .modal-header h2 {
-        color: #333;
+        color: #111827;
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
       }
 
       .close {
@@ -318,10 +626,20 @@
         border: none;
         font-size: 24px;
         cursor: pointer;
-        color: #666;
-        padding: 0;
-        width: 30px;
-        height: 30px;
+        color: #6b7280;
+        padding: 4px;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .close:hover {
+        background: #f3f4f6;
+        color: #111827;
       }
 
       .form-row {
@@ -343,48 +661,64 @@
         width: 100%;
         border-collapse: collapse;
         margin-top: 20px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
       }
 
       .clientes-table th,
       .clientes-table td {
-        padding: 12px;
+        padding: 14px 16px;
         text-align: left;
-        border-bottom: 1px solid #e0e0e0;
+        border-bottom: 1px solid #e5e7eb;
       }
 
       .clientes-table th {
-        background: #f8f9fa;
+        background: #f9fafb;
         font-weight: 600;
-        color: #333;
+        color: #111827;
         position: sticky;
         top: 0;
+        font-size: 0.8125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
       }
 
       .clientes-table tr:hover {
-        background: #f8f9fa;
+        background: #f9fafb;
+      }
+
+      .clientes-table tr:last-child td {
+        border-bottom: none;
       }
 
       .badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 14px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: 1px solid transparent;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       }
 
       .badge-valid {
-        background: #d4edda;
-        color: #155724;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #065f46;
+        border-color: #6ee7b7;
       }
 
       .badge-invalid {
-        background: #f8d7da;
-        color: #721c24;
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        color: #991b1b;
+        border-color: #fca5a5;
       }
 
       .badge-unknown {
-        background: #fff3cd;
-        color: #856404;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        color: #92400e;
+        border-color: #fcd34d;
       }
 
       .action-buttons {
@@ -405,30 +739,33 @@
 
       .modal-tabs {
         display: flex;
-        gap: 10px;
-        border-bottom: 2px solid #e0e0e0;
-        margin-bottom: 20px;
+        gap: 8px;
+        border-bottom: 2px solid #e5e7eb;
+        margin-bottom: 24px;
       }
 
       .modal-tab {
-        padding: 10px 20px;
+        padding: 12px 20px;
         background: none;
         border: none;
         border-bottom: 3px solid transparent;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 0.875rem;
         font-weight: 500;
-        color: #666;
-        transition: all 0.3s;
+        color: #6b7280;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 8px 8px 0 0;
       }
 
       .modal-tab:hover {
-        color: #5568d3;
+        color: #667eea;
+        background: #f9fafb;
       }
 
       .modal-tab.active {
-        color: #5568d3;
-        border-bottom-color: #5568d3;
+        color: #667eea;
+        border-bottom-color: #667eea;
+        background: #f9fafb;
       }
 
       .modal-tab-content {
@@ -452,24 +789,33 @@
       }
 
       .cliente-field .field-value {
-        padding: 8px 12px;
-        background: #f8f9fa;
-        border-radius: 4px;
-        min-height: 20px;
-        color: #333;
+        padding: 10px 14px;
+        background: #f9fafb;
+        border-radius: 8px;
+        min-height: 24px;
+        color: #111827;
+        border: 1px solid #e5e7eb;
       }
 
       .cliente-field .field-input {
         width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
+        padding: 10px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        background: white;
+        color: #111827;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       .cliente-field .field-input:focus {
         outline: none;
-        border-color: #5568d3;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .cliente-field .field-input:hover {
+        border-color: #9ca3af;
       }
 
       .cliente-field.readonly {
@@ -484,22 +830,35 @@
       }
 
       .stat-card {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 6px;
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
         text-align: center;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
+      }
+
+      .stat-card:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transform: translateY(-1px);
       }
 
       .stat-card .stat-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #5568d3;
+        font-size: 1.875rem;
+        font-weight: 700;
+        color: #667eea;
+        line-height: 1.2;
       }
 
       .stat-card .stat-label {
-        font-size: 12px;
-        color: #666;
-        margin-top: 5px;
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 8px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
       }
 
       .observacoes-list {
@@ -509,11 +868,19 @@
       }
 
       .observacao-item {
-        background: #f8f9fa;
-        padding: 12px;
-        border-radius: 6px;
-        margin-bottom: 10px;
-        border-left: 3px solid #5568d3;
+        background: white;
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        border-left: 4px solid #667eea;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
+      }
+
+      .observacao-item:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
       }
 
       .observacao-item .observacao-texto {
@@ -529,42 +896,60 @@
       }
 
       .observacao-form {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 6px;
+        background: #f9fafb;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
       }
 
       .observacao-form textarea {
         width: 100%;
         min-height: 80px;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
+        padding: 10px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.875rem;
         resize: vertical;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .observacao-form textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
       }
 
       .historico-envios-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13px;
+        font-size: 0.8125rem;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
       }
 
       .historico-envios-table th,
       .historico-envios-table td {
-        padding: 10px;
+        padding: 12px 16px;
         text-align: left;
-        border-bottom: 1px solid #e0e0e0;
+        border-bottom: 1px solid #e5e7eb;
       }
 
       .historico-envios-table th {
-        background: #f8f9fa;
+        background: #f9fafb;
         font-weight: 600;
-        color: #333;
+        color: #111827;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
       }
 
       .historico-envios-table tr:hover {
-        background: #f8f9fa;
+        background: #f9fafb;
+      }
+
+      .historico-envios-table tr:last-child td {
+        border-bottom: none;
       }
 
       .veiculos-list {
@@ -572,13 +957,22 @@
       }
 
       .veiculo-item {
-        background: #f8f9fa;
-        padding: 12px;
-        border-radius: 6px;
-        margin-bottom: 10px;
+        background: white;
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 12px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
+      }
+
+      .veiculo-item:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transform: translateY(-1px);
       }
 
       .veiculo-item .veiculo-info {
@@ -596,10 +990,11 @@
       }
 
       .veiculo-form {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 6px;
-        margin-top: 15px;
+        background: #f9fafb;
+        padding: 20px;
+        border-radius: 12px;
+        margin-top: 16px;
+        border: 1px solid #e5e7eb;
       }
 
       .veiculo-form-row {
@@ -623,14 +1018,18 @@
         color: white;
         border: none;
         padding: 10px 20px;
-        border-radius: 6px;
+        border-radius: 8px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 0.875rem;
         font-weight: 500;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       }
 
-      .btn-danger:hover {
+      .btn-danger:hover:not(:disabled) {
         background: #c82333;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
       }
 
       .btn-warning {
@@ -638,14 +1037,18 @@
         color: #333;
         border: none;
         padding: 10px 20px;
-        border-radius: 6px;
+        border-radius: 8px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 0.875rem;
         font-weight: 500;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       }
 
-      .btn-warning:hover {
+      .btn-warning:hover:not(:disabled) {
         background: #e0a800;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
       }
 
       .modo-edicao .field-value {
@@ -664,13 +1067,61 @@
         display: none;
       }
 
-      @media (max-width: 768px) {
+      /* Breakpoints seguindo padrões da indústria (mobile-first approach) */
+      /* Mobile: até 639px */
+      @media (max-width: 639px) {
         .form-row {
           grid-template-columns: 1fr;
         }
 
         .campanhas-grid {
           grid-template-columns: 1fr;
+          gap: 16px;
+        }
+
+        /* Layout vertical otimizado para mobile (touch-friendly) */
+        .campanhas-list .campanha-card {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 12px;
+        }
+
+        .campanhas-list .campanha-card .campanha-info {
+          min-width: auto;
+        }
+
+        .campanhas-list .campanha-card .campanha-info .meta-info {
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        /* Botões em linha para melhor uso do espaço em mobile */
+        .campanhas-list .campanha-card .actions {
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .campanhas-list .campanha-card .actions button {
+          flex: 1 1 calc(50% - 3px);
+          min-width: 120px;
+          padding: 8px 10px;
+          font-size: 11px;
+        }
+
+        /* Ação primária ocupa largura total em mobile */
+        .campanhas-list .campanha-card .actions button.btn-success {
+          flex: 1 1 100%;
+        }
+
+        .view-toggle {
+          flex-direction: column;
+          align-items: stretch;
+          padding: 12px;
+        }
+
+        .view-toggle-buttons {
+          width: 100%;
+          justify-content: center;
         }
 
         .clientes-table {
@@ -679,7 +1130,80 @@
 
         .clientes-table th,
         .clientes-table td {
-          padding: 8px;
+          padding: 10px 8px;
+        }
+      }
+
+      /* Tablet: 640px - 991px */
+      @media (min-width: 640px) and (max-width: 991px) {
+        .campanhas-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 18px;
+        }
+
+        /* Layout adaptativo para tablet */
+        .campanhas-list .campanha-card {
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+
+        .campanhas-list .campanha-card .campanha-info {
+          flex: 1 1 60%;
+          min-width: 300px;
+        }
+
+        .campanhas-list .campanha-card .actions {
+          flex: 1 1 auto;
+          justify-content: flex-end;
+        }
+
+        .campanhas-list .campanha-card .actions button {
+          flex: 0 1 auto;
+          min-width: 100px;
+        }
+      }
+
+      /* Desktop: 992px+ */
+      @media (min-width: 992px) {
+        .campanhas-grid {
+          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+          gap: 24px;
+        }
+
+        /* Layout completo em desktop */
+        .campanhas-list .campanha-card {
+          flex-wrap: nowrap;
+          align-items: flex-start;
+        }
+
+        .campanhas-list .campanha-card .campanha-info {
+          flex: 1 1 0;
+          min-width: 300px;
+          max-width: 70%;
+        }
+
+        .campanhas-list .campanha-card .actions {
+          flex: 0 0 auto;
+          flex-shrink: 0;
+          align-items: center;
+          justify-content: flex-end;
+          margin-left: 16px;
+        }
+      }
+
+      /* Large Desktop: 1200px+ - Otimizações para telas grandes */
+      @media (min-width: 1200px) {
+        .campanhas-list .campanha-card {
+          padding: 12px;
+          gap: 16px;
+        }
+
+        .campanhas-list .campanha-card .campanha-info {
+          max-width: 75%;
+        }
+
+        .campanhas-list .campanha-card .actions {
+          margin-left: 20px;
         }
       }
     </style>
@@ -699,7 +1223,39 @@
       </div>
 
       <div class="config-section">
-        <h2>📋 Campanhas Existentes</h2>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+          "
+        >
+          <h2 style="margin: 0">📋 Campanhas Existentes</h2>
+          <div class="view-toggle">
+            <span class="view-toggle-label">Visualização:</span>
+            <div class="view-toggle-buttons">
+              <button
+                class="view-toggle-btn active"
+                id="viewToggleGrid"
+                onclick="alternarVisualizacaoCampanhas('grid')"
+                title="Visualização em blocos"
+                aria-label="Visualização em blocos"
+              >
+                ⬜
+              </button>
+              <button
+                class="view-toggle-btn"
+                id="viewToggleList"
+                onclick="alternarVisualizacaoCampanhas('list')"
+                title="Visualização em lista"
+                aria-label="Visualização em lista"
+              >
+                ☰
+              </button>
+            </div>
+          </div>
+        </div>
         <div id="campanhasContainer" class="loading">
           <p>Carregando campanhas...</p>
         </div>
@@ -984,39 +1540,6 @@
           <button class="close" onclick="fecharModalConfiguracoes()">
             &times;
           </button>
-        </div>
-
-        <div style="margin-bottom: 20px">
-          <h3 style="color: #333; margin-bottom: 15px; font-size: 1.1em">
-            Supabase
-          </h3>
-          <div
-            style="
-              padding: 15px;
-              background: #e7f3ff;
-              border-radius: 6px;
-              border: 1px solid #b3d9ff;
-            "
-          >
-            <p style="margin: 0; color: #0066cc; font-size: 14px">
-              <strong>ℹ️ Configuração via Variáveis de Ambiente</strong><br />
-              As credenciais do Supabase são configuradas via variáveis de
-              ambiente:
-            </p>
-            <ul style="margin: 10px 0 0 20px; color: #0066cc; font-size: 13px">
-              <li>
-                <strong>Dev:</strong> Configure no arquivo <code>.env</code>
-              </li>
-              <li>
-                <strong>Produção (Cloudflare Pages):</strong> Configure em
-                Settings > Environment Variables
-              </li>
-            </ul>
-            <p style="margin: 10px 0 0 0; color: #0066cc; font-size: 13px">
-              Variáveis necessárias: <code>SUPABASE_URL</code> e
-              <code>SUPABASE_ANON_KEY</code>
-            </p>
-          </div>
         </div>
 
         <div

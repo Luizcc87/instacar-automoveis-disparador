@@ -1,14 +1,19 @@
 /**
  * Script para injetar variáveis de ambiente no HTML
  *
+ * ⚠️ SEGURANÇA: Este script injeta credenciais no HTML. Nunca commite o HTML após execução.
+ * O arquivo index.html deve ser versionado apenas com valores vazios no script env-config.
+ *
  * Para Cloudflare Pages:
  * - Configure variáveis em Settings > Environment Variables
- * - Configure Build Command: cd interface-web && node inject-env.js
+ * - Configure Build Command: cd interface-web && npm install && npm run inject-env
  *
  * Para desenvolvimento local:
- * - Use arquivo .env na raiz do projeto
- * - Execute: node interface-web/inject-env.js antes de servir os arquivos
- * - Ou use: npm run inject-env (na pasta interface-web)
+ * - Use arquivo .env na raiz do projeto (não na pasta interface-web)
+ * - Execute: npm run inject-env antes de servir os arquivos
+ * - Ou use: .\start-dev.bat que faz isso automaticamente
+ *
+ * Documentação completa: README.md
  */
 
 const fs = require("fs");

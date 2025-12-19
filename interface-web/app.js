@@ -1156,6 +1156,33 @@
     }, 8000);
   }
 
+  // Variável para armazenar modo de visualização das campanhas
+  let modoVisualizacaoCampanhas =
+    localStorage.getItem("campanhasViewMode") || "grid";
+
+  // Alternar visualização entre grid e lista
+  function alternarVisualizacaoCampanhas(modo) {
+    modoVisualizacaoCampanhas = modo;
+    localStorage.setItem("campanhasViewMode", modo);
+
+    // Atualizar botões de toggle
+    const btnGrid = document.getElementById("viewToggleGrid");
+    const btnList = document.getElementById("viewToggleList");
+
+    if (btnGrid && btnList) {
+      if (modo === "grid") {
+        btnGrid.classList.add("active");
+        btnList.classList.remove("active");
+      } else {
+        btnGrid.classList.remove("active");
+        btnList.classList.add("active");
+      }
+    }
+
+    // Recarregar campanhas com o novo modo
+    carregarCampanhas();
+  }
+
   // Carregar campanhas
   async function carregarCampanhas() {
     if (!supabaseClient) {
@@ -1183,15 +1210,32 @@
       }
 
       container.innerHTML = "";
-      const grid = document.createElement("div");
-      grid.className = "campanhas-grid";
+      const wrapper = document.createElement("div");
+      wrapper.className =
+        modoVisualizacaoCampanhas === "grid"
+          ? "campanhas-grid"
+          : "campanhas-list";
 
       data.forEach((campanha) => {
-        const card = criarCardCampanha(campanha);
-        grid.appendChild(card);
+        const card = criarCardCampanha(campanha, modoVisualizacaoCampanhas);
+        wrapper.appendChild(card);
       });
 
-      container.appendChild(grid);
+      container.appendChild(wrapper);
+
+      // Garantir que os botões de toggle estão no estado correto
+      const btnGrid = document.getElementById("viewToggleGrid");
+      const btnList = document.getElementById("viewToggleList");
+
+      if (btnGrid && btnList) {
+        if (modoVisualizacaoCampanhas === "grid") {
+          btnGrid.classList.add("active");
+          btnList.classList.remove("active");
+        } else {
+          btnGrid.classList.remove("active");
+          btnList.classList.add("active");
+        }
+      }
     } catch (error) {
       container.innerHTML = `<p style="color: red;">Erro ao carregar campanhas: ${error.message}</p>`;
       console.error(error);
@@ -1199,71 +1243,148 @@
   }
 
   // Criar card de campanha
-  function criarCardCampanha(campanha) {
+  function criarCardCampanha(campanha, modo = "grid") {
     const card = document.createElement("div");
     card.className = "campanha-card";
 
     const statusClass = campanha.status || "pausada";
+    const periodo = campanha.periodo_ano || "N/A";
+    const status = campanha.status || "pausada";
+    const descricao = campanha.descricao || "Sem descrição";
+    const limiteDia = campanha.limite_envios_dia || 200;
+    const intervaloMinimo = campanha.intervalo_minimo_dias || 30;
+    const tempoEnvios = campanha.intervalo_envios_segundos
+      ? `${campanha.intervalo_envios_segundos}s (${(
+          campanha.intervalo_envios_segundos / 60
+        ).toFixed(1)} min)`
+      : "130-150s (aleatorizado)";
+    const prioridade = campanha.prioridade || 5;
+    const dataInicio = campanha.data_inicio
+      ? new Date(campanha.data_inicio).toLocaleDateString("pt-BR")
+      : null;
+    const dataFim = campanha.data_fim
+      ? new Date(campanha.data_fim).toLocaleDateString("pt-BR")
+      : null;
+    const podeDisparar = campanha.ativo && campanha.status === "ativa";
 
-    card.innerHTML = `
-        <h3>${campanha.nome || "Sem nome"}</h3>
-        <span class="periodo">${campanha.periodo_ano || "N/A"}</span>
-        <span class="status ${statusClass}">${
-      campanha.status || "pausada"
-    }</span>
-        <p class="descricao">${campanha.descricao || "Sem descrição"}</p>
-        <div style="margin-bottom: 10px; font-size: 12px; color: #666;">
-            <div>Limite/dia: ${campanha.limite_envios_dia || 200}</div>
-            <div>Intervalo mínimo: ${
-              campanha.intervalo_minimo_dias || 30
-            } dias</div>
-            <div>⏱️ Tempo entre envios: ${
-              campanha.intervalo_envios_segundos
-                ? `${campanha.intervalo_envios_segundos}s (${(
-                    campanha.intervalo_envios_segundos / 60
-                  ).toFixed(1)} min)`
-                : "130-150s (aleatorizado)"
-            }</div>
-            <div>📊 Prioridade: ${campanha.prioridade || 5}/10</div>
+    if (modo === "list") {
+      // Visualização em lista (seguindo padrão das instâncias Uazapi)
+      // Badge "Ativa/Inativa" só aparece quando status é "ativa" ou não definido
+      // Para status específicos (pausada, concluida, cancelada), não mostrar badge duplicado
+      const statusBadge =
+        statusClass === "pausada" ||
+        statusClass === "concluida" ||
+        statusClass === "cancelada"
+          ? "" // Não mostrar badge "Ativa/Inativa" quando há status específico
+          : campanha.ativo
+          ? '<span style="background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500">✅ Ativa</span>'
+          : '<span style="background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500">❌ Inativa</span>';
+
+      const statusCampanhaBadge =
+        statusClass === "ativa" && campanha.ativo
+          ? '<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500">▶ Em execução</span>'
+          : statusClass === "pausada"
+          ? '<span style="background: #fed7aa; color: #9a3412; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500">⏸ Pausada</span>'
+          : statusClass === "concluida"
+          ? '<span style="background: #ccfbf1; color: #065f46; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500">✓ Concluída</span>'
+          : statusClass === "cancelada"
+          ? '<span style="background: #f9fafb; color: #6b7280; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500">✗ Cancelada</span>'
+          : "";
+
+      card.innerHTML = `
+        <div class="campanha-info">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap">
+            <strong>${campanha.nome || "Sem nome"}</strong>
+            <span class="periodo">${periodo}</span>
+            ${statusBadge}
+            ${statusCampanhaBadge}
+          </div>
+          <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px">
+            ${descricao !== "Sem descrição" ? descricao : "Sem descrição"}
+          </div>
+          <div class="meta-info">
+            <span>📊 Limite/dia: <strong>${limiteDia}</strong></span>
+            <span>⏱️ Intervalo: <strong>${intervaloMinimo} dias</strong></span>
+            <span>⏱️ Tempo: <strong>${tempoEnvios}</strong></span>
+            <span>📈 Prioridade: <strong>${prioridade}/10</strong></span>
             ${
-              campanha.data_inicio
-                ? `<div>Início: ${new Date(
-                    campanha.data_inicio
-                  ).toLocaleDateString("pt-BR")}</div>`
+              dataInicio
+                ? `<span>📅 Início: <strong>${dataInicio}</strong></span>`
                 : ""
             }
-            ${
-              campanha.data_fim
-                ? `<div>Fim: ${new Date(campanha.data_fim).toLocaleDateString(
-                    "pt-BR"
-                  )}</div>`
-                : ""
-            }
+            ${dataFim ? `<span>📅 Fim: <strong>${dataFim}</strong></span>` : ""}
+          </div>
         </div>
         <div class="actions">
-            <button onclick="editarCampanha('${campanha.id}')">Editar</button>
-            <button onclick="toggleAtivo('${
-              campanha.id
-            }', ${!campanha.ativo})" class="${
-      campanha.ativo ? "btn-danger" : "btn-success"
-    }">
-                ${campanha.ativo ? "Desativar" : "Ativar"}
-            </button>
-            <button onclick="dispararCampanha('${
-              campanha.id
-            }')" class="btn-success" ${
-      !campanha.ativo || campanha.status !== "ativa" ? "disabled" : ""
-    }>
-                Disparar
-            </button>
-            <button onclick="verExecucoes('${
-              campanha.id
-            }')" class="btn-secondary">Histórico</button>
-            <button onclick="abrirDashboardCampanha('${
-              campanha.id
-            }')" class="btn-secondary">📊 Dashboard</button>
+          <button onclick="editarCampanha('${
+            campanha.id
+          }')" class="btn-secondary" style="padding: 6px 12px; font-size: 12px">
+            ✏️ Editar
+          </button>
+          <button onclick="toggleAtivo('${
+            campanha.id
+          }', ${!campanha.ativo})" class="${
+        campanha.ativo ? "btn-danger" : "btn-success"
+      }" style="padding: 6px 12px; font-size: 12px">
+            ${campanha.ativo ? "⏸️ Desativar" : "▶️ Ativar"}
+          </button>
+          <button onclick="dispararCampanha('${
+            campanha.id
+          }')" class="btn-success" style="padding: 6px 12px; font-size: 12px; background: #28a745; color: white; border-color: #28a745" ${
+        !podeDisparar ? "disabled" : ""
+      }>
+            🚀 Disparar
+          </button>
+          <button onclick="verExecucoes('${
+            campanha.id
+          }')" class="btn-secondary" style="padding: 6px 12px; font-size: 12px">
+            📋 Histórico
+          </button>
+          <button onclick="abrirDashboardCampanha('${
+            campanha.id
+          }')" class="btn-secondary" style="padding: 6px 12px; font-size: 12px">
+            📊 Dashboard
+          </button>
         </div>
-    `;
+      `;
+    } else {
+      // Visualização em blocos (grid - layout original)
+      card.innerHTML = `
+        <h3>${campanha.nome || "Sem nome"}</h3>
+        <span class="periodo">${periodo}</span>
+        <span class="status ${statusClass}">${status}</span>
+        <p class="descricao">${descricao}</p>
+        <div style="margin-bottom: 10px; font-size: 12px; color: #666;">
+          <div>Limite/dia: ${limiteDia}</div>
+          <div>Intervalo mínimo: ${intervaloMinimo} dias</div>
+          <div>⏱️ Tempo entre envios: ${tempoEnvios}</div>
+          <div>📊 Prioridade: ${prioridade}/10</div>
+          ${dataInicio ? `<div>Início: ${dataInicio}</div>` : ""}
+          ${dataFim ? `<div>Fim: ${dataFim}</div>` : ""}
+        </div>
+        <div class="actions">
+          <button onclick="editarCampanha('${campanha.id}')">Editar</button>
+          <button onclick="toggleAtivo('${
+            campanha.id
+          }', ${!campanha.ativo})" class="${
+        campanha.ativo ? "btn-danger" : "btn-success"
+      }">
+            ${campanha.ativo ? "Desativar" : "Ativar"}
+          </button>
+          <button onclick="dispararCampanha('${
+            campanha.id
+          }')" class="btn-success" ${!podeDisparar ? "disabled" : ""}>
+            Disparar
+          </button>
+          <button onclick="verExecucoes('${
+            campanha.id
+          }')" class="btn-secondary">Histórico</button>
+          <button onclick="abrirDashboardCampanha('${
+            campanha.id
+          }')" class="btn-secondary">📊 Dashboard</button>
+        </div>
+      `;
+    }
 
     return card;
   }
@@ -2664,6 +2785,7 @@
   window.verExecucoes = verExecucoes;
   window.abrirDashboardCampanha = abrirDashboardCampanha;
   window.fecharModalDashboard = fecharModalDashboard;
+  window.alternarVisualizacaoCampanhas = alternarVisualizacaoCampanhas;
 
   // Funções de configurações
   window.abrirModalConfiguracoes = abrirModalConfiguracoes;
@@ -2729,6 +2851,24 @@
 
     // Inicializar formulário
     inicializarFormulario();
+
+    // Inicializar preferência de visualização de campanhas
+    const modoSalvo = localStorage.getItem("campanhasViewMode") || "grid";
+    modoVisualizacaoCampanhas = modoSalvo;
+    // Atualizar botões de toggle se existirem
+    setTimeout(() => {
+      const btnGrid = document.getElementById("viewToggleGrid");
+      const btnList = document.getElementById("viewToggleList");
+      if (btnGrid && btnList) {
+        if (modoSalvo === "grid") {
+          btnGrid.classList.add("active");
+          btnList.classList.remove("active");
+        } else {
+          btnGrid.classList.remove("active");
+          btnList.classList.add("active");
+        }
+      }
+    }, 100);
 
     // Configurar event listeners para atualizar estimativas
     const limiteInput = document.getElementById("limite_envios_dia");
@@ -2929,29 +3069,29 @@
     estimativasDiv.innerHTML = `
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
         <div>
-          <strong>⏱️ Tempo Entre Envios:</strong><br>
+          <strong style="color: #111827; font-weight: 600;">⏱️ Tempo Entre Envios:</strong><br>
           <span style="color: #2196F3;">${estimativas.tempoEntreEnvios}</span>
         </div>
         <div>
-          <strong>📅 Dias Necessários:</strong><br>
+          <strong style="color: #111827; font-weight: 600;">📅 Dias Necessários:</strong><br>
           <span style="color: #2196F3;">${estimativas.diasNecessarios} dias úteis</span>
         </div>
         <div>
-          <strong>⏰ Tempo por Dia:</strong><br>
+          <strong style="color: #111827; font-weight: 600;">⏰ Tempo por Dia:</strong><br>
           <span style="color: #2196F3;">${estimativas.tempoPorDia}</span>
         </div>
         <div>
-          <strong>🕐 Horário Estimado:</strong><br>
+          <strong style="color: #111827; font-weight: 600;">🕐 Horário Estimado:</strong><br>
           <span style="color: #2196F3;">${estimativas.horarioInicio} - ${estimativas.horarioFimEstimado}</span>
         </div>
       </div>
-      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-        <strong>⏳ Tempo Total Estimado:</strong><br>
-        <span style="color: #4CAF50; font-size: 16px;">${estimativas.totalTempo}</span>
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+        <strong style="color: #111827; font-weight: 600;">⏳ Tempo Total Estimado:</strong><br>
+        <span style="color: #4CAF50; font-size: 16px; font-weight: 600;">${estimativas.totalTempo}</span>
       </div>
-      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd; background: #f0f7ff; padding: 10px; border-radius: 4px;">
-        <strong>📦 Processamento em Lotes:</strong><br>
-        <span style="color: #667eea;">${totalLotes} lotes de ${tamanhoLote} clientes = ${diasNecessariosLotes} dias úteis</span>
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb; background: #f0f7ff; padding: 10px; border-radius: 8px;">
+        <strong style="color: #111827; font-weight: 600;">📦 Processamento em Lotes:</strong><br>
+        <span style="color: #667eea; font-weight: 500;">${totalLotes} lotes de ${tamanhoLote} clientes = ${diasNecessariosLotes} dias úteis</span>
       </div>
     `;
 

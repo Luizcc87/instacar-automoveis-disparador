@@ -88,6 +88,10 @@ config.json
 settings.json
 interface-web/config.js
 
+# HTML com variáveis injetadas (pode conter credenciais após build)
+# Mantenha apenas o template limpo versionado
+# interface-web/index.html  # Descomente se quiser ignorar após build
+
 # ----------------------------------------------------------------------------
 # Node.js (se houver scripts Node)
 # ----------------------------------------------------------------------------
