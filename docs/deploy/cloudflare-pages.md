@@ -4,16 +4,45 @@ Guia para fazer deploy da interface web no Cloudflare Pages (plano gratuito).
 
 ## 🚀 Configuração Rápida
 
+### ⚠️ IMPORTANTE: Workers vs Pages
+
+**Cloudflare unificou Workers e Pages na mesma interface**, mas são produtos diferentes:
+
+- **Workers**: Para código serverless (JavaScript/TypeScript) - ❌ NÃO é isso que você precisa
+- **Pages**: Para sites estáticos (HTML/CSS/JS) - ✅ É isso que você precisa
+
+**Como identificar:**
+
+- ✅ URL correta: `https://seu-projeto.pages.dev`
+- ❌ URL incorreta: `https://seu-projeto.workers.dev`
+
 ### 1. Conectar Repositório
 
+**Opção A: Link Direto (Recomendado)**
+
+1. Acesse diretamente: `https://dash.cloudflare.com/[SEU-ACCOUNT-ID]/workers-and-pages/create/pages`
+   - Substitua `[SEU-ACCOUNT-ID]` pelo seu Account ID (encontrado em Account Details no dashboard)
+   - Exemplo: `https://dash.cloudflare.com/2827ca852700d85f4b457965785cab46/workers-and-pages/create/pages`
+
+**Opção B: Pelo Dashboard**
+
 1. Acesse [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Vá em **Pages** > **Create a project**
-3. Conecte seu repositório GitHub
-4. Configure:
+2. No menu lateral, procure por **"Workers e Pages"** ou **"Pages"**
+3. Clique em **"Criar aplicativo"** ou **"Create a project"**
+4. **IMPORTANTE**: Se aparecer um modal "Ship something new" com opções de Workers:
+
+   - Procure na parte inferior da página pelo link específico de **Pages**
+   - O link será algo como: `https://dash.cloudflare.com/[account-id]/workers-and-pages/create/pages`
+   - Clique nesse link para ir direto para a criação de Pages
+
+5. Conecte seu repositório GitHub/GitLab/Bitbucket
+6. Configure:
    - **Project name:** `instacar-campanhas`
    - **Production branch:** `main`
+   - **Framework preset:** `None` (ou `Other`)
    - **Build command:** `cd interface-web && npm install && npm run inject-env`
    - **Build output directory:** `interface-web`
+   - **Root directory:** `/` (raiz do repositório)
 
 ### 2. Variáveis de Ambiente
 

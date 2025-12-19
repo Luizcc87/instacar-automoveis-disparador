@@ -1,4 +1,7 @@
 # Redirects para Cloudflare Pages
-# Redireciona todas as rotas para index.html (SPA behavior)
-
-/*    /index.html   200
+# 
+# NOTA: Para SPAs no Cloudflare Pages, o comportamento padrão já serve
+# o index.html automaticamente para rotas não encontradas.
+# 
+# Este arquivo está vazio intencionalmente - o Cloudflare Pages
+# já trata SPAs corretamente sem necessidade de redirects explícitos.
