@@ -42,9 +42,11 @@ O Cloudflare Pages precisa apenas dos arquivos estáticos da pasta `interface-we
 ## 🔐 Segurança
 
 1. **NUNCA** commite o arquivo `config.js` com credenciais reais
-2. Use apenas a **Anon Key** do Supabase no frontend
-3. As políticas RLS (Row Level Security) do Supabase protegem os dados
-4. Se acidentalmente commitar credenciais, rotacione as chaves imediatamente
+2. **CRÍTICO**: **NUNCA** commite `index.html` após executar `inject-env.js` localmente - sempre mantenha valores vazios no script `env-config` antes de commitar
+3. Use apenas a **Anon Key** do Supabase no frontend
+4. As políticas RLS (Row Level Security) do Supabase protegem os dados
+5. Se acidentalmente commitar credenciais, rotacione as chaves imediatamente
+6. O script `inject-env.js` injeta credenciais no HTML - isso é seguro apenas durante o build no Cloudflare Pages
 
 ## 🐛 Troubleshooting
 

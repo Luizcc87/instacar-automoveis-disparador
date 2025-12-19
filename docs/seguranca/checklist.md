@@ -6,6 +6,8 @@ Use este checklist antes de colocar o sistema em produção.
 
 - [ ] Todos os tokens estão em variáveis de ambiente (N8N)
 - [ ] Nenhum token está hardcoded no código
+- [ ] **CRÍTICO**: `index.html` não contém credenciais hardcoded (valores vazios no `env-config`)
+- [ ] **CRÍTICO**: `inject-env.js` é executado apenas localmente ou durante build (nunca commite HTML com credenciais)
 - [ ] Tokens expostos foram rotacionados (se houver)
 - [ ] `.gitignore` está configurado e funcionando
 - [ ] Nenhum arquivo `.env` está versionado
@@ -133,17 +135,19 @@ Após colocar em produção:
 
 ---
 
-**Data da verificação**: _______________  
-**Verificado por**: _______________  
+**Data da verificação**: ******\_\_\_******  
+**Verificado por**: ******\_\_\_******  
 **Status**: ⬜ Aprovado | ⬜ Pendente | ⬜ Rejeitado
 
 **Observações**:
-_________________________________________________
-_________________________________________________
-_________________________________________________
+
+---
+
+---
+
+---
 
 ---
 
 **Última atualização**: 2025-01-24  
 **Revisar antes de cada deploy em produção**
-

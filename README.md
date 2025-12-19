@@ -22,6 +22,7 @@ Este projeto implementa um sistema completo de disparo escalonado de mensagens v
 - ✅ **Clientes Sem WhatsApp**: Registra corretamente números sem WhatsApp sem interromper o fluxo
 - ✅ **Sistema de Campanhas**: Múltiplas campanhas ao longo do ano com agendamento automático
 - ✅ **Interface Web de Gerenciamento**: Modal completo para visualizar, editar e gerenciar clientes
+- ✅ **Design System Moderno**: Interface atualizada com padrões shadcn-ui e layout responsivo
 - ✅ **Design System Moderno**: Interface padronizada com shadcn-ui e boas práticas de UX
 
 ## 🎯 Sistema de Campanhas (NOVO)
@@ -427,18 +428,18 @@ git push -u origin main
 Para testar a interface web localmente:
 
 ```bash
-# Opção 1: Script batch (Windows)
+# Opção 1: Script automatizado (Recomendado)
 cd interface-web
-.\start-dev.bat
+.\start-dev.bat  # Windows
+# ou
+./start-dev.sh   # Linux/Mac
 
-# Opção 2: Python
-cd interface-web
-python -m http.server 8000
-
-# Opção 3: Node.js http-server
-cd interface-web
-http-server -p 8000
+# O script automaticamente:
+# 1. Injeta variáveis de ambiente do .env no HTML
+# 2. Inicia o servidor HTTP na porta 8000
 ```
+
+**⚠️ IMPORTANTE:** Configure o arquivo `.env` na raiz do projeto com `SUPABASE_URL` e `SUPABASE_ANON_KEY` antes de executar.
 
 Acesse: http://localhost:8000
 
