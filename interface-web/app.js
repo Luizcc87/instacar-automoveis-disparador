@@ -1470,8 +1470,21 @@
           }
         }
       } else {
-        // Para outros campos, procurar label pelo atributo for
+        // Tentar primeiro pelo atributo for
         label = document.querySelector(`label[for="${campoId}"]`);
+        
+        // Se não encontrou, procurar no mesmo form-group (estrutura comum no HTML)
+        if (!label) {
+          const formGroup = input.closest(".form-group");
+          if (formGroup) {
+            label = formGroup.querySelector("label");
+          }
+        }
+        
+        // Se ainda não encontrou, procurar label que contenha o input
+        if (!label) {
+          label = input.closest("label");
+        }
       }
 
       if (label && !label.querySelector(".help-icon")) {
