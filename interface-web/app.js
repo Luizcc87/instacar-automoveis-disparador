@@ -4,6 +4,7 @@
 
   // Verificar se já foi carregado - usar nome único para evitar conflitos
   if (window.instacarCampanhasAppLoaded) {
+    // Log de aviso sempre visível (problema de carregamento duplo)
     console.warn("app.js já foi carregado. Ignorando segunda carga.");
     return;
   }
@@ -13,9 +14,37 @@
   let supabaseClient = null;
   let supabaseConfig = null; // Armazenar configuração atual para evitar recriação
 
-  // Flags de debug (definir window.DEBUG_MERGE = true e window.DEBUG_MAP = true no console para habilitar logs detalhados)
-  // window.DEBUG_MERGE: Logs detalhados do processo de merge de veículos
-  // window.DEBUG_MAP: Logs detalhados do mapeamento de colunas da planilha
+  // ============================================================================
+  // Sistema de Logging Condicional
+  // ============================================================================
+  // Em produção: apenas erros são logados
+  // Para habilitar logs detalhados, defina no console do navegador:
+  //   window.DEBUG = true
+  //   window.DEBUG_MERGE = true (logs de merge de veículos)
+  //   window.DEBUG_MAP = true (logs de mapeamento de colunas)
+  //   window.DEBUG_HISTORICO = true (logs de busca de histórico)
+  // ============================================================================
+  
+  const isDebugMode = () => {
+    return window.DEBUG === true || 
+           window.location.hostname === 'localhost' || 
+           window.location.hostname === '127.0.0.1';
+  };
+
+  const logger = {
+    error: (...args) => console.error(...args),
+    warn: (...args) => {
+      if (isDebugMode()) console.warn(...args);
+    },
+    log: (...args) => {
+      if (isDebugMode()) console.log(...args);
+    },
+    debug: (flag, ...args) => {
+      if (isDebugMode() && (window[flag] === true || window.DEBUG === true)) {
+        console.log(...args);
+      }
+    }
+  };
 
   // Conectar ao Supabase
   function conectarSupabase() {
@@ -1472,7 +1501,7 @@
       } else {
         // Tentar primeiro pelo atributo for
         label = document.querySelector(`label[for="${campoId}"]`);
-        
+
         // Se não encontrou, procurar no mesmo form-group (estrutura comum no HTML)
         if (!label) {
           const formGroup = input.closest(".form-group");
@@ -1480,7 +1509,7 @@
             label = formGroup.querySelector("label");
           }
         }
-        
+
         // Se ainda não encontrou, procurar label que contenha o input
         if (!label) {
           label = input.closest("label");
@@ -5260,24 +5289,126 @@
       }
 
       // Buscar histórico de envios
-      const { data: historico, error: errorHistorico } = await supabaseClient
-        .from("instacar_historico_envios")
-        .select(
-          `
-          *,
-          instacar_campanhas (
-            id,
-            nome
-          )
-        `
-        )
-        .eq("cliente_id", clienteId)
-        .order("timestamp_envio", { ascending: false })
-        .limit(50);
+      // Buscar por cliente_id OU telefone (para capturar envios individuais que podem não ter cliente_id)
+      // IMPORTANTE: Normalizar telefone para garantir formato consistente (55XXXXXXXXXXX)
+      const telefoneCliente = normalizarTelefone(cliente.telefone || "");
 
+      // Log para debug (apenas em modo debug)
+      logger.debug('DEBUG_HISTORICO', "=== DEBUG: Busca de Histórico - Telefone ===");
+      logger.debug('DEBUG_HISTORICO', "Telefone original do cliente:", cliente.telefone);
+      logger.debug('DEBUG_HISTORICO', "Telefone normalizado para busca:", telefoneCliente);
+
+      // Fazer duas queries separadas e combinar resultados (mais confiável que .or())
+      const [resultClienteId, resultTelefone] = await Promise.all([
+        // Query 1: Buscar por cliente_id
+        supabaseClient
+          .from("instacar_historico_envios")
+          .select(
+            `
+            *,
+            instacar_campanhas (
+              id,
+              nome
+            )
+          `
+          )
+          .eq("cliente_id", clienteId)
+          .order("timestamp_envio", { ascending: false })
+          .limit(50),
+        // Query 2: Buscar por telefone (para capturar envios individuais)
+        supabaseClient
+          .from("instacar_historico_envios")
+          .select(
+            `
+            *,
+            instacar_campanhas (
+              id,
+              nome
+            )
+          `
+          )
+          .eq("telefone", telefoneCliente)
+          .order("timestamp_envio", { ascending: false })
+          .limit(50),
+      ]);
+
+      // Combinar resultados e remover duplicatas (mesmo registro pode aparecer nas duas queries)
+      const historicoMap = new Map();
+
+      // Adicionar resultados da query por cliente_id
+      if (resultClienteId.data) {
+        resultClienteId.data.forEach((item) => {
+          historicoMap.set(item.id, item);
+        });
+      }
+
+      // Adicionar resultados da query por telefone
+      if (resultTelefone.data) {
+        resultTelefone.data.forEach((item) => {
+          historicoMap.set(item.id, item);
+        });
+      }
+
+      // Converter Map para Array e ordenar por timestamp
+      const historico = Array.from(historicoMap.values())
+        .sort((a, b) => {
+          const timestampA = new Date(a.timestamp_envio || a.created_at || 0);
+          const timestampB = new Date(b.timestamp_envio || b.created_at || 0);
+          return timestampB - timestampA; // Mais recente primeiro
+        })
+        .slice(0, 50); // Limitar a 50 registros
+
+      // Verificar erros
+      const errorHistorico = resultClienteId.error || resultTelefone.error;
+
+      // Log detalhado para debug (apenas em modo debug)
+      logger.debug('DEBUG_HISTORICO', "=== DEBUG: Busca de Histórico ===");
+      logger.debug('DEBUG_HISTORICO', "Cliente ID:", clienteId);
+      logger.debug('DEBUG_HISTORICO', "Telefone original:", cliente.telefone);
+      logger.debug('DEBUG_HISTORICO', "Telefone normalizado:", telefoneCliente);
+      logger.debug('DEBUG_HISTORICO', "Query por cliente_id:", {
+        data: resultClienteId.data,
+        error: resultClienteId.error,
+        count: resultClienteId.data?.length || 0,
+        errorDetails: resultClienteId.error
+          ? {
+              message: resultClienteId.error.message,
+              code: resultClienteId.error.code,
+              details: resultClienteId.error.details,
+              hint: resultClienteId.error.hint,
+            }
+          : null,
+      });
+      logger.debug('DEBUG_HISTORICO', "Query por telefone:", {
+        data: resultTelefone.data,
+        error: resultTelefone.error,
+        count: resultTelefone.data?.length || 0,
+        errorDetails: resultTelefone.error
+          ? {
+              message: resultTelefone.error.message,
+              code: resultTelefone.error.code,
+              details: resultTelefone.error.details,
+              hint: resultTelefone.error.hint,
+            }
+          : null,
+      });
+      logger.debug('DEBUG_HISTORICO', "Histórico combinado:", {
+        total: historico.length,
+        items: historico.map((h) => ({
+          id: h.id,
+          cliente_id: h.cliente_id,
+          telefone: h.telefone,
+          status: h.status_envio,
+          timestamp: h.timestamp_envio,
+        })),
+      });
+      
       if (errorHistorico) {
-        console.warn("Erro ao buscar histórico:", errorHistorico);
-        // Não falhar se histórico não for encontrado
+        logger.error("❌ Erro ao buscar histórico:", errorHistorico);
+      } else {
+        logger.debug('DEBUG_HISTORICO',
+          `✅ Histórico encontrado: ${historico.length} registros para cliente ${clienteId} ou telefone ${telefoneCliente}`
+        );
       }
 
       return {
@@ -5358,6 +5489,20 @@
       console.error("Elementos do modal não encontrados");
       return;
     }
+
+    // Log para debug (apenas em modo debug)
+    logger.debug('DEBUG_HISTORICO', "=== DEBUG: Renderizar Modal Cliente ===");
+    logger.debug('DEBUG_HISTORICO', "Cliente:", cliente?.nome_cliente, cliente?.id);
+    logger.debug('DEBUG_HISTORICO', "Histórico recebido:", {
+      isArray: Array.isArray(historico),
+      length: historico?.length || 0,
+      items: historico?.slice(0, 3).map((h) => ({
+        id: h.id,
+        cliente_id: h.cliente_id,
+        telefone: h.telefone,
+        status: h.status_envio,
+      })),
+    });
 
     // Ocultar loading, mostrar conteúdo
     loading.style.display = "none";
@@ -5626,13 +5771,27 @@
    */
   function renderizarHistoricoEnvios(historico) {
     const tbody = document.getElementById("historicoEnviosBody");
-    if (!tbody) return;
+    if (!tbody) {
+      console.error("❌ Elemento historicoEnviosBody não encontrado!");
+      return;
+    }
+
+    logger.debug('DEBUG_HISTORICO', "=== DEBUG: Renderizar Histórico Envios ===");
+    logger.debug('DEBUG_HISTORICO', "Histórico recebido:", {
+      isArray: Array.isArray(historico),
+      length: historico?.length || 0,
+      type: typeof historico,
+      value: historico,
+    });
 
     if (!historico || historico.length === 0) {
+      logger.warn("⚠️ Nenhum histórico encontrado para renderizar");
       tbody.innerHTML =
         '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #666;">Nenhum histórico de envio encontrado.</td></tr>';
       return;
     }
+
+    logger.debug('DEBUG_HISTORICO', `✅ Renderizando ${historico.length} registros de histórico`);
 
     let html = "";
     historico.forEach((item) => {

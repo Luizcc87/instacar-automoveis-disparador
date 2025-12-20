@@ -66,6 +66,15 @@ CREATE POLICY "Authenticated users can read historico_envios"
   TO authenticated
   USING (true);
 
+-- Anon users (interface web) podem ler histórico de envios
+-- NOTA: Em produção, considere adicionar autenticação para maior segurança
+DROP POLICY IF EXISTS "Anon users can read historico_envios" ON instacar_historico_envios;
+CREATE POLICY "Anon users can read historico_envios"
+  ON instacar_historico_envios
+  FOR SELECT
+  TO anon
+  USING (true);
+
 -- ============================================================================
 -- Políticas para instacar_controle_envios
 -- ============================================================================
