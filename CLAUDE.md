@@ -348,7 +348,8 @@ Melhorias no sistema de gerenciamento de instâncias de APIs WhatsApp:
 
 1. **Prefixo Obrigatório**: Todas as instâncias recebem automaticamente o prefixo `Instacar_codigo_` onde `codigo` é um código único de 6 caracteres alfanuméricos (letras minúsculas + números)
    - Formato: `Instacar_a3k9m2_nome-instancia`
-   - Normalização automática: nomes são convertidos para minúsculas e kebab-case
+   - Normalização automática: nomes são convertidos para minúsculas, espaços viram underscores, acentos são removidos
+   - Hífens e underscores existentes são preservados (ex: "numero-01" mantém hífen, "numero_02" mantém underscore)
    - Proteção: usuário não pode editar o prefixo, apenas o nome após o prefixo
    - Sincronização: nome completo com prefixo é salvo tanto no Supabase quanto na Uazapi
 

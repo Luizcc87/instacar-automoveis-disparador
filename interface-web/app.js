@@ -790,9 +790,10 @@
   }
 
   /**
-   * Normaliza o nome da instância para minúsculas e kebab-case (palavras separadas por hífen)
+   * Normaliza o nome da instância para minúsculas preservando hífens e underscores
+   * Espaços viram underscores, acentos são removidos
    * @param {string} nome - Nome original da instância
-   * @returns {string} - Nome normalizado em minúsculas com palavras separadas por hífen
+   * @returns {string} - Nome normalizado em minúsculas (espaços viram underscores, acentos removidos)
    */
   function normalizarNomeInstancia(nome) {
     if (!nome || !nome.trim()) {
@@ -802,13 +803,19 @@
     return nome
       .trim()
       .toLowerCase()
-      // Substituir espaços, underscores e múltiplos hífens por um único hífen
-      .replace(/[\s_]+/g, "-")
+      // Remover acentos (normalizar para forma sem acentos)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      // Substituir espaços por underscores (preservar hífens e underscores existentes)
+      .replace(/\s+/g, "_")
+      // Remover caracteres especiais, mantendo apenas letras, números, hífens e underscores
+      .replace(/[^a-z0-9_-]/g, "")
+      // Remover hífens duplicados (mas não misturar com underscores)
       .replace(/-+/g, "-")
-      // Remover caracteres especiais, mantendo apenas letras, números e hífens
-      .replace(/[^a-z0-9-]/g, "")
-      // Remover hífens no início e fim
-      .replace(/^-+|-+$/g, "");
+      // Remover underscores duplicados (mas não misturar com hífens)
+      .replace(/_+/g, "_")
+      // Remover hífens e underscores no início e fim
+      .replace(/^[-_]+|[-_]+$/g, "");
   }
 
   /**
@@ -857,7 +864,7 @@
       return nome; // Retornar original se ficou vazio
     }
 
-    // Normalizar nome para minúsculas e kebab-case
+    // Normalizar nome para minúsculas (preservando hífens e underscores)
     nomeLimpo = normalizarNomeInstancia(nomeLimpo);
     
     // Se após normalização ficou vazio, retornar original
@@ -936,6 +943,11 @@
    */
   async function atualizarNomeInstanciaUazapi(baseUrl, instanceToken, novoNome) {
     try {
+      console.log(`Chamando Uazapi para atualizar nome: ${baseUrl}/instance/updateInstanceName`, {
+        token: instanceToken.substring(0, 10) + "...",
+        novoNome: novoNome
+      });
+      
       const response = await fetch(`${baseUrl}/instance/updateInstanceName`, {
         method: "POST",
         headers: {
@@ -949,11 +961,17 @@
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `Erro HTTP ${response.status}: ${response.statusText}`
-        );
+        const errorMessage = errorData.error || errorData.message || `Erro HTTP ${response.status}: ${response.statusText}`;
+        console.error("Erro na resposta da Uazapi:", {
+          status: response.status,
+          statusText: response.statusText,
+          errorData: errorData
+        });
+        throw new Error(errorMessage);
       }
-
+      
+      const responseData = await response.json().catch(() => ({}));
+      console.log("Resposta da Uazapi ao atualizar nome:", responseData);
       return true;
     } catch (error) {
       console.error("Erro ao atualizar nome da instância na Uazapi:", error);
@@ -1137,10 +1155,14 @@
       let result;
       if (id) {
         // Atualizar
+        // Verificar se o nome realmente mudou (comparar nomes completos com prefixo)
+        const nomeMudou = instanciaExistente && instanciaExistente.nome !== nome;
+        
         // Se é instância Uazapi e o nome mudou, atualizar na Uazapi também
-        if (instanciaExistente && instanciaExistente.tipo_api === "uazapi" && 
+        if (nomeMudou && instanciaExistente && instanciaExistente.tipo_api === "uazapi" && 
             instanciaExistente.base_url && instanciaExistente.token) {
           try {
+            console.log(`Atualizando nome na Uazapi: "${instanciaExistente.nome}" → "${nome}"`);
             // Enviar nome completo com prefixo para a Uazapi (para identificar instâncias da Instacar no servidor)
             await atualizarNomeInstanciaUazapi(
               instanciaExistente.base_url,
@@ -1150,13 +1172,17 @@
             console.log("Nome atualizado na Uazapi com sucesso");
           } catch (error) {
             // Se der erro ao atualizar na Uazapi, avisar mas continuar salvando no Supabase
-            console.warn("Erro ao atualizar nome na Uazapi:", error);
+            console.error("Erro ao atualizar nome na Uazapi:", error);
             mostrarAlerta(
               `Aviso: Nome atualizado no banco de dados, mas houve erro ao atualizar na Uazapi: ${error.message}. ` +
               `O nome na Uazapi pode estar desatualizado.`,
               "warning"
             );
           }
+        } else if (nomeMudou) {
+          console.log(`Nome mudou mas não é Uazapi ou não tem token: "${instanciaExistente?.nome}" → "${nome}"`);
+        } else {
+          console.log(`Nome não mudou: "${instanciaExistente?.nome}" === "${nome}"`);
         }
         
         const { data, error } = await supabaseClient
@@ -1166,8 +1192,12 @@
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error("Erro ao atualizar instância no Supabase:", error);
+          throw error;
+        }
         result = data;
+        console.log("Instância atualizada no Supabase:", result);
         mostrarAlerta("Instância atualizada com sucesso!", "success");
       } else {
         // Criar
@@ -7681,7 +7711,7 @@ Máximo de 3 parágrafos.</code></pre>
         <p><strong>⚠️ IMPORTANTE:</strong></p>
         <ul>
           <li><strong>Digite apenas o nome</strong> (sem o prefixo "Instacar_"). O prefixo será adicionado automaticamente pelo sistema</li>
-          <li>O nome será <strong>normalizado automaticamente</strong> para minúsculas com palavras separadas por hífen (kebab-case)</li>
+          <li>O nome será <strong>normalizado automaticamente</strong> para minúsculas (espaços viram underscores, acentos removidos, hífens e underscores existentes são preservados)</li>
           <li>O prefixo "Instacar_codigo_" será adicionado automaticamente (código de 6 caracteres gerado automaticamente)</li>
           <li><strong>Não digite o prefixo manualmente</strong> - ele será removido e um novo será aplicado</li>
         </ul>

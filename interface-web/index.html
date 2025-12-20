@@ -1972,9 +1972,15 @@
             <small style="color: #666">
               ⚠️ <strong>Digite apenas o nome</strong> (sem o prefixo "Instacar_"). O prefixo será adicionado automaticamente.
               <br>
-              Nome será normalizado para minúsculas com palavras separadas por hífen.
+              Nome será normalizado: minúsculas, espaços viram underscores, acentos removidos. Hífens e underscores existentes são preservados.
               <br>
-              <strong>Exemplo:</strong> Digite "numero-01" → Será salvo como "Instacar_a3k9m2_numero-01" (código de 6 caracteres gerado automaticamente)
+              <strong>Exemplos:</strong> 
+              <ul style="margin: 5px 0; padding-left: 20px;">
+                <li>Digite "Número 02" → Será salvo como "Instacar_a3k9m2_numero_02"</li>
+                <li>Digite "numero-01" → Será salvo como "Instacar_a3k9m2_numero-01" (hífen preservado)</li>
+                <li>Digite "numero_02" → Será salvo como "Instacar_a3k9m2_numero_02" (underscore preservado)</li>
+              </ul>
+              Código de 6 caracteres gerado automaticamente.
             </small>
           </div>
 
