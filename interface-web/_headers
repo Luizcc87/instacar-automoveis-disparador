@@ -8,12 +8,22 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
 
-# Cache para arquivos estáticos
-/*.js
-  Cache-Control: public, max-age=31536000, immutable
+# Cache para HTML - revalidar sempre
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
 
+# Cache para app.js - permitir atualizações
+/app.js
+  Cache-Control: public, max-age=3600, must-revalidate
+
+# Cache para config.default.js - permitir atualizações
+/config.default.js
+  Cache-Control: public, max-age=3600, must-revalidate
+
+# Cache para arquivos CSS - 1 ano (se usar CSS separado)
 /*.css
   Cache-Control: public, max-age=31536000, immutable
 
-/*.html
-  Cache-Control: public, max-age=3600
+# Cache para bibliotecas externas do CDN (se houver cópias locais)
+/vendor/*.js
+  Cache-Control: public, max-age=31536000, immutable
