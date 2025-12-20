@@ -1592,6 +1592,40 @@
         </div>
       </div>
 
+      <!-- Seção: Dados Dinâmicos do Agente IA -->
+      <div class="config-section">
+        <h2>🤖 Dados Dinâmicos do Agente IA</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px">
+          <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f9f9f9">
+            <h3 style="margin-top: 0; font-size: 1.1em">⚙️ Configurações da Empresa</h3>
+            <p style="color: #666; font-size: 14px; margin-bottom: 15px">
+              Gerencie configurações globais (políticas, tom de voz, informações da empresa)
+            </p>
+            <button onclick="abrirModalConfiguracaoEmpresa()" class="btn-primary" style="width: 100%">
+              Gerenciar Configurações
+            </button>
+          </div>
+          <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f9f9f9">
+            <h3 style="margin-top: 0; font-size: 1.1em">📝 Sessões de Contexto</h3>
+            <p style="color: #666; font-size: 14px; margin-bottom: 15px">
+              Gerencie blocos de contexto pré-definidos para o agente IA
+            </p>
+            <button onclick="abrirModalSessaoContexto()" class="btn-primary" style="width: 100%">
+              Gerenciar Sessões
+            </button>
+          </div>
+          <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f9f9f9">
+            <h3 style="margin-top: 0; font-size: 1.1em">📋 Templates de Prompt</h3>
+            <p style="color: #666; font-size: 14px; margin-bottom: 15px">
+              Gerencie templates completos de prompt para campanhas
+            </p>
+            <button onclick="abrirModalTemplatePrompt()" class="btn-primary" style="width: 100%">
+              Gerenciar Templates
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Seção Upload de Planilhas -->
       <div class="config-section">
         <h2>📤 Upload de Planilhas</h2>
@@ -2482,6 +2516,54 @@
                 recente. Útil para campanhas de relacionamento.
               </small>
             </div>
+
+            <!-- Seção: Dados Dinâmicos do Agente IA -->
+            <div class="form-group" style="margin-top: 20px; margin-bottom: 15px">
+              <label style="display: flex; align-items: center; cursor: pointer">
+                <input
+                  type="checkbox"
+                  id="usar_configuracoes_globais"
+                  checked
+                  style="width: auto; margin-right: 8px"
+                />
+                <span>Usar configurações globais da empresa</span>
+              </label>
+              <small style="color: #666; display: block; margin-top: 5px">
+                Se marcado, usa configurações globais como base. Pode ser sobrescrito abaixo.
+              </small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px">
+              <label>Template de Prompt (opcional)</label>
+              <select id="template_prompt_id">
+                <option value="">Nenhum - usar prompt personalizado</option>
+              </select>
+              <small style="color: #666; display: block; margin-top: 5px">
+                Selecione um template para usar como base do prompt. O prompt personalizado será ignorado se um template for selecionado.
+              </small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px">
+              <label>Sessões de Contexto Habilitadas</label>
+              <div id="sessoes_contexto_checkboxes" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+                <p style="color: #666; font-size: 14px">Carregando sessões...</p>
+              </div>
+              <small style="color: #666; display: block; margin-top: 5px">
+                Selecione quais sessões de contexto incluir no prompt do agente IA.
+              </small>
+            </div>
+
+            <details style="margin-top: 15px; margin-bottom: 15px">
+              <summary style="cursor: pointer; font-weight: 600; color: #667eea">
+                Sobrescrever Configurações Globais (opcional)
+              </summary>
+              <div id="configuracoes_sobrescritas" style="margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                <p style="color: #666; font-size: 14px">Carregando configurações...</p>
+              </div>
+              <small style="color: #666; display: block; margin-top: 5px">
+                Deixe vazio para usar a configuração global. Preencha para sobrescrever.
+              </small>
+            </details>
           </div>
 
           <!-- Seção: Processamento em Lotes -->
@@ -3670,6 +3752,248 @@ Registra no histórico (Supabase)
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Modal Configurações da Empresa -->
+    <div id="modalConfiguracaoEmpresa" class="modal">
+      <div class="modal-content" style="max-width: 900px; max-height: 90vh">
+        <div class="modal-header">
+          <h2 id="modalConfiguracaoEmpresaTitle">⚙️ Gerenciar Configurações da Empresa</h2>
+          <button class="close" onclick="fecharModalConfiguracaoEmpresa()">&times;</button>
+        </div>
+        <div style="overflow-y: auto; max-height: calc(90vh - 100px)">
+          <div style="margin-bottom: 20px">
+            <button onclick="abrirModalFormConfiguracaoEmpresa()" class="btn-success" style="margin-bottom: 15px">
+              ➕ Nova Configuração
+            </button>
+            <div id="listaConfiguracoesEmpresa">
+              <p>Carregando configurações...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Nova/Editar Configuração Empresa -->
+    <div id="modalFormConfiguracaoEmpresa" class="modal">
+      <div class="modal-content" style="max-width: 700px">
+        <div class="modal-header">
+          <h2 id="modalFormConfiguracaoEmpresaTitle">Nova Configuração</h2>
+          <button class="close" onclick="fecharModalFormConfiguracaoEmpresa()">&times;</button>
+        </div>
+        <form id="formConfiguracaoEmpresa" onsubmit="event.preventDefault(); salvarConfiguracaoEmpresa(document.getElementById('configEmpresaId').value)">
+          <input type="hidden" id="configEmpresaId" />
+          <div class="form-group">
+            <label>Chave *</label>
+            <input type="text" id="configEmpresaChave" required placeholder="ex: politicas.tom_voz" />
+            <small style="color: #666">Identificador único (ex: politicas.tom_voz, sobre_empresa.missao)</small>
+          </div>
+          <div class="form-group">
+            <label>Categoria *</label>
+            <select id="configEmpresaCategoria" required>
+              <option value="politicas">Políticas</option>
+              <option value="tom_voz">Tom de Voz</option>
+              <option value="contato">Contato</option>
+              <option value="sobre_empresa">Sobre a Empresa</option>
+              <option value="ofertas">Ofertas</option>
+              <option value="produtos">Produtos</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Título *</label>
+            <input type="text" id="configEmpresaTitulo" required />
+          </div>
+          <div class="form-group">
+            <label>Conteúdo *</label>
+            <textarea id="configEmpresaConteudo" rows="6" required></textarea>
+            <small style="color: #666">Pode usar variáveis: {{nome_cliente}}, {{data_hoje}}, {{periodo_ano}}, etc.</small>
+          </div>
+          <div class="form-group">
+            <label>Descrição</label>
+            <textarea id="configEmpresaDescricao" rows="2"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Ordem</label>
+              <input type="number" id="configEmpresaOrdem" value="0" min="0" />
+            </div>
+            <div class="form-group">
+              <label style="display: flex; align-items: center; cursor: pointer">
+                <input type="checkbox" id="configEmpresaAtivo" checked style="width: auto; margin-right: 8px" />
+                <span>Ativo</span>
+              </label>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 20px">
+            <button type="submit" class="btn-success">Salvar</button>
+            <button type="button" class="btn-secondary" onclick="fecharModalFormConfiguracaoEmpresa()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Sessões de Contexto -->
+    <div id="modalSessaoContexto" class="modal">
+      <div class="modal-content" style="max-width: 900px; max-height: 90vh">
+        <div class="modal-header">
+          <h2 id="modalSessaoContextoTitle">📝 Gerenciar Sessões de Contexto</h2>
+          <button class="close" onclick="fecharModalSessaoContexto()">&times;</button>
+        </div>
+        <div style="overflow-y: auto; max-height: calc(90vh - 100px)">
+          <div style="margin-bottom: 20px">
+            <button onclick="abrirModalFormSessaoContexto()" class="btn-success" style="margin-bottom: 15px">
+              ➕ Nova Sessão
+            </button>
+            <div id="listaSessoesContexto">
+              <p>Carregando sessões...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Nova/Editar Sessão Contexto -->
+    <div id="modalFormSessaoContexto" class="modal">
+      <div class="modal-content" style="max-width: 800px">
+        <div class="modal-header">
+          <h2 id="modalFormSessaoContextoTitle">Nova Sessão</h2>
+          <button class="close" onclick="fecharModalSessaoContexto()">&times;</button>
+        </div>
+        <form id="formSessaoContexto" onsubmit="event.preventDefault(); salvarSessaoContexto(document.getElementById('sessaoId').value)">
+          <input type="hidden" id="sessaoId" />
+          <div class="form-group">
+            <label>Nome *</label>
+            <input type="text" id="sessaoNome" required />
+          </div>
+          <div class="form-group">
+            <label>Slug *</label>
+            <input type="text" id="sessaoSlug" required placeholder="ex: sobre_empresa" />
+            <small style="color: #666">Identificador único (ex: sobre_empresa, ofertas_especiais)</small>
+          </div>
+          <div class="form-group">
+            <label>Categoria</label>
+            <input type="text" id="sessaoCategoria" placeholder="ex: institucional, promocional" />
+          </div>
+          <div class="form-group">
+            <label>Template de Conteúdo *</label>
+            <textarea id="sessaoConteudoTemplate" rows="8" required></textarea>
+            <small style="color: #666">Pode usar variáveis: {{nome_cliente}}, {{data_hoje}}, {{veiculos.length}}, etc.</small>
+          </div>
+          <div class="form-group">
+            <label>Exemplo Preenchido</label>
+            <textarea id="sessaoExemploPreenchido" rows="4"></textarea>
+            <small style="color: #666">Exemplo já preenchido para referência</small>
+          </div>
+          <div class="form-group">
+            <label>Descrição</label>
+            <textarea id="sessaoDescricao" rows="2"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Ordem</label>
+              <input type="number" id="sessaoOrdem" value="0" min="0" />
+            </div>
+            <div class="form-group">
+              <label style="display: flex; align-items: center; cursor: pointer">
+                <input type="checkbox" id="sessaoHabilitadoPorPadrao" style="width: auto; margin-right: 8px" />
+                <span>Habilitado por Padrão</span>
+              </label>
+            </div>
+            <div class="form-group">
+              <label style="display: flex; align-items: center; cursor: pointer">
+                <input type="checkbox" id="sessaoAtivo" checked style="width: auto; margin-right: 8px" />
+                <span>Ativo</span>
+              </label>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 20px">
+            <button type="submit" class="btn-success">Salvar</button>
+            <button type="button" class="btn-secondary" onclick="fecharModalSessaoContexto()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Templates de Prompt -->
+    <div id="modalTemplatePrompt" class="modal">
+      <div class="modal-content" style="max-width: 900px; max-height: 90vh">
+        <div class="modal-header">
+          <h2 id="modalTemplatePromptTitle">📋 Gerenciar Templates de Prompt</h2>
+          <button class="close" onclick="fecharModalTemplatePrompt()">&times;</button>
+        </div>
+        <div style="overflow-y: auto; max-height: calc(90vh - 100px)">
+          <div style="margin-bottom: 20px">
+            <button onclick="abrirModalFormTemplatePrompt()" class="btn-success" style="margin-bottom: 15px">
+              ➕ Novo Template
+            </button>
+            <div id="listaTemplatesPrompt">
+              <p>Carregando templates...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Nova/Editar Template Prompt -->
+    <div id="modalFormTemplatePrompt" class="modal">
+      <div class="modal-content" style="max-width: 900px; max-height: 90vh">
+        <div class="modal-header">
+          <h2 id="modalFormTemplatePromptTitle">Novo Template</h2>
+          <button class="close" onclick="fecharModalTemplatePrompt()">&times;</button>
+        </div>
+        <form id="formTemplatePrompt" onsubmit="event.preventDefault(); salvarTemplatePrompt(document.getElementById('templateId').value)" style="overflow-y: auto; max-height: calc(90vh - 150px)">
+          <input type="hidden" id="templateId" />
+          <div class="form-group">
+            <label>Nome *</label>
+            <input type="text" id="templateNome" required />
+          </div>
+          <div class="form-group">
+            <label>Descrição</label>
+            <textarea id="templateDescricao" rows="2"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Prompt Completo *</label>
+            <textarea id="templatePromptCompleto" rows="10" required></textarea>
+            <small style="color: #666">Template completo do prompt. Pode usar variáveis: {{nome_cliente}}, {{data_hoje}}, etc.</small>
+          </div>
+          <div class="form-group">
+            <label>Categoria *</label>
+            <select id="templateCategoria" required>
+              <option value="natal">Natal</option>
+              <option value="black-friday">Black Friday</option>
+              <option value="relacionamento">Relacionamento</option>
+              <option value="promocional">Promocional</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Exemplo de Uso</label>
+            <textarea id="templateExemploUso" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Sessões Habilitadas por Padrão</label>
+            <div id="templateSessoesHabilitadas" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px">
+              <p style="color: #666; font-size: 14px">Carregando sessões...</p>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Configurações Habilitadas por Padrão</label>
+            <div id="templateConfiguracoesHabilitadas" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px">
+              <p style="color: #666; font-size: 14px">Carregando configurações...</p>
+            </div>
+          </div>
+          <div class="form-group">
+            <label style="display: flex; align-items: center; cursor: pointer">
+              <input type="checkbox" id="templateAtivo" checked style="width: auto; margin-right: 8px" />
+              <span>Ativo</span>
+            </label>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 20px">
+            <button type="submit" class="btn-success">Salvar</button>
+            <button type="button" class="btn-secondary" onclick="fecharModalTemplatePrompt()">Cancelar</button>
+          </div>
+        </form>
       </div>
     </div>
 

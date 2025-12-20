@@ -239,6 +239,102 @@ CREATE POLICY "Anon users can manage uploads_planilhas"
   WITH CHECK (true);
 
 -- ============================================================================
+-- Políticas para instacar_configuracoes_empresa
+-- ============================================================================
+
+-- Service role (N8N) tem acesso total
+DROP POLICY IF EXISTS "Service role full access to configuracoes_empresa" ON instacar_configuracoes_empresa;
+CREATE POLICY "Service role full access to configuracoes_empresa"
+  ON instacar_configuracoes_empresa
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+-- Usuários autenticados podem ler e modificar (para interface web)
+DROP POLICY IF EXISTS "Authenticated users can manage configuracoes_empresa" ON instacar_configuracoes_empresa;
+CREATE POLICY "Authenticated users can manage configuracoes_empresa"
+  ON instacar_configuracoes_empresa
+  FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Anon users (interface web) podem ler e modificar configurações
+-- NOTA: Em produção, considere adicionar autenticação para maior segurança
+DROP POLICY IF EXISTS "Anon users can manage configuracoes_empresa" ON instacar_configuracoes_empresa;
+CREATE POLICY "Anon users can manage configuracoes_empresa"
+  ON instacar_configuracoes_empresa
+  FOR ALL
+  TO anon
+  USING (true)
+  WITH CHECK (true);
+
+-- ============================================================================
+-- Políticas para instacar_sessoes_contexto_ia
+-- ============================================================================
+
+-- Service role (N8N) tem acesso total
+DROP POLICY IF EXISTS "Service role full access to sessoes_contexto_ia" ON instacar_sessoes_contexto_ia;
+CREATE POLICY "Service role full access to sessoes_contexto_ia"
+  ON instacar_sessoes_contexto_ia
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+-- Usuários autenticados podem ler e modificar (para interface web)
+DROP POLICY IF EXISTS "Authenticated users can manage sessoes_contexto_ia" ON instacar_sessoes_contexto_ia;
+CREATE POLICY "Authenticated users can manage sessoes_contexto_ia"
+  ON instacar_sessoes_contexto_ia
+  FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Anon users (interface web) podem ler e modificar sessões
+-- NOTA: Em produção, considere adicionar autenticação para maior segurança
+DROP POLICY IF EXISTS "Anon users can manage sessoes_contexto_ia" ON instacar_sessoes_contexto_ia;
+CREATE POLICY "Anon users can manage sessoes_contexto_ia"
+  ON instacar_sessoes_contexto_ia
+  FOR ALL
+  TO anon
+  USING (true)
+  WITH CHECK (true);
+
+-- ============================================================================
+-- Políticas para instacar_templates_prompt
+-- ============================================================================
+
+-- Service role (N8N) tem acesso total
+DROP POLICY IF EXISTS "Service role full access to templates_prompt" ON instacar_templates_prompt;
+CREATE POLICY "Service role full access to templates_prompt"
+  ON instacar_templates_prompt
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+-- Usuários autenticados podem ler e modificar (para interface web)
+DROP POLICY IF EXISTS "Authenticated users can manage templates_prompt" ON instacar_templates_prompt;
+CREATE POLICY "Authenticated users can manage templates_prompt"
+  ON instacar_templates_prompt
+  FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Anon users (interface web) podem ler e modificar templates
+-- NOTA: Em produção, considere adicionar autenticação para maior segurança
+DROP POLICY IF EXISTS "Anon users can manage templates_prompt" ON instacar_templates_prompt;
+CREATE POLICY "Anon users can manage templates_prompt"
+  ON instacar_templates_prompt
+  FOR ALL
+  TO anon
+  USING (true)
+  WITH CHECK (true);
+
+-- ============================================================================
 -- Notas Importantes
 -- ============================================================================
 

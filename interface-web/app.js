@@ -2283,6 +2283,34 @@
       await carregarClientesParaSelecao();
       await carregarClientesSelecionadosCampanha(data.id);
 
+      // Carregar dados dinâmicos (templates, sessões, configurações)
+      await carregarDadosDinamicosCampanha();
+
+      // Preencher novos campos - Dados Dinâmicos do Agente IA
+      document.getElementById("usar_configuracoes_globais").checked = data.usar_configuracoes_globais !== false;
+      if (data.template_prompt_id) {
+        document.getElementById("template_prompt_id").value = data.template_prompt_id;
+      }
+      
+      // Marcar sessões habilitadas
+      const sessoesHabilitadas = data.sessoes_contexto_habilitadas || [];
+      setTimeout(() => {
+        document.querySelectorAll("#sessoes_contexto_checkboxes input[type='checkbox']").forEach((cb) => {
+          cb.checked = sessoesHabilitadas.includes(cb.value);
+        });
+      }, 500);
+
+      // Preencher configurações sobrescritas
+      const sobrescritas = data.configuracoes_empresa_sobrescritas || {};
+      setTimeout(() => {
+        document.querySelectorAll("#configuracoes_sobrescritas textarea").forEach((textarea) => {
+          const chave = textarea.dataset.chave;
+          if (chave && sobrescritas[chave]) {
+            textarea.value = sobrescritas[chave];
+          }
+        });
+      }, 500);
+
       // Atualizar estimativas após carregar dados
       setTimeout(atualizarEstimativas, 100);
 
@@ -2303,9 +2331,127 @@
     document.getElementById("modalCampanha").classList.remove("active");
   }
 
+  // Função auxiliar para obter configurações sobrescritas
+  function obterConfiguracoesSobrescritas() {
+    const sobrescritas = {};
+    const inputs = document.querySelectorAll("#configuracoes_sobrescritas input[type='text'], #configuracoes_sobrescritas textarea");
+    inputs.forEach((input) => {
+      const chave = input.dataset.chave;
+      const valor = input.value.trim();
+      if (chave && valor) {
+        sobrescritas[chave] = valor;
+      }
+    });
+    return sobrescritas;
+  }
+
+  // Função para carregar templates e sessões no formulário de campanha
+  async function carregarDadosDinamicosCampanha() {
+    if (!supabaseClient) return;
+
+    try {
+      // Carregar templates
+      const { data: templates } = await supabaseClient
+        .from("instacar_templates_prompt")
+        .select("id, nome, categoria")
+        .eq("ativo", true)
+        .order("categoria", { ascending: true })
+        .order("nome", { ascending: true });
+
+      const selectTemplate = document.getElementById("template_prompt_id");
+      if (selectTemplate && templates) {
+        selectTemplate.innerHTML = '<option value="">Nenhum - usar prompt personalizado</option>';
+        templates.forEach((template) => {
+          const option = document.createElement("option");
+          option.value = template.id;
+          option.textContent = `${template.nome} (${template.categoria})`;
+          selectTemplate.appendChild(option);
+        });
+      }
+
+      // Carregar sessões
+      const { data: sessoes } = await supabaseClient
+        .from("instacar_sessoes_contexto_ia")
+        .select("id, nome, slug, descricao, exemplo_preenchido, habilitado_por_padrao")
+        .eq("ativo", true)
+        .order("ordem", { ascending: true });
+
+      const containerSessoes = document.getElementById("sessoes_contexto_checkboxes");
+      if (containerSessoes && sessoes) {
+        if (sessoes.length === 0) {
+          containerSessoes.innerHTML = "<p style='color: #666; font-size: 14px'>Nenhuma sessão disponível.</p>";
+        } else {
+          let html = "";
+          sessoes.forEach((sessao) => {
+            html += `
+              <label style="display: flex; align-items: start; margin-bottom: 10px; cursor: pointer">
+                <input type="checkbox" value="${sessao.slug}" style="width: auto; margin-right: 8px; margin-top: 3px" ${sessao.habilitado_por_padrao ? "checked" : ""} />
+                <div>
+                  <strong>${sessao.nome}</strong>
+                  <p style="margin: 2px 0; color: #666; font-size: 13px">${sessao.descricao || ""}</p>
+                  ${sessao.exemplo_preenchido ? `<small style="color: #999; font-size: 12px">Exemplo: ${sessao.exemplo_preenchido.substring(0, 100)}...</small>` : ""}
+                </div>
+              </label>
+            `;
+          });
+          containerSessoes.innerHTML = html;
+        }
+      }
+
+      // Carregar configurações para sobrescrita
+      const { data: configuracoes } = await supabaseClient
+        .from("instacar_configuracoes_empresa")
+        .select("id, chave, titulo, conteudo, categoria")
+        .eq("ativo", true)
+        .order("categoria", { ascending: true })
+        .order("ordem", { ascending: true });
+
+      const containerConfigs = document.getElementById("configuracoes_sobrescritas");
+      if (containerConfigs && configuracoes) {
+        if (configuracoes.length === 0) {
+          containerConfigs.innerHTML = "<p style='color: #666; font-size: 14px'>Nenhuma configuração disponível.</p>";
+        } else {
+          let html = "";
+          const porCategoria = {};
+          configuracoes.forEach((config) => {
+            if (!porCategoria[config.categoria]) {
+              porCategoria[config.categoria] = [];
+            }
+            porCategoria[config.categoria].push(config);
+          });
+
+          Object.keys(porCategoria).sort().forEach((categoria) => {
+            html += `<h5 style="margin-top: 15px; margin-bottom: 8px; color: #333">${categoria}</h5>`;
+            porCategoria[categoria].forEach((config) => {
+              html += `
+                <div style="margin-bottom: 10px">
+                  <label style="display: block; margin-bottom: 4px; font-weight: 600">${config.titulo} <small style="color: #999">(${config.chave})</small></label>
+                  <textarea data-chave="${config.chave}" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px" placeholder="Deixe vazio para usar configuração global">${config.conteudo}</textarea>
+                  <small style="color: #666; font-size: 12px">Global: ${config.conteudo.substring(0, 100)}...</small>
+                </div>
+              `;
+            });
+          });
+          containerConfigs.innerHTML = html;
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados dinâmicos:", error);
+    }
+  }
+
   // Salvar campanha
   function inicializarFormulario() {
     const form = document.getElementById("formCampanha");
+    
+    // Carregar dados dinâmicos quando abrir modal
+    const originalAbrirModal = window.abrirModalNovaCampanha;
+    if (originalAbrirModal) {
+      window.abrirModalNovaCampanha = async function() {
+        await originalAbrirModal();
+        await carregarDadosDinamicosCampanha();
+      };
+    }
     if (!form) return;
 
     // Toggle visibilidade de telefones_teste quando modo_teste é marcado
@@ -2418,6 +2564,13 @@
         notificar_conclusao: document.getElementById("notificar_conclusao").checked,
         notificar_limite: document.getElementById("notificar_limite").checked,
         whatsapp_api_id_admin: document.getElementById("whatsapp_api_id_admin").value || null,
+        // NOVOS CAMPOS - Dados Dinâmicos do Agente IA
+        usar_configuracoes_globais: document.getElementById("usar_configuracoes_globais").checked,
+        template_prompt_id: document.getElementById("template_prompt_id").value || null,
+        sessoes_contexto_habilitadas: Array.from(
+          document.querySelectorAll("#sessoes_contexto_checkboxes input:checked")
+        ).map((cb) => cb.value),
+        configuracoes_empresa_sobrescritas: obterConfiguracoesSobrescritas(),
         ativo: true,
       };
 
@@ -8363,6 +8516,763 @@ Máximo de 3 parágrafos.</code></pre>
       tipoApiSelect.addEventListener("change", atualizarStatusInstanceToken);
     }
   }
+
+  // ============================================================================
+  // Gerenciamento de Configurações da Empresa
+  // ============================================================================
+
+  async function carregarConfiguracoesEmpresa() {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("instacar_configuracoes_empresa")
+        .select("*")
+        .eq("ativo", true)
+        .order("categoria", { ascending: true })
+        .order("ordem", { ascending: true });
+
+      if (error) throw error;
+
+      const container = document.getElementById("listaConfiguracoesEmpresa");
+      if (!container) return;
+
+      if (!data || data.length === 0) {
+        container.innerHTML = "<p>Nenhuma configuração cadastrada.</p>";
+        return;
+      }
+
+      // Agrupar por categoria
+      const porCategoria = {};
+      data.forEach((config) => {
+        if (!porCategoria[config.categoria]) {
+          porCategoria[config.categoria] = [];
+        }
+        porCategoria[config.categoria].push(config);
+      });
+
+      let html = "";
+      Object.keys(porCategoria).sort().forEach((categoria) => {
+        html += `<div style="margin-bottom: 20px"><h3 style="color: #333; margin-bottom: 10px">${categoria}</h3>`;
+        porCategoria[categoria].forEach((config) => {
+          html += `
+            <div style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 10px; background: ${config.ativo ? "#fff" : "#f9f9f9"}">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px">
+                <div style="flex: 1">
+                  <strong>${config.titulo}</strong>
+                  ${!config.ativo ? '<span style="color: #999; font-size: 12px; margin-left: 10px">(Inativo)</span>' : ''}
+                </div>
+                <div style="display: flex; gap: 5px">
+                  <button onclick="editarConfiguracaoEmpresa('${config.id}')" class="btn-small" style="padding: 4px 8px; font-size: 12px">✏️ Editar</button>
+                  <button onclick="toggleAtivoConfiguracao('${config.id}', ${!config.ativo})" class="btn-small" style="padding: 4px 8px; font-size: 12px">
+                    ${config.ativo ? "⏸️ Desativar" : "▶️ Ativar"}
+                  </button>
+                </div>
+              </div>
+              <p style="margin: 4px 0; color: #666; font-size: 13px">Chave: <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px">${config.chave}</code></p>
+              ${config.descricao ? `<p style="margin: 4px 0; color: #666; font-size: 13px">${config.descricao}</p>` : ""}
+              <div style="margin-top: 8px; padding: 8px; background: #f9f9f9; border-radius: 4px; font-size: 13px; color: #555">${config.conteudo.substring(0, 200)}${config.conteudo.length > 200 ? "..." : ""}</div>
+            </div>
+          `;
+        });
+        html += `</div>`;
+      });
+
+      container.innerHTML = html;
+    } catch (error) {
+      mostrarAlerta("Erro ao carregar configurações: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  async function salvarConfiguracaoEmpresa(id) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    const dados = {
+      chave: document.getElementById("configEmpresaChave").value.trim(),
+      categoria: document.getElementById("configEmpresaCategoria").value,
+      titulo: document.getElementById("configEmpresaTitulo").value.trim(),
+      conteudo: document.getElementById("configEmpresaConteudo").value.trim(),
+      descricao: document.getElementById("configEmpresaDescricao").value.trim(),
+      ordem: parseInt(document.getElementById("configEmpresaOrdem").value) || 0,
+      ativo: document.getElementById("configEmpresaAtivo").checked,
+    };
+
+    if (!dados.chave || !dados.categoria || !dados.titulo || !dados.conteudo) {
+      mostrarAlerta("Preencha todos os campos obrigatórios", "error");
+      return;
+    }
+
+    try {
+      let result;
+      if (id) {
+        result = await supabaseClient
+          .from("instacar_configuracoes_empresa")
+          .update(dados)
+          .eq("id", id);
+      } else {
+        result = await supabaseClient
+          .from("instacar_configuracoes_empresa")
+          .insert([dados]);
+      }
+
+      if (result.error) throw result.error;
+
+      mostrarAlerta(
+        `Configuração ${id ? "atualizada" : "criada"} com sucesso!`,
+        "success"
+      );
+      fecharModalFormConfiguracaoEmpresa();
+      
+      // Se estava no modal de listagem, recarregar
+      const modalListagem = document.getElementById("modalConfiguracaoEmpresa");
+      if (modalListagem && modalListagem.classList.contains("active")) {
+        await carregarConfiguracoesEmpresa();
+      }
+    } catch (error) {
+      mostrarAlerta("Erro ao salvar configuração: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  async function editarConfiguracaoEmpresa(id) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("instacar_configuracoes_empresa")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      if (!data) {
+        mostrarAlerta("Configuração não encontrada", "error");
+        return;
+      }
+
+      document.getElementById("configEmpresaId").value = data.id;
+      document.getElementById("configEmpresaChave").value = data.chave || "";
+      document.getElementById("configEmpresaCategoria").value = data.categoria || "politicas";
+      document.getElementById("configEmpresaTitulo").value = data.titulo || "";
+      document.getElementById("configEmpresaConteudo").value = data.conteudo || "";
+      document.getElementById("configEmpresaDescricao").value = data.descricao || "";
+      document.getElementById("configEmpresaOrdem").value = data.ordem || 0;
+      document.getElementById("configEmpresaAtivo").checked = data.ativo !== false;
+
+      abrirModalFormConfiguracaoEmpresa();
+    } catch (error) {
+      mostrarAlerta("Erro ao carregar configuração: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  async function abrirModalConfiguracaoEmpresa() {
+    const modal = document.getElementById("modalConfiguracaoEmpresa");
+    if (modal) {
+      modal.classList.add("active");
+      await carregarConfiguracoesEmpresa();
+    }
+  }
+
+  function fecharModalConfiguracaoEmpresa() {
+    const modal = document.getElementById("modalConfiguracaoEmpresa");
+    if (modal) {
+      modal.classList.remove("active");
+    }
+  }
+
+  function abrirModalFormConfiguracaoEmpresa() {
+    const modal = document.getElementById("modalFormConfiguracaoEmpresa");
+    if (modal) {
+      // Limpar campos se for nova configuração
+      if (!document.getElementById("configEmpresaId").value) {
+        document.getElementById("formConfiguracaoEmpresa").reset();
+        document.getElementById("configEmpresaId").value = "";
+      }
+      modal.classList.add("active");
+      document.getElementById("modalFormConfiguracaoEmpresaTitle").textContent =
+        document.getElementById("configEmpresaId").value
+          ? "Editar Configuração"
+          : "Nova Configuração";
+    }
+  }
+
+  function fecharModalFormConfiguracaoEmpresa() {
+    const modal = document.getElementById("modalFormConfiguracaoEmpresa");
+    if (modal) {
+      modal.classList.remove("active");
+      document.getElementById("formConfiguracaoEmpresa").reset();
+      document.getElementById("configEmpresaId").value = "";
+    }
+  }
+
+  async function toggleAtivoConfiguracao(id, novoEstado) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      const { error } = await supabaseClient
+        .from("instacar_configuracoes_empresa")
+        .update({ ativo: novoEstado })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      mostrarAlerta(
+        `Configuração ${novoEstado ? "ativada" : "desativada"} com sucesso!`,
+        "success"
+      );
+      carregarConfiguracoesEmpresa();
+    } catch (error) {
+      mostrarAlerta("Erro ao alterar status: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  // ============================================================================
+  // Gerenciamento de Sessões de Contexto IA
+  // ============================================================================
+
+  async function carregarSessoesContexto() {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("instacar_sessoes_contexto_ia")
+        .select("*")
+        .order("ordem", { ascending: true });
+
+      if (error) throw error;
+
+      const container = document.getElementById("listaSessoesContexto");
+      if (!container) return;
+
+      if (!data || data.length === 0) {
+        container.innerHTML = "<p>Nenhuma sessão cadastrada.</p>";
+        return;
+      }
+
+      let html = "";
+      data.forEach((sessao) => {
+        html += `
+          <div style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 10px; background: ${sessao.ativo ? "#fff" : "#f9f9f9"}">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px">
+              <div style="flex: 1">
+                <strong>${sessao.nome}</strong>
+                ${!sessao.ativo ? '<span style="color: #999; font-size: 12px; margin-left: 10px">(Inativo)</span>' : ''}
+                ${sessao.habilitado_por_padrao ? '<span style="color: #28a745; font-size: 12px; margin-left: 10px">(Padrão)</span>' : ''}
+              </div>
+              <div style="display: flex; gap: 5px">
+                <button onclick="editarSessaoContexto('${sessao.id}')" class="btn-small" style="padding: 4px 8px; font-size: 12px">✏️ Editar</button>
+                <button onclick="toggleAtivoSessao('${sessao.id}', ${!sessao.ativo})" class="btn-small" style="padding: 4px 8px; font-size: 12px">
+                  ${sessao.ativo ? "⏸️ Desativar" : "▶️ Ativar"}
+                </button>
+              </div>
+            </div>
+            <p style="margin: 4px 0; color: #666; font-size: 13px">Slug: <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px">${sessao.slug}</code></p>
+            ${sessao.descricao ? `<p style="margin: 4px 0; color: #666; font-size: 13px">${sessao.descricao}</p>` : ""}
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    } catch (error) {
+      mostrarAlerta("Erro ao carregar sessões: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  async function salvarSessaoContexto(id) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    const dados = {
+      nome: document.getElementById("sessaoNome").value.trim(),
+      slug: document.getElementById("sessaoSlug").value.trim(),
+      categoria: document.getElementById("sessaoCategoria").value.trim(),
+      conteudo_template: document.getElementById("sessaoConteudoTemplate").value.trim(),
+      exemplo_preenchido: document.getElementById("sessaoExemploPreenchido").value.trim(),
+      descricao: document.getElementById("sessaoDescricao").value.trim(),
+      habilitado_por_padrao: document.getElementById("sessaoHabilitadoPorPadrao").checked,
+      ordem: parseInt(document.getElementById("sessaoOrdem").value) || 0,
+      ativo: document.getElementById("sessaoAtivo").checked,
+    };
+
+    if (!dados.nome || !dados.slug || !dados.conteudo_template) {
+      mostrarAlerta("Preencha todos os campos obrigatórios", "error");
+      return;
+    }
+
+    try {
+      let result;
+      if (id) {
+        result = await supabaseClient
+          .from("instacar_sessoes_contexto_ia")
+          .update(dados)
+          .eq("id", id);
+      } else {
+        result = await supabaseClient
+          .from("instacar_sessoes_contexto_ia")
+          .insert([dados]);
+      }
+
+      if (result.error) throw result.error;
+
+      mostrarAlerta(
+        `Sessão ${id ? "atualizada" : "criada"} com sucesso!`,
+        "success"
+      );
+      fecharModalSessaoContexto();
+      await carregarSessoesContexto();
+      
+      // Se estava no modal de listagem, recarregar
+      const modalListagem = document.getElementById("modalSessaoContexto");
+      if (modalListagem && modalListagem.classList.contains("active")) {
+        await carregarSessoesContexto();
+      }
+    } catch (error) {
+      mostrarAlerta("Erro ao salvar sessão: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  async function editarSessaoContexto(id) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("instacar_sessoes_contexto_ia")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      if (!data) {
+        mostrarAlerta("Sessão não encontrada", "error");
+        return;
+      }
+
+      document.getElementById("sessaoId").value = data.id;
+      document.getElementById("sessaoNome").value = data.nome || "";
+      document.getElementById("sessaoSlug").value = data.slug || "";
+      document.getElementById("sessaoCategoria").value = data.categoria || "";
+      document.getElementById("sessaoConteudoTemplate").value = data.conteudo_template || "";
+      document.getElementById("sessaoExemploPreenchido").value = data.exemplo_preenchido || "";
+      document.getElementById("sessaoDescricao").value = data.descricao || "";
+      document.getElementById("sessaoHabilitadoPorPadrao").checked = data.habilitado_por_padrao === true;
+      document.getElementById("sessaoOrdem").value = data.ordem || 0;
+      document.getElementById("sessaoAtivo").checked = data.ativo !== false;
+
+      abrirModalFormSessaoContexto();
+    } catch (error) {
+      mostrarAlerta("Erro ao carregar sessão: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  async function abrirModalSessaoContexto() {
+    const modal = document.getElementById("modalSessaoContexto");
+    if (modal) {
+      modal.classList.add("active");
+      await carregarSessoesContexto();
+    }
+  }
+
+  function fecharModalSessaoContexto() {
+    const modal = document.getElementById("modalSessaoContexto");
+    const modalForm = document.getElementById("modalFormSessaoContexto");
+    if (modal) {
+      modal.classList.remove("active");
+    }
+    if (modalForm) {
+      modalForm.classList.remove("active");
+      document.getElementById("formSessaoContexto").reset();
+      document.getElementById("sessaoId").value = "";
+    }
+  }
+
+  function abrirModalFormSessaoContexto() {
+    const modal = document.getElementById("modalFormSessaoContexto");
+    if (modal) {
+      // Limpar campos se for nova sessão
+      if (!document.getElementById("sessaoId").value) {
+        document.getElementById("formSessaoContexto").reset();
+        document.getElementById("sessaoId").value = "";
+      }
+      modal.classList.add("active");
+      document.getElementById("modalFormSessaoContextoTitle").textContent =
+        document.getElementById("sessaoId").value
+          ? "Editar Sessão"
+          : "Nova Sessão";
+    }
+  }
+
+  async function toggleAtivoSessao(id, novoEstado) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      const { error } = await supabaseClient
+        .from("instacar_sessoes_contexto_ia")
+        .update({ ativo: novoEstado })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      mostrarAlerta(
+        `Sessão ${novoEstado ? "ativada" : "desativada"} com sucesso!`,
+        "success"
+      );
+      carregarSessoesContexto();
+    } catch (error) {
+      mostrarAlerta("Erro ao alterar status: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  // ============================================================================
+  // Gerenciamento de Templates de Prompt
+  // ============================================================================
+
+  async function carregarTemplatesPrompt() {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("instacar_templates_prompt")
+        .select("*")
+        .order("categoria", { ascending: true })
+        .order("nome", { ascending: true });
+
+      if (error) throw error;
+
+      const container = document.getElementById("listaTemplatesPrompt");
+      if (!container) return;
+
+      if (!data || data.length === 0) {
+        container.innerHTML = "<p>Nenhum template cadastrado.</p>";
+        return;
+      }
+
+      let html = "";
+      data.forEach((template) => {
+        html += `
+          <div style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 10px; background: ${template.ativo ? "#fff" : "#f9f9f9"}">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px">
+              <div style="flex: 1">
+                <strong>${template.nome}</strong>
+                ${!template.ativo ? '<span style="color: #999; font-size: 12px; margin-left: 10px">(Inativo)</span>' : ''}
+                <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px">${template.categoria}</span>
+              </div>
+              <div style="display: flex; gap: 5px">
+                <button onclick="editarTemplatePrompt('${template.id}')" class="btn-small" style="padding: 4px 8px; font-size: 12px">✏️ Editar</button>
+                <button onclick="toggleAtivoTemplate('${template.id}', ${!template.ativo})" class="btn-small" style="padding: 4px 8px; font-size: 12px">
+                  ${template.ativo ? "⏸️ Desativar" : "▶️ Ativar"}
+                </button>
+              </div>
+            </div>
+            ${template.descricao ? `<p style="margin: 4px 0; color: #666; font-size: 13px">${template.descricao}</p>` : ""}
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    } catch (error) {
+      mostrarAlerta("Erro ao carregar templates: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  async function salvarTemplatePrompt(id) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    const sessoesHabilitadas = Array.from(
+      document.querySelectorAll("#templateSessoesHabilitadas input:checked")
+    ).map((cb) => cb.value);
+
+    const configuracoesHabilitadas = Array.from(
+      document.querySelectorAll("#templateConfiguracoesHabilitadas input:checked")
+    ).map((cb) => cb.value);
+
+    const dados = {
+      nome: document.getElementById("templateNome").value.trim(),
+      descricao: document.getElementById("templateDescricao").value.trim(),
+      prompt_completo: document.getElementById("templatePromptCompleto").value.trim(),
+      sessoes_habilitadas: sessoesHabilitadas,
+      configuracoes_empresa_habilitadas: configuracoesHabilitadas,
+      categoria: document.getElementById("templateCategoria").value,
+      exemplo_uso: document.getElementById("templateExemploUso").value.trim(),
+      ativo: document.getElementById("templateAtivo").checked,
+    };
+
+    if (!dados.nome || !dados.prompt_completo || !dados.categoria) {
+      mostrarAlerta("Preencha todos os campos obrigatórios", "error");
+      return;
+    }
+
+    try {
+      let result;
+      if (id) {
+        result = await supabaseClient
+          .from("instacar_templates_prompt")
+          .update(dados)
+          .eq("id", id);
+      } else {
+        result = await supabaseClient
+          .from("instacar_templates_prompt")
+          .insert([dados]);
+      }
+
+      if (result.error) throw result.error;
+
+      mostrarAlerta(
+        `Template ${id ? "atualizado" : "criado"} com sucesso!`,
+        "success"
+      );
+      fecharModalTemplatePrompt();
+      await carregarTemplatesPrompt();
+      
+      // Se estava no modal de listagem, recarregar
+      const modalListagem = document.getElementById("modalTemplatePrompt");
+      if (modalListagem && modalListagem.classList.contains("active")) {
+        await carregarTemplatesPrompt();
+      }
+    } catch (error) {
+      mostrarAlerta("Erro ao salvar template: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  async function editarTemplatePrompt(id) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("instacar_templates_prompt")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      if (!data) {
+        mostrarAlerta("Template não encontrado", "error");
+        return;
+      }
+
+      document.getElementById("templateId").value = data.id;
+      document.getElementById("templateNome").value = data.nome || "";
+      document.getElementById("templateDescricao").value = data.descricao || "";
+      document.getElementById("templatePromptCompleto").value = data.prompt_completo || "";
+      document.getElementById("templateCategoria").value = data.categoria || "custom";
+      document.getElementById("templateExemploUso").value = data.exemplo_uso || "";
+      document.getElementById("templateAtivo").checked = data.ativo !== false;
+
+      // Abrir modal e depois marcar checkboxes (aguardar carregamento)
+      await abrirModalFormTemplatePrompt();
+      
+      // Aguardar um pouco para garantir que checkboxes foram carregados
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Marcar sessões habilitadas
+      const sessoesHabilitadas = data.sessoes_habilitadas || [];
+      document.querySelectorAll("#templateSessoesHabilitadas input").forEach((cb) => {
+        cb.checked = sessoesHabilitadas.includes(cb.value);
+      });
+
+      // Marcar configurações habilitadas
+      const configsHabilitadas = data.configuracoes_empresa_habilitadas || [];
+      document.querySelectorAll("#templateConfiguracoesHabilitadas input").forEach((cb) => {
+        cb.checked = configsHabilitadas.includes(cb.value);
+      });
+    } catch (error) {
+      mostrarAlerta("Erro ao carregar template: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  async function abrirModalTemplatePrompt() {
+    const modal = document.getElementById("modalTemplatePrompt");
+    if (modal) {
+      modal.classList.add("active");
+      await carregarTemplatesPrompt();
+    }
+  }
+
+  function fecharModalTemplatePrompt() {
+    const modal = document.getElementById("modalTemplatePrompt");
+    const modalForm = document.getElementById("modalFormTemplatePrompt");
+    if (modal) {
+      modal.classList.remove("active");
+    }
+    if (modalForm) {
+      modalForm.classList.remove("active");
+      document.getElementById("formTemplatePrompt").reset();
+      document.getElementById("templateId").value = "";
+    }
+  }
+
+  async function abrirModalFormTemplatePrompt() {
+    const modal = document.getElementById("modalFormTemplatePrompt");
+    if (modal) {
+      // Limpar campos se for novo template
+      if (!document.getElementById("templateId").value) {
+        document.getElementById("formTemplatePrompt").reset();
+        document.getElementById("templateId").value = "";
+      }
+      modal.classList.add("active");
+      document.getElementById("modalFormTemplatePromptTitle").textContent =
+        document.getElementById("templateId").value
+          ? "Editar Template"
+          : "Novo Template";
+      
+      // Carregar sessões e configurações para checkboxes
+      await carregarSessoesParaTemplate();
+      await carregarConfiguracoesParaTemplate();
+    }
+  }
+
+  async function carregarSessoesParaTemplate() {
+    if (!supabaseClient) return;
+    try {
+      const { data: sessoes } = await supabaseClient
+        .from("instacar_sessoes_contexto_ia")
+        .select("id, nome, slug")
+        .eq("ativo", true)
+        .order("nome", { ascending: true });
+
+      const container = document.getElementById("templateSessoesHabilitadas");
+      if (container && sessoes) {
+        if (sessoes.length === 0) {
+          container.innerHTML = "<p style='color: #666; font-size: 14px'>Nenhuma sessão disponível.</p>";
+        } else {
+          let html = "";
+          sessoes.forEach((sessao) => {
+            html += `
+              <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer">
+                <input type="checkbox" value="${sessao.slug}" style="width: auto; margin-right: 8px" />
+                <span>${sessao.nome} <small style="color: #999">(${sessao.slug})</small></span>
+              </label>
+            `;
+          });
+          container.innerHTML = html;
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao carregar sessões para template:", error);
+    }
+  }
+
+  async function carregarConfiguracoesParaTemplate() {
+    if (!supabaseClient) return;
+    try {
+      const { data: configuracoes } = await supabaseClient
+        .from("instacar_configuracoes_empresa")
+        .select("chave, titulo, categoria")
+        .eq("ativo", true)
+        .order("categoria", { ascending: true })
+        .order("titulo", { ascending: true });
+
+      const container = document.getElementById("templateConfiguracoesHabilitadas");
+      if (container && configuracoes) {
+        if (configuracoes.length === 0) {
+          container.innerHTML = "<p style='color: #666; font-size: 14px'>Nenhuma configuração disponível.</p>";
+        } else {
+          let html = "";
+          configuracoes.forEach((config) => {
+            html += `
+              <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer">
+                <input type="checkbox" value="${config.chave}" style="width: auto; margin-right: 8px" />
+                <span>${config.titulo} <small style="color: #999">(${config.chave})</small></span>
+              </label>
+            `;
+          });
+          container.innerHTML = html;
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao carregar configurações para template:", error);
+    }
+  }
+
+  async function toggleAtivoTemplate(id, novoEstado) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      const { error } = await supabaseClient
+        .from("instacar_templates_prompt")
+        .update({ ativo: novoEstado })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      mostrarAlerta(
+        `Template ${novoEstado ? "ativado" : "desativado"} com sucesso!`,
+        "success"
+      );
+      carregarTemplatesPrompt();
+    } catch (error) {
+      mostrarAlerta("Erro ao alterar status: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  // Expor funções globalmente
+  window.carregarConfiguracoesEmpresa = carregarConfiguracoesEmpresa;
+  window.salvarConfiguracaoEmpresa = salvarConfiguracaoEmpresa;
+  window.editarConfiguracaoEmpresa = editarConfiguracaoEmpresa;
+  window.abrirModalConfiguracaoEmpresa = abrirModalConfiguracaoEmpresa;
+  window.fecharModalConfiguracaoEmpresa = fecharModalConfiguracaoEmpresa;
+  window.abrirModalFormConfiguracaoEmpresa = abrirModalFormConfiguracaoEmpresa;
+  window.fecharModalFormConfiguracaoEmpresa = fecharModalFormConfiguracaoEmpresa;
+  window.toggleAtivoConfiguracao = toggleAtivoConfiguracao;
+  window.carregarSessoesContexto = carregarSessoesContexto;
+  window.salvarSessaoContexto = salvarSessaoContexto;
+  window.editarSessaoContexto = editarSessaoContexto;
+  window.abrirModalSessaoContexto = abrirModalSessaoContexto;
+  window.fecharModalSessaoContexto = fecharModalSessaoContexto;
+  window.abrirModalFormSessaoContexto = abrirModalFormSessaoContexto;
+  window.toggleAtivoSessao = toggleAtivoSessao;
+  window.carregarTemplatesPrompt = carregarTemplatesPrompt;
+  window.salvarTemplatePrompt = salvarTemplatePrompt;
+  window.editarTemplatePrompt = editarTemplatePrompt;
+  window.abrirModalTemplatePrompt = abrirModalTemplatePrompt;
+  window.fecharModalTemplatePrompt = fecharModalTemplatePrompt;
+  window.abrirModalFormTemplatePrompt = abrirModalFormTemplatePrompt;
+  window.toggleAtivoTemplate = toggleAtivoTemplate;
 
   // Verificar se DOM já está pronto ou aguardar
   if (document.readyState === "loading") {

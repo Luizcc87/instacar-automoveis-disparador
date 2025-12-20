@@ -14,36 +14,47 @@ Este é um sistema automatizado de disparo de mensagens via WhatsApp para a Inst
 - **OpenAI GPT-4**: Geração de mensagens personalizadas
 - **Google Sheets**: Fonte de dados dos clientes (9 planilhas)
 
-**Versão Atual:** 2.3 (Dezembro 2025 - gerenciamento de instâncias WhatsApp com prefixo obrigatório e suporte Admin/Instance Token)
+**Versão Atual:** 2.4 (Dezembro 2025 - sistema de dados dinâmicos para agente IA com configurações globais, sessões de contexto e templates de prompt)
 
 ## Arquitetura
 
 ### Fluxo Principal do Workflow
 
-O workflow principal do N8N ([Disparador_Instacar_Escalonado_Supabase.json](fluxos-n8n/Disparador_Instacar_Escalonado_Supabase.json)) processa os clientes através deste pipeline:
+**Workflow Principal (Campanhas):** [Disparador_Web_Campanhas_Instacar.json](fluxos-n8n/Disparador_Web_Campanhas_Instacar.json)
+
+Processa campanhas através deste pipeline:
 
 ```
-Trigger Manual → Ler Google Sheets (9 planilhas) → Normalizar Telefones (55XXXXXXXXXXX)
+Trigger Manual → Buscar Campanha do Supabase
+    → Buscar Configurações Empresa (dados dinâmicos)
+    → Buscar Sessões Contexto (dados dinâmicos)
+    → Verificar/Buscar Template Prompt (dados dinâmicos)
+    → Preparar Dados IA Campanha (monta contexto dinâmico)
+    → Ler Google Sheets (planilhas da campanha)
+    → Normalizar Telefones (55XXXXXXXXXXX)
     → Filtrar Inválidos → Split in Batches (tamanho: 1)
-    → Preservar Dados Planilha (crítico: previne perda de dados)
-    → Consulta Supabase (verificação de duplicata por telefone)
+    → Preservar Dados Planilha
+    → Consulta Supabase (verificação de duplicata)
     → Combinar Dados (mescla dados Supabase + Planilha)
     → Verificar se já enviou mensagem
     → Uazapi /chat/check (validar WhatsApp)
-    → OpenAI GPT-4 (gerar mensagem personalizada)
+    → OpenAI GPT-4 (gerar mensagem com contexto dinâmico)
     → Uazapi /send/text (enviar mensagem)
-    → Aguardar 130-150s (aleatorizado)
-    → Supabase Insert/Update (registrar em 3 tabelas)
-    → Verificar limite diário (200/dia)
+    → Aguardar intervalo configurado
+    → Supabase Insert/Update (registrar histórico)
+    → Verificar limite diário
     → Retornar ao próximo cliente
 ```
 
+**Workflow Legado:** [Disparador_Instacar_Escalonado_Supabase.json](fluxos-n8n/Disparador_Instacar_Escalonado_Supabase.json) - Workflow original sem suporte a campanhas e dados dinâmicos.
+
 ### Schema do Banco de Dados
 
-Quatro tabelas principais no Supabase (schema: [docs/supabase/schema.sql](docs/supabase/schema.sql)):
+**Tabelas principais no Supabase:**
+
+**Tabelas de Clientes e Envios** (schema: [docs/supabase/schema.sql](docs/supabase/schema.sql)):
 
 1. **`instacar_clientes_envios`** - Registros de clientes e controle de envios
-
    - Restrição única em `telefone` (número de telefone)
    - Rastreia `total_envios` (contagem de mensagens), `status_whatsapp`, `primeiro_envio`, `ultimo_envio`
    - Armazena `veiculos` como array JSONB
@@ -51,13 +62,11 @@ Quatro tabelas principais no Supabase (schema: [docs/supabase/schema.sql](docs/s
    - Campo `observacoes_internas` (JSONB) para histórico de observações internas sobre o cliente
 
 2. **`instacar_historico_envios`** - Trilha de auditoria completa
-
    - Cada mensagem registrada com contexto completo
    - FK para `instacar_clientes_envios.id`
    - Armazena texto da mensagem, referência do veículo, status, planilha de origem
 
 3. **`instacar_controle_envios`** - Métricas diárias e controle de limite
-
    - Chave primária: `data` (data)
    - Rastreia totais diários: enviados, erros, duplicados, sem WhatsApp
    - Usado para impor limite de 200/dia
@@ -67,7 +76,33 @@ Quatro tabelas principais no Supabase (schema: [docs/supabase/schema.sql](docs/s
    - Categorização por tipo: 'uazapi', 'openai', 'supabase', 'sheets'
    - Suporta reprocessamento com flag `reprocessado`
 
-**Performance:** 12 índices estratégicos incluindo índices compostos e parciais para padrões de consulta comuns.
+**Tabelas de Dados Dinâmicos para Agente IA** (schema: [docs/supabase/schema-dados-dinamicos-ia.sql](docs/supabase/schema-dados-dinamicos-ia.sql)):
+
+5. **`instacar_configuracoes_empresa`** - Configurações globais da empresa
+   - Armazena políticas, tom de voz, informações institucionais
+   - Organizado por categorias (politicas, tom_voz, contato, sobre_empresa, ofertas, produtos)
+   - Suporta variáveis dinâmicas ({{nome_cliente}}, {{data_hoje}}, etc.)
+   - Pode ser sobrescrito por campanha via `configuracoes_sobrescritas`
+
+6. **`instacar_sessoes_contexto_ia`** - Sessões de contexto pré-definidas
+   - Blocos de contexto reutilizáveis para o agente IA
+   - Template de conteúdo com variáveis dinâmicas
+   - Pode ser habilitado/desabilitado por campanha
+   - Flag `habilitado_por_padrao` para ativação automática
+
+7. **`instacar_templates_prompt`** - Templates completos de prompt
+   - Templates prontos para diferentes tipos de campanha (natal, black-friday, relacionamento, etc.)
+   - Prompt completo com estrutura otimizada para GPT-4/GPT-5
+   - Define quais sessões e configurações são habilitadas por padrão
+
+**Tabelas de Campanhas:**
+
+8. **`instacar_campanhas`** - Configuração de campanhas
+   - Vincula com `instacar_templates_prompt` via `template_prompt_id`
+   - Array `sessoes_contexto_ids` (JSONB) para sessões habilitadas
+   - Objeto `configuracoes_sobrescritas` (JSONB) para sobrescrever configurações globais
+
+**Performance:** 12+ índices estratégicos incluindo índices compostos e parciais para padrões de consulta comuns.
 
 ### Estratégia de Limitação de Taxa
 
@@ -341,6 +376,41 @@ Veja [docs/n8n/sintaxe-n8n-variaveis.md](docs/n8n/sintaxe-n8n-variaveis.md) para
 6. **Limite de Google Sheets:** Configurado para máximo de 9 planilhas (pode ser estendido no array SHEET_IDS)
 
 ## Mudanças Recentes
+
+### Versão 2.4 (Dezembro 2025 - Sistema de Dados Dinâmicos para Agente IA)
+
+Sistema completo para gerenciar dados dinâmicos que são utilizados no prompt do agente de IA:
+
+1. **Configurações Globais da Empresa** (`instacar_configuracoes_empresa`):
+   - Armazena políticas, tom de voz, informações institucionais
+   - Organizado por categorias (politicas, tom_voz, contato, sobre_empresa, ofertas, produtos)
+   - Suporta variáveis dinâmicas ({{nome_cliente}}, {{data_hoje}}, etc.)
+   - Pode ser sobrescrito por campanha via `configuracoes_sobrescritas` em `instacar_campanhas`
+
+2. **Sessões de Contexto IA** (`instacar_sessoes_contexto_ia`):
+   - Blocos de contexto reutilizáveis para o agente IA
+   - Template de conteúdo com variáveis dinâmicas
+   - Pode ser habilitado/desabilitado por campanha
+   - Flag `habilitado_por_padrao` para ativação automática
+
+3. **Templates de Prompt** (`instacar_templates_prompt`):
+   - Templates prontos para diferentes tipos de campanha (natal, black-friday, relacionamento, etc.)
+   - Prompt completo com estrutura otimizada para GPT-4/GPT-5
+   - Define quais sessões e configurações são habilitadas por padrão
+
+4. **Interface Web Completa**:
+   - Seção "Dados Dinâmicos do Agente IA" na interface principal
+   - Modais para gerenciar configurações, sessões e templates
+   - CRUD completo com validações
+   - Integração com formulário de campanhas
+
+5. **Workflow N8N Atualizado**:
+   - 5 novos nós para buscar dados dinâmicos do Supabase
+   - Montagem automática do contexto do agente IA
+   - Suporte a templates, sessões e configurações sobrescritas
+
+📖 **Guia completo**: [docs/campanhas/guia-dados-dinamicos-ia.md](docs/campanhas/guia-dados-dinamicos-ia.md)  
+📋 **Exemplos**: [docs/campanhas/exemplos-templates-sessoes.md](docs/campanhas/exemplos-templates-sessoes.md)
 
 ### Versão 2.3 (Dezembro 2025 - Gerenciamento de Instâncias WhatsApp)
 
