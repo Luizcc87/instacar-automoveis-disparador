@@ -694,24 +694,27 @@ Que 2026 traga muitas realizações. Estamos à disposição!
 
 ---
 
-## 8. ⚠️ Status do Workflow
+## 8. ✅ Status do Workflow
 
-**Nota:** O workflow `Disparador_Web_Campanhas_Instacar.json` está parcialmente implementado. A parte de geração e envio de mensagens precisa ser adicionada copiando os nós do workflow base `Disparador_Instacar_Escalonado_Supabase.json`.
+**Status:** ✅ **100% Implementado**
 
-**O que está funcionando:**
+O workflow `Disparador_Web_Campanhas_Instacar.json` está **completamente implementado** com todas as funcionalidades necessárias.
 
-- ✅ Recebimento de webhook
-- ✅ Validações e setup
-- ✅ Busca de clientes
-- ✅ Preparação de contexto IA
+**Funcionalidades Implementadas:**
 
-**O que falta:**
+- ✅ Recebimento de webhook (manual, agendado, cron)
+- ✅ Validações (payload, período, horário, dia útil)
+- ✅ Busca de clientes do Supabase
+- ✅ Filtragem e processamento em lotes
+- ✅ Preparação de contexto IA dinâmico
+- ✅ Busca de instância WhatsApp configurada na campanha
+- ✅ Geração de mensagens via AI Agent (OpenAI)
+- ✅ Envio via WhatsApp (Uazapi, extensível para outras APIs)
+- ✅ Registro completo no histórico
+- ✅ Controle de limites e intervalos
+- ✅ Loop completo com espaçamento entre envios
 
-- ❌ Nós de geração de mensagem (AI Agent)
-- ❌ Nós de envio (Uazapi)
-- ❌ Nós de registro (Histórico)
-
-Veja [NOTA-WORKFLOW-CAMPANHAS.md](NOTA-WORKFLOW-CAMPANHAS.md) para detalhes do que foi implementado.
+**Para testar o fluxo completo, veja:** [GUIA-TESTE-DISPARO-COMPLETO.md](GUIA-TESTE-DISPARO-COMPLETO.md)
 
 ---
 

@@ -110,6 +110,7 @@ fetch(
 **⚠️ IMPORTANTE:** Para que a interface web possa ler o histórico de envios, é necessário ter uma política RLS para usuários `anon` na tabela `instacar_historico_envios`.
 
 **Verificar políticas:**
+
 ```sql
 SELECT policyname, roles, cmd
 FROM pg_policies
@@ -117,6 +118,7 @@ WHERE tablename = 'instacar_historico_envios';
 ```
 
 **Se não houver política para `anon`, execute:**
+
 - Script: `docs/interface-web/fix-rls-historico.sql`
 - Documentação completa: `docs/interface-web/HISTORICO-ENVIOS-INDIVIDUAIS.md`
 

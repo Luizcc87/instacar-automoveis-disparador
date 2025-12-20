@@ -11,12 +11,14 @@ Este documento descreve como o sistema registra e exibe o histórico de envios i
 Quando um usuário envia uma mensagem individual através da interface web:
 
 1. **Frontend** → Envia requisição para webhook do N8N com:
+
    - `trigger_tipo: 'manual_individual'`
    - `telefone`: Número do cliente
    - `mensagem_customizada`: Mensagem personalizada (opcional)
    - `campanha_id`: ID da campanha (opcional)
 
 2. **N8N Workflow** (`Disparador_Web_Campanhas_Instacar.json`):
+
    - Valida payload
    - Busca cliente no Supabase
    - Busca API WhatsApp ativa
@@ -37,6 +39,7 @@ Quando um usuário envia uma mensagem individual através da interface web:
 Quando o usuário visualiza os detalhes do cliente:
 
 1. **Frontend** (`interface-web/app.js`):
+
    - Busca histórico por `cliente_id` E por `telefone`
    - Normaliza telefone para formato `55XXXXXXXXXXX`
    - Combina resultados e remove duplicatas
@@ -75,6 +78,7 @@ WHERE tablename = 'instacar_historico_envios';
 ```
 
 Deve retornar 3 políticas:
+
 - `Service role full access to historico_envios` (service_role)
 - `Authenticated users can read historico_envios` (authenticated)
 - `Anon users can read historico_envios` (anon) ← **Essencial para interface web**
@@ -84,12 +88,14 @@ Deve retornar 3 políticas:
 ### Problema: Histórico não aparece na interface web
 
 **Sintomas:**
+
 - Interface mostra "Nenhum histórico de envio encontrado"
 - Console do navegador mostra `count: 0` nas queries
 
 **Diagnóstico:**
 
 1. **Verificar se registros existem no banco:**
+
    ```sql
    SELECT id, cliente_id, telefone, status_envio, timestamp_envio
    FROM instacar_historico_envios
@@ -98,12 +104,13 @@ Deve retornar 3 políticas:
    ```
 
 2. **Verificar políticas RLS:**
+
    ```sql
    SELECT policyname, roles, cmd
    FROM pg_policies
    WHERE tablename = 'instacar_historico_envios';
    ```
-   
+
    Se não houver política para `anon`, execute `docs/interface-web/fix-rls-historico.sql`
 
 3. **Verificar logs do navegador:**
@@ -112,6 +119,7 @@ Deve retornar 3 políticas:
    - Verifique se `error` é `null` e `count` é maior que 0
 
 **Solução:**
+
 - Execute o script `docs/interface-web/fix-rls-historico.sql` no Supabase
 - Recarregue a página da interface web
 
@@ -120,9 +128,26 @@ Deve retornar 3 políticas:
 **Causa:** O N8N não conseguiu obter o `cliente_id` do cliente.
 
 **Solução:** Verifique o nó "Preparar Histórico Individual" no workflow N8N. Ele tenta buscar o `cliente_id` de múltiplas fontes:
+
 - `dados.id` ou `dados.cliente_id`
 - Nó "Preparar Cliente Individual"
 - Nó "Buscar Cliente Individual"
+
+### Problema: Histórico de envio com campanha não aparece
+
+**Sintomas:**
+- Envio individual usando "Usar Campanha Existente" foi executado com sucesso
+- Registro foi criado no banco com `campanha_id` (confirmado via SQL)
+- Histórico não aparece na interface web
+
+**Causa:** O nó "Preparar Histórico Individual" pode não estar capturando o `campanha_id` corretamente quando vem diretamente do payload (não do objeto `campanha`).
+
+**Solução:** O nó "Preparar Histórico Individual" verifica `campanha_id` de duas fontes:
+1. `dados.campanha.id` (objeto campanha)
+2. `dados.campanha_id` (campo direto do payload)
+
+**Verificação:**
+Execute a query em `docs/interface-web/verificar-historico-com-campanha.sql` para confirmar que o registro foi criado com `campanha_id` no banco.
 
 ## Logs de Debug
 
@@ -130,11 +155,12 @@ Para habilitar logs detalhados no navegador:
 
 ```javascript
 // No console do navegador (F12)
-window.DEBUG = true;              // Logs gerais
-window.DEBUG_HISTORICO = true;    // Logs específicos de histórico
+window.DEBUG = true; // Logs gerais
+window.DEBUG_HISTORICO = true; // Logs específicos de histórico
 ```
 
 Os logs mostrarão:
+
 - Telefone original e normalizado
 - Resultados das queries (por cliente_id e por telefone)
 - Histórico combinado e renderizado
@@ -146,4 +172,6 @@ Os logs mostrarão:
 - **Schema Supabase:** `docs/supabase/schema.sql`
 - **Políticas RLS:** `docs/supabase/policies.sql`
 - **Fix RLS:** `docs/interface-web/fix-rls-historico.sql`
-- **Queries de Diagnóstico:** `docs/interface-web/verificar-historico-individual.sql`
+- **Queries de Diagnóstico:** 
+  - `docs/interface-web/verificar-historico-individual.sql` (geral)
+  - `docs/interface-web/verificar-historico-com-campanha.sql` (com campanha_id)
