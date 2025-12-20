@@ -160,7 +160,7 @@ A interface permite gerenciar múltiplas instâncias de APIs WhatsApp (Uazapi, Z
 
 - **Criar Instâncias**: Adicione novas instâncias com suporte para múltiplas APIs
 - **Prefixo Automático**: Todas as instâncias recebem automaticamente o prefixo `Instacar_codigo_` onde `codigo` é um código único de 6 caracteres alfanuméricos
-- **Normalização de Nomes**: Nomes são automaticamente normalizados para minúsculas e kebab-case
+- **Normalização de Nomes**: Nomes são automaticamente normalizados para minúsculas (espaços viram underscores, acentos removidos, hífens e underscores preservados)
 - **Sincronização com Uazapi**: Nomes são sincronizados automaticamente com a Uazapi ao criar/editar
 
 ### Tokens
