@@ -168,7 +168,11 @@ A interface permite gerenciar múltiplas instâncias de APIs WhatsApp (Uazapi, Z
 - **Admin Token** (opcional): Necessário apenas para criar novas instâncias na Uazapi via API
   - Não é necessário para editar ou deletar instâncias
   - Não é salvo no banco de dados (usado apenas temporariamente)
-- **Instance Token** (obrigatório): Token da instância para operações regulares
+- **Instance Token** (obrigatório condicionalmente): Token da instância para operações regulares
+  - **Não obrigatório** ao criar nova instância Uazapi com Admin Token (será gerado automaticamente pela Uazapi)
+  - **Obrigatório** ao editar instâncias existentes
+  - **Obrigatório** ao criar nova instância sem Admin Token (instância já existe na Uazapi)
+  - **Obrigatório** para APIs que não sejam Uazapi
   - Usado para conectar, enviar mensagens, deletar instâncias, etc.
   - É salvo no banco de dados
 

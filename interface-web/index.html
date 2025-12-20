@@ -2035,13 +2035,12 @@
           </div>
 
           <div class="form-group">
-            <label>Instance Token *</label>
+            <label>Instance Token <span id="instanciaUazapiTokenRequired" style="color: red; display: none;">*</span></label>
             <div style="display: flex; gap: 10px">
               <input
                 type="password"
                 id="instanciaUazapiToken"
-                required
-                placeholder="Seu instance token da Uazapi"
+                placeholder="Seu instance token da Uazapi (será gerado automaticamente se fornecer Admin Token)"
                 style="flex: 1"
               />
               <button
@@ -2053,8 +2052,14 @@
               </button>
             </div>
             <small style="color: #666">
-              ⚠️ Instance Token é obrigatório. Use para operações regulares (conectar, enviar mensagens, etc.) e para <strong>deletar</strong> instâncias.
-              Se você está criando uma nova instância e forneceu o Admin Token acima, o Instance Token será gerado automaticamente pela Uazapi.
+              <strong>Quando usar Instance Token:</strong>
+              <ul style="margin: 5px 0; padding-left: 20px;">
+                <li>✅ <strong>Obrigatório</strong> se você já tem uma instância criada na Uazapi (não forneceu Admin Token)</li>
+                <li>✅ <strong>Obrigatório</strong> para editar instâncias existentes</li>
+                <li>✅ <strong>Obrigatório</strong> para APIs que não sejam Uazapi</li>
+                <li>❌ <strong>Não precisa</strong> se você forneceu Admin Token acima (será gerado automaticamente)</li>
+              </ul>
+              O Instance Token é usado para operações regulares (conectar, enviar mensagens, deletar instâncias, etc.).
             </small>
           </div>
 

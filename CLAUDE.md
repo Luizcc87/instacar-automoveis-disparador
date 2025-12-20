@@ -367,6 +367,9 @@ Melhorias no sistema de gerenciamento de instâncias de APIs WhatsApp:
    - Campo Admin Token opcional com explicações claras sobre quando usar
    - Tooltips atualizados explicando diferença entre Admin Token e Instance Token
    - Validações para garantir que apenas o nome (sem prefixo) seja editado
+   - Instance Token com validação dinâmica: obrigatório apenas quando necessário
+     - Não obrigatório ao criar nova instância Uazapi com Admin Token (será gerado automaticamente)
+     - Obrigatório ao editar instâncias existentes ou criar sem Admin Token
 
 ### Versão 2.2 (Dezembro 2025 - Melhorias de UI/UX)
 

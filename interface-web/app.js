@@ -650,6 +650,42 @@
   }
 
   /**
+   * Atualiza o status de obrigatório do Instance Token baseado no contexto
+   */
+  function atualizarStatusInstanceToken() {
+    const id = document.getElementById("instanciaUazapiId")?.value;
+    const tipoApi = document.getElementById("instanciaUazapiTipoApi")?.value || "uazapi";
+    const adminToken = document.getElementById("instanciaUazapiAdminToken")?.value.trim() || "";
+    const requiredIndicator = document.getElementById("instanciaUazapiTokenRequired");
+    const tokenInput = document.getElementById("instanciaUazapiToken");
+    
+    // Se está editando, sempre obrigatório
+    if (id) {
+      if (requiredIndicator) requiredIndicator.style.display = "inline";
+      if (tokenInput) tokenInput.required = true;
+      return;
+    }
+    
+    // Se não é Uazapi, sempre obrigatório
+    if (tipoApi !== "uazapi") {
+      if (requiredIndicator) requiredIndicator.style.display = "inline";
+      if (tokenInput) tokenInput.required = true;
+      return;
+    }
+    
+    // Se é nova instância Uazapi e tem Admin Token, não é obrigatório
+    if (adminToken) {
+      if (requiredIndicator) requiredIndicator.style.display = "none";
+      if (tokenInput) tokenInput.required = false;
+      return;
+    }
+    
+    // Se é nova instância Uazapi e não tem Admin Token, é obrigatório
+    if (requiredIndicator) requiredIndicator.style.display = "inline";
+    if (tokenInput) tokenInput.required = true;
+  }
+
+  /**
    * Abre modal para criar/editar instância Uazapi
    */
   async function abrirModalNovaInstanciaUazapi(instanciaId = null) {
@@ -671,6 +707,9 @@
       "instanciaUazapiConfigExtra"
     );
     if (configExtraInput) configExtraInput.value = "";
+    
+    // Atualizar status do Instance Token baseado no contexto
+    atualizarStatusInstanceToken();
 
     if (instanciaId) {
       // Editar instância existente
@@ -717,6 +756,9 @@
         }
         document.getElementById("instanciaUazapiAtivo").checked =
           data.ativo !== false;
+        
+        // Atualizar status do Instance Token (ao editar, sempre obrigatório)
+        atualizarStatusInstanceToken();
       } catch (error) {
         mostrarAlerta("Erro ao carregar instância: " + error.message, "error");
         return;
@@ -724,6 +766,9 @@
     } else {
       // Nova instância
       title.textContent = "Nova Instância Uazapi";
+      
+      // Atualizar status do Instance Token (nova instância)
+      atualizarStatusInstanceToken();
     }
 
     modal.classList.add("active");
@@ -8057,6 +8102,19 @@ Máximo de 3 parágrafos.</code></pre>
       e.preventDefault();
       await salvarInstanciaUazapi();
     });
+    
+    // Adicionar listeners para atualizar status do Instance Token dinamicamente
+    const adminTokenInput = document.getElementById("instanciaUazapiAdminToken");
+    const tipoApiSelect = document.getElementById("instanciaUazapiTipoApi");
+    
+    if (adminTokenInput) {
+      adminTokenInput.addEventListener("input", atualizarStatusInstanceToken);
+      adminTokenInput.addEventListener("change", atualizarStatusInstanceToken);
+    }
+    
+    if (tipoApiSelect) {
+      tipoApiSelect.addEventListener("change", atualizarStatusInstanceToken);
+    }
   }
 
   // Verificar se DOM já está pronto ou aguardar
