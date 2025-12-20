@@ -22,8 +22,9 @@ Este projeto implementa um sistema completo de disparo escalonado de mensagens v
 - ✅ **Clientes Sem WhatsApp**: Registra corretamente números sem WhatsApp sem interromper o fluxo
 - ✅ **Sistema de Campanhas**: Múltiplas campanhas ao longo do ano com agendamento automático
 - ✅ **Interface Web de Gerenciamento**: Modal completo para visualizar, editar e gerenciar clientes
-- ✅ **Design System Moderno**: Interface atualizada com padrões shadcn-ui e layout responsivo
 - ✅ **Design System Moderno**: Interface padronizada com shadcn-ui e boas práticas de UX
+- ✅ **Seleção de Clientes para Campanhas**: Selecionar todos, alguns ou nenhum cliente por campanha
+- ✅ **Bloqueio de Envios**: Marcar clientes que não devem receber mensagens (opt-out)
 
 ## 🎯 Sistema de Campanhas (NOVO)
 
@@ -42,6 +43,8 @@ O sistema agora suporta **múltiplas campanhas de marketing** ao longo do ano:
 - ✅ **Pausa inteligente**: Pausa automaticamente ao sair do horário configurado
 
 📖 **Documentação completa**: [docs/campanhas/README.md](docs/campanhas/README.md)
+
+📖 **Seleção de Clientes e Bloqueio**: [docs/campanhas/SELECAO-CLIENTES-BLOQUEIO.md](docs/campanhas/SELECAO-CLIENTES-BLOQUEIO.md)
 
 ## 👥 Interface Web de Gerenciamento de Clientes
 

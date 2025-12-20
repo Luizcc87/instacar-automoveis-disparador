@@ -2453,6 +2453,89 @@
               </div>
             </div>
 
+            <!-- Seção: Seleção de Clientes -->
+            <div
+              style="
+                background: #f0f7ff;
+                padding: 15px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #667eea;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                👥 Selecionar Clientes para Campanha
+              </h4>
+              <p style="color: #666; font-size: 14px; margin-bottom: 15px">
+                Por padrão, a campanha enviará para todos os clientes elegíveis. 
+                Selecione clientes específicos abaixo para limitar o envio apenas a eles.
+              </p>
+              
+              <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap">
+                <button
+                  type="button"
+                  onclick="selecionarTodosClientes()"
+                  class="btn-secondary"
+                  style="padding: 8px 16px"
+                >
+                  ✅ Selecionar Todos
+                </button>
+                <button
+                  type="button"
+                  onclick="desmarcarTodosClientes()"
+                  class="btn-secondary"
+                  style="padding: 8px 16px"
+                >
+                  ❌ Desmarcar Todos
+                </button>
+                <button
+                  type="button"
+                  onclick="inverterSelecaoClientes()"
+                  class="btn-secondary"
+                  style="padding: 8px 16px"
+                >
+                  🔄 Inverter Seleção
+                </button>
+              </div>
+
+              <div style="margin-bottom: 10px">
+                <input
+                  type="text"
+                  id="buscaClientesSelecao"
+                  placeholder="Buscar cliente por nome ou telefone..."
+                  style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px"
+                  onkeyup="filtrarClientesSelecao()"
+                />
+              </div>
+
+              <div style="margin-bottom: 10px">
+                <strong id="contadorClientesSelecionados">0 clientes selecionados</strong>
+              </div>
+
+              <div
+                id="listaClientesSelecao"
+                style="
+                  max-height: 300px;
+                  overflow-y: auto;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  padding: 10px;
+                  background: white;
+                "
+              >
+                <p style="text-align: center; color: #666; padding: 20px">
+                  Carregando clientes...
+                </p>
+              </div>
+
+              <small style="color: #666; display: block; margin-top: 10px">
+                Apenas clientes com WhatsApp validado são exibidos (ativo, não bloqueado, status_whatsapp = 'valid').
+                Para verificar o WhatsApp de um cliente, use o botão "✅ Verificar WhatsApp" na lista de clientes.
+                Se nenhum cliente for selecionado, a campanha enviará para todos os elegíveis.
+              </small>
+            </div>
+
             <div
               id="estimativas-lote"
               style="
@@ -3178,6 +3261,22 @@ Registra no histórico (Supabase)
               <label>Email</label>
               <div class="field-value" id="fieldEmailValue"></div>
               <input type="email" class="field-input" id="fieldEmailInput" />
+            </div>
+
+            <div class="cliente-field">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer">
+                <input
+                  type="checkbox"
+                  id="fieldBloqueadoEnviosInput"
+                  class="field-input"
+                  style="width: auto; margin: 0"
+                />
+                <span>🚫 Não enviar mensagens (Bloqueado)</span>
+              </label>
+              <div class="field-value" id="fieldBloqueadoEnviosValue"></div>
+              <small style="color: #666; display: block; margin-top: 5px">
+                Se marcado, este cliente não receberá mensagens de campanhas, mesmo que esteja selecionado.
+              </small>
             </div>
 
             <div class="cliente-field readonly">

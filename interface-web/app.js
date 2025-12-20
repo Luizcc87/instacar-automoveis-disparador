@@ -24,11 +24,13 @@
   //   window.DEBUG_MAP = true (logs de mapeamento de colunas)
   //   window.DEBUG_HISTORICO = true (logs de busca de histórico)
   // ============================================================================
-  
+
   const isDebugMode = () => {
-    return window.DEBUG === true || 
-           window.location.hostname === 'localhost' || 
-           window.location.hostname === '127.0.0.1';
+    return (
+      window.DEBUG === true ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1"
+    );
   };
 
   const logger = {
@@ -43,7 +45,7 @@
       if (isDebugMode() && (window[flag] === true || window.DEBUG === true)) {
         console.log(...args);
       }
-    }
+    },
   };
 
   // Conectar ao Supabase
@@ -1530,6 +1532,212 @@
     });
   }
 
+  // Variável global para armazenar lista de clientes elegíveis
+  let clientesElegiveis = [];
+  let clientesSelecionados = new Set();
+
+  /**
+   * Carrega clientes elegíveis para seleção na campanha
+   * Apenas clientes com WhatsApp validado (status_whatsapp = 'valid')
+   */
+  async function carregarClientesParaSelecao() {
+    if (!supabaseClient) return;
+
+    try {
+      // Buscar apenas clientes com WhatsApp validado
+      // Filtros: ativo, não bloqueado, WhatsApp válido
+      const { data: clientes, error } = await supabaseClient
+        .from("instacar_clientes_envios")
+        .select("id, nome_cliente, telefone, status_whatsapp")
+        .eq("ativo", true)
+        .eq("bloqueado_envios", false)
+        .eq("status_whatsapp", "valid")
+        .order("nome_cliente");
+
+      if (error) throw error;
+
+      clientesElegiveis = clientes || [];
+      renderizarListaClientesSelecao();
+      atualizarContadorSelecao();
+    } catch (error) {
+      console.error("Erro ao carregar clientes:", error);
+      document.getElementById("listaClientesSelecao").innerHTML =
+        '<p style="color: red; text-align: center; padding: 20px">Erro ao carregar clientes</p>';
+    }
+  }
+
+  /**
+   * Renderiza lista de clientes para seleção
+   */
+  function renderizarListaClientesSelecao() {
+    const container = document.getElementById("listaClientesSelecao");
+    if (!container) return;
+
+    const busca = document.getElementById("buscaClientesSelecao")?.value.toLowerCase() || "";
+    const clientesFiltrados = clientesElegiveis.filter(
+      (c) =>
+        !busca ||
+        (c.nome_cliente || "").toLowerCase().includes(busca) ||
+        (c.telefone || "").includes(busca)
+    );
+
+    if (clientesFiltrados.length === 0) {
+      container.innerHTML =
+        '<p style="text-align: center; color: #666; padding: 20px">Nenhum cliente encontrado</p>';
+      return;
+    }
+
+    let html = "";
+    clientesFiltrados.forEach((cliente) => {
+      const isSelected = clientesSelecionados.has(cliente.id);
+      // Todos os clientes aqui já são 'valid', mas mantemos o badge para consistência
+      const statusBadge = '<span style="color: #4caf50; font-size: 11px;">✅ Válido</span>';
+      
+      html += `
+        <label style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer">
+          <input
+            type="checkbox"
+            data-cliente-id="${cliente.id}"
+            ${isSelected ? "checked" : ""}
+            onchange="toggleClienteSelecao('${cliente.id}')"
+            style="margin-right: 10px"
+          />
+          <span style="flex: 1">
+            <strong>${cliente.nome_cliente || "-"}</strong>
+            <br>
+            <small style="color: #666">${cliente.telefone}</small>
+            <br>
+            ${statusBadge}
+          </span>
+        </label>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  /**
+   * Alterna seleção de um cliente
+   */
+  function toggleClienteSelecao(clienteId) {
+    if (clientesSelecionados.has(clienteId)) {
+      clientesSelecionados.delete(clienteId);
+    } else {
+      clientesSelecionados.add(clienteId);
+    }
+    atualizarContadorSelecao();
+  }
+
+  /**
+   * Atualiza contador de clientes selecionados
+   */
+  function atualizarContadorSelecao() {
+    const contador = document.getElementById("contadorClientesSelecionados");
+    if (contador) {
+      const total = clientesSelecionados.size;
+      const totalElegiveis = clientesElegiveis.length;
+      contador.textContent = `${total} de ${totalElegiveis} clientes selecionados`;
+    }
+  }
+
+  /**
+   * Seleciona todos os clientes
+   */
+  function selecionarTodosClientes() {
+    clientesElegiveis.forEach((c) => clientesSelecionados.add(c.id));
+    renderizarListaClientesSelecao();
+    atualizarContadorSelecao();
+  }
+
+  /**
+   * Desmarca todos os clientes
+   */
+  function desmarcarTodosClientes() {
+    clientesSelecionados.clear();
+    renderizarListaClientesSelecao();
+    atualizarContadorSelecao();
+  }
+
+  /**
+   * Inverte seleção de clientes
+   */
+  function inverterSelecaoClientes() {
+    clientesElegiveis.forEach((c) => {
+      if (clientesSelecionados.has(c.id)) {
+        clientesSelecionados.delete(c.id);
+      } else {
+        clientesSelecionados.add(c.id);
+      }
+    });
+    renderizarListaClientesSelecao();
+    atualizarContadorSelecao();
+  }
+
+  /**
+   * Filtra clientes na lista de seleção
+   */
+  function filtrarClientesSelecao() {
+    renderizarListaClientesSelecao();
+  }
+
+  /**
+   * Carrega clientes selecionados de uma campanha
+   */
+  async function carregarClientesSelecionadosCampanha(campanhaId) {
+    if (!supabaseClient || !campanhaId) {
+      clientesSelecionados.clear();
+      return;
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("instacar_campanhas_clientes")
+        .select("cliente_id")
+        .eq("campanha_id", campanhaId);
+
+      if (error) throw error;
+
+      clientesSelecionados = new Set((data || []).map((r) => r.cliente_id));
+      renderizarListaClientesSelecao();
+      atualizarContadorSelecao();
+    } catch (error) {
+      console.error("Erro ao carregar clientes selecionados:", error);
+      clientesSelecionados.clear();
+    }
+  }
+
+  /**
+   * Salva seleção de clientes para uma campanha
+   */
+  async function salvarSelecaoClientesCampanha(campanhaId) {
+    if (!supabaseClient || !campanhaId) return;
+
+    try {
+      // Deletar seleção atual
+      await supabaseClient
+        .from("instacar_campanhas_clientes")
+        .delete()
+        .eq("campanha_id", campanhaId);
+
+      // Se há clientes selecionados, inserir novos
+      if (clientesSelecionados.size > 0) {
+        const registros = Array.from(clientesSelecionados).map((clienteId) => ({
+          campanha_id: campanhaId,
+          cliente_id: clienteId,
+        }));
+
+        const { error } = await supabaseClient
+          .from("instacar_campanhas_clientes")
+          .insert(registros);
+
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error("Erro ao salvar seleção de clientes:", error);
+      throw error;
+    }
+  }
+
   async function abrirModalNovaCampanha() {
     if (!supabaseClient) {
       mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
@@ -1541,8 +1749,15 @@
     document.getElementById("campanhaId").value = "";
     document.getElementById("whatsapp_api_id").value = "";
 
+    // Limpar seleção de clientes
+    clientesSelecionados.clear();
+    document.getElementById("buscaClientesSelecao").value = "";
+
     // Carregar instâncias para o select
     await carregarInstanciasParaSelect();
+
+    // Carregar clientes para seleção
+    await carregarClientesParaSelecao();
 
     document.getElementById("modalCampanha").classList.add("active");
 
@@ -1609,6 +1824,11 @@
       if (data.whatsapp_api_id) {
         document.getElementById("whatsapp_api_id").value = data.whatsapp_api_id;
       }
+
+      // Limpar busca e carregar clientes para seleção
+      document.getElementById("buscaClientesSelecao").value = "";
+      await carregarClientesParaSelecao();
+      await carregarClientesSelecionadosCampanha(data.id);
 
       // Atualizar estimativas após carregar dados
       setTimeout(atualizarEstimativas, 100);
@@ -1729,6 +1949,17 @@
         }
 
         if (result.error) throw result.error;
+
+        // Obter ID da campanha (novo ou existente)
+        let campanhaIdFinal = id;
+        if (!campanhaIdFinal && result.data && result.data.length > 0) {
+          campanhaIdFinal = result.data[0].id;
+        }
+
+        // Salvar seleção de clientes
+        if (campanhaIdFinal) {
+          await salvarSelecaoClientesCampanha(campanhaIdFinal);
+        }
 
         mostrarAlerta(
           `Campanha ${id ? "atualizada" : "criada"} com sucesso!`,
@@ -1930,6 +2161,23 @@
       const taxaSucesso =
         totalGeral > 0 ? ((totalEnviados / totalGeral) * 100).toFixed(2) : 0;
 
+      // Buscar clientes selecionados
+      const { data: clientesSelecionados, error: errorClientes } = await supabaseClient
+        .from("instacar_campanhas_clientes")
+        .select(`
+          cliente_id,
+          instacar_clientes_envios (
+            id,
+            nome_cliente,
+            telefone
+          )
+        `)
+        .eq("campanha_id", campanhaId)
+        .limit(100);
+
+      const totalClientesSelecionados = clientesSelecionados?.length || 0;
+      const usaSelecaoEspecifica = totalClientesSelecionados > 0;
+
       // Criar modal de dashboard
       const modalHtml = `
         <div id="modalDashboard" class="modal active">
@@ -1960,6 +2208,44 @@
                   <div style="font-size: 24px; font-weight: bold; color: #4caf50;">${taxaSucesso}%</div>
                   <div style="color: #666;">Taxa de Sucesso</div>
                 </div>
+              </div>
+
+              <h3 style="margin-top: 30px; margin-bottom: 15px;">👥 Clientes Selecionados</h3>
+              <div style="background: #f9fafb; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <p style="margin: 0 0 10px 0;">
+                  <strong>Modo de Seleção:</strong> 
+                  ${usaSelecaoEspecifica 
+                    ? `<span style="color: #667eea;">Seleção Específica (${totalClientesSelecionados} clientes)</span>` 
+                    : '<span style="color: #4caf50;">Todos os Clientes Elegíveis</span>'}
+                </p>
+                ${usaSelecaoEspecifica ? `
+                  <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">
+                    Esta campanha enviará apenas para os clientes selecionados abaixo.
+                  </p>
+                  <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: white;">
+                    ${clientesSelecionados.slice(0, 50).map((cc) => {
+                      const cliente = cc.instacar_clientes_envios;
+                      return cliente 
+                        ? `<div style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                            <strong>${cliente.nome_cliente || "-"}</strong>
+                            <br><small style="color: #666;">${cliente.telefone}</small>
+                          </div>`
+                        : "";
+                    }).join("")}
+                    ${totalClientesSelecionados > 50 ? `<p style="text-align: center; color: #666; margin-top: 10px;">... e mais ${totalClientesSelecionados - 50} clientes</p>` : ""}
+                  </div>
+                  <button onclick="editarCampanha('${campanhaId}')" class="btn-secondary" style="margin-top: 10px; padding: 8px 16px;">
+                    ✏️ Editar Seleção de Clientes
+                  </button>
+                ` : `
+                  <p style="margin: 0; color: #666; font-size: 14px;">
+                    Esta campanha enviará para todos os clientes elegíveis (ativo, WhatsApp válido, não bloqueado).
+                    Para limitar a clientes específicos, edite a campanha e selecione os clientes desejados.
+                  </p>
+                  <button onclick="editarCampanha('${campanhaId}')" class="btn-secondary" style="margin-top: 10px; padding: 8px 16px;">
+                    ✏️ Editar Campanha e Selecionar Clientes
+                  </button>
+                `}
               </div>
 
               <h3 style="margin-top: 30px; margin-bottom: 15px;">Histórico de Execuções</h3>
@@ -2930,6 +3216,11 @@
   window.abrirModalNovaCampanha = abrirModalNovaCampanha;
   window.fecharModal = fecharModal;
   window.editarCampanha = editarCampanha;
+  window.selecionarTodosClientes = selecionarTodosClientes;
+  window.desmarcarTodosClientes = desmarcarTodosClientes;
+  window.inverterSelecaoClientes = inverterSelecaoClientes;
+  window.filtrarClientesSelecao = filtrarClientesSelecao;
+  window.toggleClienteSelecao = toggleClienteSelecao;
   window.toggleAtivo = toggleAtivo;
   window.dispararCampanha = dispararCampanha;
   window.verExecucoes = verExecucoes;
@@ -4615,6 +4906,7 @@
               <th>Nome</th>
               <th>Telefone</th>
               <th>Status WhatsApp</th>
+              <th>Bloqueado</th>
               <th>Veículos</th>
               <th>Última Campanha</th>
               <th>Total Envios</th>
@@ -4654,11 +4946,26 @@
             : "Sim"
           : "Nenhuma";
 
+        // Bloqueado Envios
+        const bloqueadoEnvios = cliente.bloqueado_envios === true;
+        const bloqueadoBadge = bloqueadoEnvios
+          ? '<span class="badge badge-invalid" title="Cliente bloqueado - não receberá mensagens">🚫 Bloqueado</span>'
+          : '<span class="badge badge-valid" title="Cliente permitido - receberá mensagens">✅ Permitido</span>';
+        const toggleBloqueioBtn = bloqueadoEnvios
+          ? '<button onclick="alternarBloqueioCliente(\'' + cliente.id + '\', false)" class="btn-success" style="padding: 4px 8px; font-size: 11px" title="Desbloquear envios">🔓</button>'
+          : '<button onclick="alternarBloqueioCliente(\'' + cliente.id + '\', true)" class="btn-danger" style="padding: 4px 8px; font-size: 11px" title="Bloquear envios">🚫</button>';
+
         html += `
           <tr data-cliente-id="${cliente.id}">
             <td>${cliente.nome_cliente || "-"}</td>
             <td>${cliente.telefone}</td>
             <td data-status-whatsapp="${statusTexto}">${statusBadge}</td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                ${bloqueadoBadge}
+                ${toggleBloqueioBtn}
+              </div>
+            </td>
             <td>${veiculosCount}</td>
             <td>${ultimaCampanha}</td>
             <td>${cliente.total_envios || 0}</td>
@@ -5258,6 +5565,7 @@
   window.verificarWhatsAppSelecionados = verificarWhatsAppSelecionados;
   window.verificarWhatsAppIndividual = verificarWhatsAppIndividual;
   window.enviarMensagemIndividual = enviarMensagemIndividual;
+  window.alternarBloqueioCliente = alternarBloqueioCliente;
   window.fecharModalEnviarMensagem = fecharModalEnviarMensagem;
   window.toggleTipoEnvio = toggleTipoEnvio;
   window.atualizarStatusConexoes = atualizarStatusConexoes;
@@ -5294,9 +5602,20 @@
       const telefoneCliente = normalizarTelefone(cliente.telefone || "");
 
       // Log para debug (apenas em modo debug)
-      logger.debug('DEBUG_HISTORICO', "=== DEBUG: Busca de Histórico - Telefone ===");
-      logger.debug('DEBUG_HISTORICO', "Telefone original do cliente:", cliente.telefone);
-      logger.debug('DEBUG_HISTORICO', "Telefone normalizado para busca:", telefoneCliente);
+      logger.debug(
+        "DEBUG_HISTORICO",
+        "=== DEBUG: Busca de Histórico - Telefone ==="
+      );
+      logger.debug(
+        "DEBUG_HISTORICO",
+        "Telefone original do cliente:",
+        cliente.telefone
+      );
+      logger.debug(
+        "DEBUG_HISTORICO",
+        "Telefone normalizado para busca:",
+        telefoneCliente
+      );
 
       // Fazer duas queries separadas e combinar resultados (mais confiável que .or())
       const [resultClienteId, resultTelefone] = await Promise.all([
@@ -5362,11 +5681,11 @@
       const errorHistorico = resultClienteId.error || resultTelefone.error;
 
       // Log detalhado para debug (apenas em modo debug)
-      logger.debug('DEBUG_HISTORICO', "=== DEBUG: Busca de Histórico ===");
-      logger.debug('DEBUG_HISTORICO', "Cliente ID:", clienteId);
-      logger.debug('DEBUG_HISTORICO', "Telefone original:", cliente.telefone);
-      logger.debug('DEBUG_HISTORICO', "Telefone normalizado:", telefoneCliente);
-      logger.debug('DEBUG_HISTORICO', "Query por cliente_id:", {
+      logger.debug("DEBUG_HISTORICO", "=== DEBUG: Busca de Histórico ===");
+      logger.debug("DEBUG_HISTORICO", "Cliente ID:", clienteId);
+      logger.debug("DEBUG_HISTORICO", "Telefone original:", cliente.telefone);
+      logger.debug("DEBUG_HISTORICO", "Telefone normalizado:", telefoneCliente);
+      logger.debug("DEBUG_HISTORICO", "Query por cliente_id:", {
         data: resultClienteId.data,
         error: resultClienteId.error,
         count: resultClienteId.data?.length || 0,
@@ -5379,7 +5698,7 @@
             }
           : null,
       });
-      logger.debug('DEBUG_HISTORICO', "Query por telefone:", {
+      logger.debug("DEBUG_HISTORICO", "Query por telefone:", {
         data: resultTelefone.data,
         error: resultTelefone.error,
         count: resultTelefone.data?.length || 0,
@@ -5392,7 +5711,7 @@
             }
           : null,
       });
-      logger.debug('DEBUG_HISTORICO', "Histórico combinado:", {
+      logger.debug("DEBUG_HISTORICO", "Histórico combinado:", {
         total: historico.length,
         items: historico.map((h) => ({
           id: h.id,
@@ -5402,11 +5721,12 @@
           timestamp: h.timestamp_envio,
         })),
       });
-      
+
       if (errorHistorico) {
         logger.error("❌ Erro ao buscar histórico:", errorHistorico);
       } else {
-        logger.debug('DEBUG_HISTORICO',
+        logger.debug(
+          "DEBUG_HISTORICO",
           `✅ Histórico encontrado: ${historico.length} registros para cliente ${clienteId} ou telefone ${telefoneCliente}`
         );
       }
@@ -5491,9 +5811,14 @@
     }
 
     // Log para debug (apenas em modo debug)
-    logger.debug('DEBUG_HISTORICO', "=== DEBUG: Renderizar Modal Cliente ===");
-    logger.debug('DEBUG_HISTORICO', "Cliente:", cliente?.nome_cliente, cliente?.id);
-    logger.debug('DEBUG_HISTORICO', "Histórico recebido:", {
+    logger.debug("DEBUG_HISTORICO", "=== DEBUG: Renderizar Modal Cliente ===");
+    logger.debug(
+      "DEBUG_HISTORICO",
+      "Cliente:",
+      cliente?.nome_cliente,
+      cliente?.id
+    );
+    logger.debug("DEBUG_HISTORICO", "Histórico recebido:", {
       isArray: Array.isArray(historico),
       length: historico?.length || 0,
       items: historico?.slice(0, 3).map((h) => ({
@@ -5525,6 +5850,13 @@
     document.getElementById("fieldEmailValue").textContent =
       cliente.email || "-";
     document.getElementById("fieldEmailInput").value = cliente.email || "";
+
+    // Bloqueado Envios
+    const bloqueadoEnvios = cliente.bloqueado_envios === true;
+    document.getElementById("fieldBloqueadoEnviosInput").checked = bloqueadoEnvios;
+    document.getElementById("fieldBloqueadoEnviosValue").textContent = bloqueadoEnvios
+      ? "🚫 Bloqueado - Não receberá mensagens"
+      : "✅ Permitido - Receberá mensagens";
 
     // Status WhatsApp
     const statusTexto = cliente.status_whatsapp || "unknown";
@@ -5776,8 +6108,11 @@
       return;
     }
 
-    logger.debug('DEBUG_HISTORICO', "=== DEBUG: Renderizar Histórico Envios ===");
-    logger.debug('DEBUG_HISTORICO', "Histórico recebido:", {
+    logger.debug(
+      "DEBUG_HISTORICO",
+      "=== DEBUG: Renderizar Histórico Envios ==="
+    );
+    logger.debug("DEBUG_HISTORICO", "Histórico recebido:", {
       isArray: Array.isArray(historico),
       length: historico?.length || 0,
       type: typeof historico,
@@ -5791,7 +6126,10 @@
       return;
     }
 
-    logger.debug('DEBUG_HISTORICO', `✅ Renderizando ${historico.length} registros de histórico`);
+    logger.debug(
+      "DEBUG_HISTORICO",
+      `✅ Renderizando ${historico.length} registros de histórico`
+    );
 
     let html = "";
     historico.forEach((item) => {
@@ -6003,6 +6341,7 @@
           nome_cliente: nome,
           telefone: telefoneNormalizado,
           email: email || null,
+          bloqueado_envios: bloqueadoEnvios,
           updated_at: new Date().toISOString(),
         })
         .eq("id", clienteId);
@@ -6252,6 +6591,51 @@
    * Desativa cliente (soft delete)
    * @param {string} clienteId - ID do cliente
    */
+  /**
+   * Alterna bloqueio de envios para um cliente
+   * @param {string} clienteId - ID do cliente
+   * @param {boolean} bloquear - true para bloquear, false para desbloquear
+   */
+  async function alternarBloqueioCliente(clienteId, bloquear) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte ao Supabase primeiro!", "error");
+      return;
+    }
+
+    if (!confirm(
+      bloquear
+        ? "Tem certeza que deseja bloquear este cliente? Ele não receberá mais mensagens de campanhas."
+        : "Tem certeza que deseja desbloquear este cliente? Ele voltará a receber mensagens de campanhas."
+    )) {
+      return;
+    }
+
+    try {
+      const { error } = await supabaseClient
+        .from("instacar_clientes_envios")
+        .update({
+          bloqueado_envios: bloquear,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", clienteId);
+
+      if (error) {
+        throw new Error(`Erro ao ${bloquear ? "bloquear" : "desbloquear"} cliente: ${error.message}`);
+      }
+
+      mostrarAlerta(
+        `Cliente ${bloquear ? "bloqueado" : "desbloqueado"} com sucesso!`,
+        "success"
+      );
+
+      // Recarregar lista de clientes
+      carregarListaClientes(paginaAtualClientes || 1);
+    } catch (error) {
+      console.error("Erro ao alternar bloqueio:", error);
+      mostrarAlerta(`Erro: ${error.message}`, "error");
+    }
+  }
+
   async function desativarCliente(clienteId) {
     if (!supabaseClient) {
       mostrarAlerta("Conecte ao Supabase primeiro!", "error");
