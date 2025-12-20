@@ -101,6 +101,7 @@ docs/supabase/validacao-campanhas-opcoes-ia.sql
 ### Guias Principais
 
 - **[Guia Completo: Do Cadastro ao Envio](GUIA-COMPLETO-CAMPANHAS.md)** ⭐ **LEIA PRIMEIRO** - Explica todo o fluxo, desde cadastro até envio, incluindo agendamento cron e agente IA
+- **[🧪 Guia de Teste de Disparo Completo](GUIA-TESTE-DISPARO-COMPLETO.md)** ⭐ **PARA TESTAR** - Fluxo passo a passo para testar um disparo completo de campanha
 - **[Guia de Criação de Campanhas](guia-criacao-campanhas.md)** - Como criar e gerenciar campanhas (referência rápida)
 - **[Guia de Agente IA com Dados Opcionais](guia-agente-ia-opcoes.md)** - Configurar flags usar_veiculos e usar_vendedor
 - **[Guia de Agendamento Cron](guia-agendamento-cron.md)** - Detalhes sobre expressões cron (referência técnica)
