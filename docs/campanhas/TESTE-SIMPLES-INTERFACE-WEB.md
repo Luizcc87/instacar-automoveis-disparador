@@ -63,23 +63,13 @@ DO UPDATE SET
 2. Encontre seu cliente "Teste Próprio" na lista
 3. Clique no botão **"📤 Enviar"** ao lado do cliente
 4. No modal que abrir:
+   - **Instância WhatsApp:** Selecione a instância que será usada para enviar a mensagem (obrigatório)
    - **Tipo de Envio:** Escolha uma opção:
      - **"Usar Campanha Existente"** - Selecione uma campanha (usa IA da campanha)
      - **"Mensagem Customizada"** - Digite sua mensagem diretamente
 5. Clique em **"📤 Enviar Mensagem"**
 
-**Pronto!** A mensagem será enviada via webhook para o N8N.
-
-1. Na interface web, vá em **"👥 Clientes"**
-2. Encontre seu cliente "Teste Próprio" na lista
-3. Clique no botão **"📤 Enviar"** ao lado do cliente
-4. No modal que abrir:
-   - **Tipo de Envio:** Escolha uma opção:
-     - **"Usar Campanha Existente"** - Selecione uma campanha (usa IA da campanha)
-     - **"Mensagem Customizada"** - Digite sua mensagem diretamente
-5. Clique em **"📤 Enviar Mensagem"**
-
-**Pronto!** A mensagem será enviada via webhook para o N8N.
+**Pronto!** A mensagem será enviada via webhook para o N8N usando a instância selecionada.
 
 ---
 

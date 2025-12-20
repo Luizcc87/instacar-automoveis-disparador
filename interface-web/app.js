@@ -2238,11 +2238,44 @@
         data.horario_fim || "18:00";
       document.getElementById("processar_finais_semana").checked =
         data.processar_finais_semana === true;
+      
+      // Preencher novos campos - Modo Teste e Debug
+      document.getElementById("modo_teste").checked = data.modo_teste || false;
+      document.getElementById("modo_debug").checked = data.modo_debug || false;
+      
+      // Preencher textareas de telefones (converter array JSON para texto)
+      if (data.telefones_teste && Array.isArray(data.telefones_teste)) {
+        document.getElementById("telefones_teste").value = data.telefones_teste.join('\n');
+      }
+      
+      // Mostrar campo de telefones_teste se modo_teste estiver ativo
+      if (data.modo_teste) {
+        document.getElementById("telefones_teste_group").style.display = 'block';
+      }
+      
+      // Preencher novos campos - Notificações Admin
+      document.getElementById("notificar_inicio").checked = data.notificar_inicio || false;
+      document.getElementById("notificar_erros").checked = data.notificar_erros !== false; // default TRUE
+      document.getElementById("notificar_conclusao").checked = data.notificar_conclusao !== false; // default TRUE
+      document.getElementById("notificar_limite").checked = data.notificar_limite || false;
+      document.getElementById("whatsapp_api_id_admin").value = data.whatsapp_api_id_admin || '';
+      
+      if (data.telefones_admin && Array.isArray(data.telefones_admin)) {
+        document.getElementById("telefones_admin").value = data.telefones_admin.join('\n');
+      }
 
       // Carregar instâncias e selecionar a correta
       await carregarInstanciasParaSelect();
       if (data.whatsapp_api_id) {
         document.getElementById("whatsapp_api_id").value = data.whatsapp_api_id;
+      }
+      
+      // Carregar instâncias para select admin também
+      if (window.carregarInstanciasAdmin) {
+        await window.carregarInstanciasAdmin();
+        if (data.whatsapp_api_id_admin) {
+          document.getElementById("whatsapp_api_id_admin").value = data.whatsapp_api_id_admin;
+        }
       }
 
       // Limpar busca e carregar clientes para seleção
@@ -2274,6 +2307,58 @@
   function inicializarFormulario() {
     const form = document.getElementById("formCampanha");
     if (!form) return;
+
+    // Toggle visibilidade de telefones_teste quando modo_teste é marcado
+    const modoTesteCheckbox = document.getElementById("modo_teste");
+    const telefonesTesteGroup = document.getElementById("telefones_teste_group");
+    if (modoTesteCheckbox && telefonesTesteGroup) {
+      modoTesteCheckbox.addEventListener("change", (e) => {
+        telefonesTesteGroup.style.display = e.target.checked ? "block" : "none";
+      });
+    }
+
+    // Validação em tempo real dos textareas de telefones
+    validarTelefonesTexarea("telefones_teste", "telefones_teste_validacao");
+    validarTelefonesTexarea("telefones_admin", "telefones_admin_validacao");
+
+    // Carregar instâncias WhatsApp para o select whatsapp_api_id_admin
+    const selectAdmin = document.getElementById("whatsapp_api_id_admin");
+    if (selectAdmin) {
+      // Função para carregar instâncias no select admin
+      async function carregarInstanciasAdmin() {
+        if (!supabaseClient) return;
+        try {
+          const { data, error } = await supabaseClient
+            .from("instacar_whatsapp_apis")
+            .select("id, nome")
+            .eq("ativo", true)
+            .order("nome");
+          
+          if (error) throw error;
+          
+          // Limpar opções existentes (exceto a primeira)
+          selectAdmin.innerHTML = '<option value="">-- Usar instância da campanha --</option>';
+          
+          // Adicionar instâncias
+          if (data && data.length > 0) {
+            data.forEach((instancia) => {
+              const option = document.createElement("option");
+              option.value = instancia.id;
+              option.textContent = instancia.nome;
+              selectAdmin.appendChild(option);
+            });
+          }
+        } catch (error) {
+          console.error("Erro ao carregar instâncias para select admin:", error);
+        }
+      }
+      
+      // Carregar instâncias quando o formulário for aberto
+      carregarInstanciasAdmin();
+      
+      // Recarregar quando necessário (pode ser chamado externamente)
+      window.carregarInstanciasAdmin = carregarInstanciasAdmin;
+    }
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -2322,8 +2407,42 @@
         processar_finais_semana: document.getElementById(
           "processar_finais_semana"
         ).checked,
+        // NOVOS CAMPOS - Modo Teste e Debug
+        modo_teste: document.getElementById("modo_teste").checked,
+        telefones_teste: parseTelefonesTextarea(document.getElementById("telefones_teste").value).telefones,
+        modo_debug: document.getElementById("modo_debug").checked,
+        // NOVOS CAMPOS - Notificações Admin
+        telefones_admin: parseTelefonesTextarea(document.getElementById("telefones_admin").value).telefones,
+        notificar_inicio: document.getElementById("notificar_inicio").checked,
+        notificar_erros: document.getElementById("notificar_erros").checked,
+        notificar_conclusao: document.getElementById("notificar_conclusao").checked,
+        notificar_limite: document.getElementById("notificar_limite").checked,
+        whatsapp_api_id_admin: document.getElementById("whatsapp_api_id_admin").value || null,
         ativo: true,
       };
+
+      // Validação adicional antes de enviar
+      const validacaoTeste = parseTelefonesTextarea(document.getElementById("telefones_teste").value);
+      const validacaoAdmin = parseTelefonesTextarea(document.getElementById("telefones_admin").value);
+      
+      if (!validacaoTeste.valido) {
+        mostrarAlerta('Telefones de teste inválidos: ' + validacaoTeste.erros.join(', '), 'error');
+        return;
+      }
+      
+      if (!validacaoAdmin.valido) {
+        mostrarAlerta('Telefones admin inválidos: ' + validacaoAdmin.erros.join(', '), 'error');
+        return;
+      }
+      
+      // Verificar se modo_teste está ativo mas não há telefones
+      if (dados.modo_teste && dados.telefones_teste.length === 0) {
+        const confirmar = confirm(
+          'Modo Teste está ativo mas nenhum telefone de teste foi configurado.\n\n' +
+          'Será usada a configuração global. Deseja continuar?'
+        );
+        if (!confirmar) return;
+      }
 
       // Validação inteligente com sugestões
       const validacao = validarECorrigirCampanha(dados);
@@ -3999,6 +4118,59 @@
   }
 
   /**
+   * Parse e valida textarea com múltiplos telefones (um por linha)
+   * @param {string} texto - Texto com telefones separados por linha
+   * @returns {Object} { valido: boolean, telefones: string[], erros: string[] }
+   */
+  function parseTelefonesTextarea(texto) {
+    if (!texto || texto.trim() === '') {
+      return { valido: true, telefones: [], erros: [] };
+    }
+    const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const telefones = [];
+    const erros = [];
+    linhas.forEach((linha, index) => {
+      const sanitizado = sanitizarTelefoneBrasileiro(linha);
+      if (sanitizado) {
+        telefones.push(sanitizado);
+      } else {
+        erros.push(`Linha ${index + 1}: "${linha}" não é um telefone válido`);
+      }
+    });
+    return {
+      valido: erros.length === 0,
+      telefones,
+      erros
+    };
+  }
+
+  /**
+   * Exibir validação em tempo real no textarea de telefones
+   * @param {string} textareaId - ID do textarea
+   * @param {string} validacaoId - ID da div de validação
+   */
+  function validarTelefonesTexarea(textareaId, validacaoId) {
+    const textarea = document.getElementById(textareaId);
+    const validacaoDiv = document.getElementById(validacaoId);
+    if (!textarea || !validacaoDiv) return;
+    textarea.addEventListener('blur', () => {
+      const resultado = parseTelefonesTextarea(textarea.value);
+      if (textarea.value.trim() === '') {
+        validacaoDiv.innerHTML = '';
+        validacaoDiv.className = 'validation-message';
+        return;
+      }
+      if (resultado.valido) {
+        validacaoDiv.innerHTML = `✅ ${resultado.telefones.length} telefone(s) válido(s)`;
+        validacaoDiv.className = 'validation-message success';
+      } else {
+        validacaoDiv.innerHTML = `❌ ${resultado.erros.join('<br>')}`;
+        validacaoDiv.className = 'validation-message error';
+      }
+    });
+  }
+
+  /**
    * Processa dados da planilha e agrupa por telefone
    * @param {Array} dados - Array de objetos com dados da planilha
    * @param {string} tipoArquivo - Tipo do arquivo (xlsx, csv, etc)
@@ -5467,6 +5639,33 @@
       cliente.nome_cliente || "-";
     document.getElementById("enviarMensagemClienteTelefone").value = telefone;
 
+    // Carregar instâncias WhatsApp ativas
+    const instancias = await carregarInstanciasUazapi();
+    const instanciasAtivas = instancias.filter((i) => i.ativo !== false);
+    const selectInstancia = document.getElementById("enviarMensagemInstanciaId");
+    
+    if (selectInstancia) {
+      selectInstancia.innerHTML =
+        '<option value="">Selecione uma instância...</option>';
+
+      if (instanciasAtivas.length === 0) {
+        selectInstancia.innerHTML =
+          '<option value="">Nenhuma instância ativa configurada</option>';
+        selectInstancia.disabled = true;
+      } else {
+        selectInstancia.disabled = false;
+        instanciasAtivas.forEach((instancia) => {
+          const option = document.createElement("option");
+          option.value = instancia.id;
+          const tipoApiLabel = instancia.tipo_api
+            ? `[${instancia.tipo_api.toUpperCase()}]`
+            : "";
+          option.textContent = `${tipoApiLabel} ${instancia.nome} (${instancia.base_url})`;
+          selectInstancia.appendChild(option);
+        });
+      }
+    }
+
     // Carregar campanhas ativas
     const { data: campanhas } = await supabaseClient
       .from("instacar_campanhas")
@@ -5494,6 +5693,7 @@
     // Resetar formulário
     document.getElementById("tipoEnvio").value = "";
     document.getElementById("mensagemCustomizada").value = "";
+    document.getElementById("enviarMensagemInstanciaId").value = "";
     toggleTipoEnvio();
 
     // Abrir modal
@@ -5531,6 +5731,11 @@
    */
   function fecharModalEnviarMensagem() {
     document.getElementById("modalEnviarMensagem").classList.remove("active");
+    // Resetar campos do formulário
+    document.getElementById("formEnviarMensagem").reset();
+    document.getElementById("enviarMensagemInstanciaId").value = "";
+    document.getElementById("tipoEnvio").value = "";
+    toggleTipoEnvio();
   }
 
   /**
@@ -5542,9 +5747,15 @@
     const clienteId = document.getElementById("enviarMensagemClienteId").value;
     const telefone = document.getElementById("enviarMensagemTelefone").value;
     const tipoEnvio = document.getElementById("tipoEnvio").value;
+    const instanciaId = document.getElementById("enviarMensagemInstanciaId").value;
 
     if (!tipoEnvio) {
       mostrarAlerta("Selecione o tipo de envio!", "error");
+      return;
+    }
+
+    if (!instanciaId) {
+      mostrarAlerta("Selecione uma instância WhatsApp!", "error");
       return;
     }
 
@@ -5561,6 +5772,7 @@
       let payload = {
         telefone: telefone,
         trigger_tipo: "manual_individual",
+        instance_id: instanciaId,
       };
 
       if (tipoEnvio === "campanha") {

@@ -14,6 +14,7 @@ Quando um usuário envia uma mensagem individual através da interface web:
 
    - `trigger_tipo: 'manual_individual'`
    - `telefone`: Número do cliente
+   - `instance_id`: ID da instância WhatsApp selecionada (obrigatório)
    - `mensagem_customizada`: Mensagem personalizada (opcional)
    - `campanha_id`: ID da campanha (opcional)
 
@@ -21,7 +22,8 @@ Quando um usuário envia uma mensagem individual através da interface web:
 
    - Valida payload
    - Busca cliente no Supabase
-   - Busca API WhatsApp ativa
+   - Busca instância WhatsApp específica por `instance_id` (ou primeira ativa se não fornecido)
+   - Valida se a instância foi encontrada e está ativa
    - Envia mensagem via API (Uazapi/Z-API/Evolution)
    - **Registra no histórico** via nó "Registrar Histórico Individual"
 

@@ -94,6 +94,53 @@
         margin-bottom: 15px;
       }
 
+      .form-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        background: #fafafa;
+      }
+
+      .form-section h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: #333;
+        font-size: 1.1rem;
+      }
+
+      .help-text {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: 0.25rem;
+        margin-bottom: 0;
+      }
+
+      .validation-message {
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 4px;
+      }
+
+      .validation-message.error {
+        background: #fee;
+        color: #c00;
+        border: 1px solid #fcc;
+      }
+
+      .validation-message.success {
+        background: #efe;
+        color: #060;
+        border: 1px solid #cfc;
+      }
+
+      .validation-message.warning {
+        background: #ffc;
+        color: #660;
+        border: 1px solid #fec;
+      }
+
       label {
         display: block;
         margin-bottom: 8px;
@@ -2158,6 +2205,16 @@
           </div>
 
           <div class="form-group">
+            <label>Instância WhatsApp *</label>
+            <select id="enviarMensagemInstanciaId" required>
+              <option value="">Carregando instâncias...</option>
+            </select>
+            <small style="color: #666; display: block; margin-top: 5px">
+              Selecione a instância WhatsApp que será usada para enviar a mensagem
+            </small>
+          </div>
+
+          <div class="form-group">
             <label>Tipo de Envio *</label>
             <select id="tipoEnvio" required onchange="toggleTipoEnvio()">
               <option value="">Selecione...</option>
@@ -2475,6 +2532,113 @@
                 <small style="color: #666">
                   Se desmarcado, processa apenas dias úteis (segunda a sexta)
                 </small>
+              </div>
+            </div>
+
+            <!-- Seção: Modo Teste e Debug -->
+            <div class="form-section" style="margin-top: 20px; margin-bottom: 20px;">
+              <h3 style="margin-top: 0; margin-bottom: 1rem; color: #333; font-size: 1.1rem;">🧪 Modo Teste e Debug</h3>
+              
+              <!-- Modo Teste -->
+              <div class="form-group">
+                <label for="modo_teste" style="display: flex; align-items: center; cursor: pointer;">
+                  <input type="checkbox" id="modo_teste" style="width: auto; margin-right: 8px;" />
+                  <span>Modo Teste (substituir telefones dos clientes)</span>
+                </label>
+                <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; margin-bottom: 0;">
+                  Quando ativado, processa clientes normalmente mas envia mensagens para os telefones de teste.
+                </p>
+              </div>
+              
+              <div class="form-group" id="telefones_teste_group" style="display: none;">
+                <label for="telefones_teste">
+                  Telefones de Teste
+                  <span style="color: #999; font-size: 0.85rem;">(deixe vazio para usar configuração global)</span>
+                </label>
+                <textarea
+                  id="telefones_teste"
+                  rows="3"
+                  placeholder="5511999999999&#10;5511988888888&#10;(um por linha)"
+                  style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"
+                ></textarea>
+                <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; margin-bottom: 0;">
+                  Digite um telefone por linha no formato 55XXXXXXXXXXX (código país + DDD + número).
+                </p>
+                <div id="telefones_teste_validacao" class="validation-message" style="font-size: 0.85rem; margin-top: 0.5rem; padding: 0.5rem; border-radius: 4px;"></div>
+              </div>
+              
+              <!-- Modo Debug -->
+              <div class="form-group">
+                <label for="modo_debug" style="display: flex; align-items: center; cursor: pointer;">
+                  <input type="checkbox" id="modo_debug" style="width: auto; margin-right: 8px;" />
+                  <span>Modo Debug (logs detalhados)</span>
+                </label>
+                <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; margin-bottom: 0;">
+                  Ativa logs detalhados no N8N para debug do fluxo de processamento.
+                </p>
+              </div>
+            </div>
+
+            <!-- Seção: Notificações Admin -->
+            <div class="form-section" style="margin-top: 20px; margin-bottom: 20px;">
+              <h3 style="margin-top: 0; margin-bottom: 1rem; color: #333; font-size: 1.1rem;">🔔 Notificações Admin</h3>
+              
+              <div class="form-group">
+                <label for="telefones_admin">
+                  Telefones Admin
+                  <span style="color: #999; font-size: 0.85rem;">(deixe vazio para usar configuração global)</span>
+                </label>
+                <textarea
+                  id="telefones_admin"
+                  rows="2"
+                  placeholder="5511999999999&#10;5511988888888"
+                  style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"
+                ></textarea>
+                <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; margin-bottom: 0;">
+                  Telefones que receberão notificações sobre a campanha (um por linha).
+                </p>
+                <div id="telefones_admin_validacao" class="validation-message" style="font-size: 0.85rem; margin-top: 0.5rem; padding: 0.5rem; border-radius: 4px;"></div>
+              </div>
+              
+              <div class="form-group">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                  <input type="checkbox" id="notificar_inicio" style="width: auto; margin-right: 8px;" />
+                  <span>Notificar ao iniciar campanha</span>
+                </label>
+              </div>
+              
+              <div class="form-group">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                  <input type="checkbox" id="notificar_erros" checked style="width: auto; margin-right: 8px;" />
+                  <span>Notificar erros críticos</span>
+                </label>
+              </div>
+              
+              <div class="form-group">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                  <input type="checkbox" id="notificar_conclusao" checked style="width: auto; margin-right: 8px;" />
+                  <span>Notificar ao concluir campanha</span>
+                </label>
+              </div>
+              
+              <div class="form-group">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                  <input type="checkbox" id="notificar_limite" style="width: auto; margin-right: 8px;" />
+                  <span>Notificar ao atingir limite diário</span>
+                </label>
+              </div>
+              
+              <div class="form-group">
+                <label for="whatsapp_api_id_admin">
+                  Instância WhatsApp para Notificações
+                  <span style="color: #999; font-size: 0.85rem;">(deixe vazio para usar a mesma da campanha)</span>
+                </label>
+                <select id="whatsapp_api_id_admin" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  <option value="">-- Usar instância da campanha --</option>
+                </select>
+                <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; margin-bottom: 0;">
+                  Escolha uma instância diferente para evitar sobrecarga na instância principal da campanha. Recomendado: usar instância dedicada para notificações admin.
+                </p>
               </div>
             </div>
 
