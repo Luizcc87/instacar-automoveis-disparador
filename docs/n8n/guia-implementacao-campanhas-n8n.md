@@ -24,7 +24,7 @@ Antes de começar, certifique-se de ter:
 ### 1.2 Importar Workflow
 
 1. Clique em **Import from File** (ou use o botão **+** > **Import from File**)
-2. Selecione o arquivo: `fluxos-n8n/Disparador_Campanhas_Instacar.json`
+2. Selecione o arquivo: `fluxos-n8n/Disparador_Web_Campanhas_Instacar.json`
 3. Aguarde a importação
 
 ### 1.3 Configurar Variáveis de Ambiente

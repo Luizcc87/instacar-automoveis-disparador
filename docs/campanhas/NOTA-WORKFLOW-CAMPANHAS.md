@@ -1,12 +1,12 @@
-# Nota: Workflow de Campanhas - Status Atualizado
+# Nota: Workflow de Campanhas - Status Atual
 
-**⚠️ ATENÇÃO: Este arquivo está desatualizado. O workflow foi completamente implementado.**
+**Status:** ⚠️ **Parcialmente Implementado** (aproximadamente 60%)
 
-O workflow `Disparador_Campanhas_Instacar.json` foi **completamente implementado** com todas as funcionalidades.
+O workflow `Disparador_Web_Campanhas_Instacar.json` tem a estrutura base e processamento inicial implementados, mas **falta a parte de geração e envio de mensagens**.
 
-## Status Atual (2025-12-18)
+## Status Atual (Janeiro 2025)
 
-✅ **100% Implementado:**
+✅ **Implementado (60%):**
 
 - ✅ Triggers híbridos (Webhook, Schedule, Manual)
 - ✅ Validação de payload
@@ -18,10 +18,15 @@ O workflow `Disparador_Campanhas_Instacar.json` foi **completamente implementado
 - ✅ **Filtragem de clientes elegíveis** (intervalo mínimo)
 - ✅ **Processamento em lotes** (configurável por campanha)
 - ✅ **Verificação de horário** (pausa automática)
-- ✅ **Agente IA com dados opcionais** (usar_veiculos, usar_vendedor)
-- ✅ **Geração e envio de mensagens**
-- ✅ **Registro completo no histórico**
-- ✅ **Controle de limites e pausas**
+- ✅ **Preparação de contexto IA** (usar_veiculos, usar_vendedor)
+
+❌ **Falta Implementar (40%):**
+
+- ❌ **Nó "AI Agent - Gerar Mensagem"** (geração de mensagens)
+- ❌ **Nó "OpenAI Chat Model"** (modelo de IA)
+- ❌ **Nó "Processar Mensagem IA"** (processamento da resposta)
+- ❌ **Nó "Uazapi - Enviar Mensagem"** (envio via WhatsApp)
+- ❌ **Nós de registro** (histórico, atualização de execução)
 
 ## Arquitetura Implementada
 

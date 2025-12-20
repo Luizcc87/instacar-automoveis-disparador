@@ -29,7 +29,13 @@ O sistema de campanhas permite:
    - **Limite de Envios/Dia**: Máximo de mensagens por dia (padrão: 200)
    - **Intervalo Mínimo**: Dias entre envios para o mesmo cliente (padrão: 30)
    - **Agendamento Cron**: Expressão cron para execução automática (opcional)
+     - **Como funciona:** O campo armazena a expressão cron (ex: `"0 9 1 1 *"` = 1º de janeiro às 9h). O workflow `Disparador_Campanhas_Agendadas.json` verifica periodicamente quais campanhas têm cron correspondente ao momento atual e as executa automaticamente.
+     - **Exemplo:** `"0 9 1 1 *"` = Todo dia 1º de janeiro às 9h
+     - **Veja:** [guia-agendamento-cron.md](guia-agendamento-cron.md) para mais exemplos
    - **Prompt Personalizado**: Instruções específicas para a IA
+     - **Como funciona:** Este prompt é inserido no contexto enviado para a IA junto com dados do cliente. A IA usa essas instruções para gerar mensagens personalizadas.
+     - **Exemplo:** "Deseje um Feliz Natal de forma calorosa. Mencione oportunidades de fim de ano sem mencionar veículos específicos. Chame o cliente pelo nome."
+     - **Veja:** [GUIA-COMPLETO-CAMPANHAS.md](GUIA-COMPLETO-CAMPANHAS.md) seção 4 para entender como o prompt é usado
    - **Template de Mensagem**: Template base (opcional)
    - **Incluir Informações de Veículos**: Checkbox para incluir dados de veículos no contexto da IA (padrão: marcado)
    - **Incluir Nome do Vendedor**: Checkbox para incluir nome do vendedor no contexto da IA (padrão: desmarcado)
@@ -88,6 +94,7 @@ O sistema permite controlar quais dados do cliente são incluídos no contexto d
 - **Incluir Nome do Vendedor** (`usar_vendedor`): Se marcado, inclui o nome do vendedor do veículo mais recente. Útil para campanhas de relacionamento.
 
 **Exemplos:**
+
 - **Natal/Ano Novo**: Desmarque ambos (mensagem genérica)
 - **Black Friday**: Marque apenas "Incluir Informações de Veículos"
 - **Relacionamento**: Marque ambos
@@ -106,6 +113,7 @@ O sistema processa campanhas em lotes menores para evitar execuções muito long
 - **Máximo**: 500 clientes
 
 **Recomendações:**
+
 - **Campanhas pequenas (< 200 clientes)**: Use 50-100
 - **Campanhas médias (200-1000)**: Use 50
 - **Campanhas grandes (> 1000)**: Use 50-100 (divide automaticamente em múltiplos dias)
@@ -119,11 +127,13 @@ Configure a faixa de horário para processamento:
 - **Processar Finais de Semana** (`processar_finais_semana`): Se marcado, processa também sábados e domingos
 
 **Comportamento:**
+
 - O sistema pausa automaticamente ao sair do horário configurado
 - Retoma no próximo dia útil (ou no próximo dia se finais de semana permitidos)
 - Divide automaticamente campanhas grandes ao longo de múltiplos dias
 
 **Exemplo de Cálculo:**
+
 - 2000 clientes elegíveis
 - Tamanho lote: 50
 - Limite diário: 200

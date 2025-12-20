@@ -1,12 +1,12 @@
 # Guia: Modificações do Workflow para Campanhas
 
-**⚠️ ATENÇÃO: Este documento está parcialmente desatualizado. O workflow foi completamente implementado.**
+**⚠️ ATENÇÃO: Este documento está desatualizado. Para entender o fluxo completo, veja [GUIA-COMPLETO-CAMPANHAS.md](GUIA-COMPLETO-CAMPANHAS.md)**
 
-Este documento descreve as modificações no workflow N8N para suportar o sistema de campanhas.
+Este documento descreve as modificações planejadas no workflow N8N para suportar o sistema de campanhas. **O workflow atual está parcialmente implementado.**
 
 ## Estrutura do Workflow Implementado
 
-O workflow `Disparador_Campanhas_Instacar.json` foi **completamente implementado** com as seguintes funcionalidades:
+O workflow `Disparador_Web_Campanhas_Instacar.json` foi **completamente implementado** com as seguintes funcionalidades:
 
 **IMPORTANTE:** O workflow de campanhas **NÃO usa Google Sheets**. Ele busca clientes diretamente do Supabase.
 

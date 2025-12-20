@@ -110,7 +110,7 @@
 
 ### Workflow Único de Processamento
 
-**Nome:** `Disparador_Campanhas_Instacar.json`
+**Nome:** `Disparador_Web_Campanhas_Instacar.json`
 
 **Triggers:**
 
@@ -222,13 +222,13 @@ A solução híbrida combina o melhor dos dois mundos:
 
 Esta é exatamente a arquitetura que já foi implementada nos workflows criados:
 
-- ✅ `Disparador_Campanhas_Instacar.json` - Workflow único com webhook
+- ✅ `Disparador_Web_Campanhas_Instacar.json` - Workflow único com webhook
 - ✅ `Disparador_Campanhas_Agendadas.json` - Cron que lê tabela e chama webhook
 - ✅ `Continuar_Execucoes_Pendentes.json` - Cron que lê execuções e chama webhook
 
 ## Próximos Passos
 
-1. **Expandir workflow principal** (`Disparador_Campanhas_Instacar.json`)
+1. **Expandir workflow principal** (`Disparador_Web_Campanhas_Instacar.json`)
 
    - Adicionar processamento completo de campanhas
    - Suportar receber `campanha_id` via webhook

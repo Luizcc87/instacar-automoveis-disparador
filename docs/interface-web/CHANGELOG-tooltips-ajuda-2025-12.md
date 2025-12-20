@@ -21,6 +21,7 @@ Implementação completa de sistema de tooltips contextuais e página de ajuda p
 ### 2. Tooltips Implementados
 
 #### Formulário de Campanha (18 campos)
+
 - Nome da Campanha
 - Descrição
 - Período do Ano
@@ -41,6 +42,7 @@ Implementação completa de sistema de tooltips contextuais e página de ajuda p
 - Horário Início/Fim
 
 #### Formulário de Instância Uazapi (5 campos)
+
 - Nome da Instância
 - Tipo de API
 - URL Base da Instância
@@ -52,20 +54,23 @@ Implementação completa de sistema de tooltips contextuais e página de ajuda p
 Botão "❓ Ajuda" no cabeçalho da página abre modal com 5 seções:
 
 1. **📖 Visão Geral**
+
    - O que é o sistema
    - Como funciona o fluxo completo
    - Componentes principais (Interface Web, N8N, Supabase, Uazapi, OpenAI)
 
 2. **📝 Campos do Formulário**
+
    - Explicação de todos os campos
    - Dicas de boas práticas
    - Quando usar cada opção
 
 3. **⏰ Agendamento Cron** (Seção Dedicada)
+
    - O que é cron
    - Formato completo: `minuto hora dia mês dia-semana`
    - Tabela explicativa de cada campo
-   - Caracteres especiais (*, ,, -, /)
+   - Caracteres especiais (\*, ,, -, /)
    - **6 exemplos práticos** com explicações:
      - `0 9 * * 1-5` - 9h, dias úteis
      - `0 9 1 1 *` - 1º de janeiro às 9h
@@ -76,6 +81,7 @@ Botão "❓ Ajuda" no cabeçalho da página abre modal com 5 seções:
    - Dicas e recomendações
 
 4. **⚙️ Funcionalidades**
+
    - Como criar e gerenciar campanhas
    - Upload de planilhas
    - Gerenciar clientes
@@ -99,6 +105,7 @@ Botão "❓ Ajuda" no cabeçalho da página abre modal com 5 seções:
 ### Arquivos Modificados
 
 - `interface-web/index.html`
+
   - CSS completo para tooltips (hover e popover)
   - Estrutura HTML do modal de ajuda
   - Botão de ajuda no cabeçalho
@@ -116,6 +123,7 @@ Botão "❓ Ajuda" no cabeçalho da página abre modal com 5 seções:
 ### Estrutura de Dados
 
 Cada tooltip possui:
+
 - `titulo`: Título do campo
 - `resumo`: Texto curto para tooltip hover
 - `detalhes`: HTML completo com explicações, exemplos e dicas
@@ -139,6 +147,7 @@ Cada tooltip possui:
 ### Para Usuários
 
 1. **Tooltips nos campos:**
+
    - Passe o mouse sobre o ícone "?" ao lado de qualquer label
    - Clique no ícone para ver detalhes completos e exemplos
 

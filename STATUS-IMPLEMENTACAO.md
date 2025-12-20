@@ -7,12 +7,12 @@
 
 ## 📊 Resumo Executivo
 
-| Componente | Status | Completude | Observações |
-|------------|--------|------------|-------------|
-| **Schema Supabase** | ✅ Completo | 100% | Pronto para uso |
-| **Interface Web** | ✅ Completo | 100% | CRUD + Dashboard + Validações |
-| **Workflows Auxiliares** | ✅ Completos | 100% | Agendamento + Continuação |
-| **Workflow Principal** | ⚠️ Parcial | ~40% | Estrutura base OK, falta processamento |
+| Componente               | Status       | Completude | Observações                            |
+| ------------------------ | ------------ | ---------- | -------------------------------------- |
+| **Schema Supabase**      | ✅ Completo  | 100%       | Pronto para uso                        |
+| **Interface Web**        | ✅ Completo  | 100%       | CRUD + Dashboard + Validações          |
+| **Workflows Auxiliares** | ✅ Completos | 100%       | Agendamento + Continuação              |
+| **Workflow Principal**   | ⚠️ Parcial   | ~40%       | Estrutura base OK, falta processamento |
 
 **Status Geral:** MVP 70% completo - Interface pronta, workflow principal precisa expansão
 
@@ -25,7 +25,9 @@
 **Status:** ✅ Pronto para deploy
 
 **Tabelas:**
+
 - ✅ `instacar_campanhas` - Configuração de campanhas
+
   - Campos base: nome, descrição, período, prompts, datas, status
   - Campos avançados:
     - `intervalo_envios_segundos` (60-300s, opcional)
@@ -46,16 +48,19 @@
   - Constraint UNIQUE(campanha_id, data_execucao) - previne execução duplicada
 
 **Modificações em Tabelas Existentes:**
+
 - ✅ `instacar_historico_envios` + campos: `campanha_id`, `execucao_id`
 - ✅ `instacar_clientes_envios` + campos: `ultima_campanha_id`, `ultima_campanha_data`
 - ✅ `instacar_controle_envios` + campo: `campanha_id`
 
 **Funções SQL Auxiliares:**
+
 - ✅ `cliente_recebeu_campanha(telefone, campanha_id)` → BOOLEAN
 - ✅ `obter_ultima_campanha_cliente(telefone)` → TABLE
 - ✅ `pode_enviar_campanha(telefone, campanha_id)` → BOOLEAN
 
 **Próximo Passo:**
+
 ```sql
 -- Executar no Editor SQL do Supabase:
 -- 1. docs/supabase/schema-campanhas.sql
@@ -70,6 +75,7 @@
 #### 2.1 Formulário (`interface-web/index.html`)
 
 **Campos Implementados:**
+
 - ✅ Nome da Campanha
 - ✅ Descrição
 - ✅ Período do Ano (17 opções: janeiro a dezembro + black-friday, dia-maes, etc)
@@ -84,6 +90,7 @@
 - ✅ Template de Mensagem (opcional)
 
 **Seção de Estimativas:** ✅ Implementada
+
 - Exibe tempo estimado total
 - Exibe número de dias úteis necessários
 - Atualiza em tempo real ao alterar limite diário ou intervalo
@@ -93,17 +100,20 @@
 **Funções Implementadas:**
 
 1. ✅ **`calcularTempoEstimado(limiteDiario, intervaloMedio, totalContatos)`**
+
    - Calcula dias necessários
    - Calcula horas por dia
    - Calcula tempo total estimado
    - Retorna objeto com todas as métricas
 
 2. ✅ **`atualizarEstimativas()`**
+
    - Lê valores do formulário
    - Chama calcularTempoEstimado()
    - Atualiza interface com resultados formatados
 
 3. ✅ **`dispararCampanha(id)`** - Com validações completas
+
    - Validação 1: Verifica se Supabase está conectado
    - Validação 2: Obtém campanha do Supabase
    - Validação 3: Verifica status = 'ativa'
@@ -128,11 +138,13 @@
      - Botão fechar
 
 **Cards de Campanha:**
+
 - ✅ Exibem tempo entre envios (se configurado, senão "Aleatorizado")
 - ✅ Exibem prioridade (1-10)
 - ✅ Botão "📊 Dashboard"
 
 **Próximo Passo:**
+
 - Deploy no Cloudflare Pages (seguir `interface-web/README-DEPLOY.md`)
 
 ---
@@ -146,6 +158,7 @@
 **Propósito:** Executa campanhas agendadas automaticamente via cron
 
 **Estrutura:**
+
 1. **Schedule Trigger** - 8h30, dias úteis (segunda a sexta)
 2. **Buscar Campanhas Agendadas** - Query Supabase:
    ```sql
@@ -162,6 +175,7 @@
 6. **Chamar Webhook** - POST para workflow principal
 
 **Configuração Necessária:**
+
 ```javascript
 // Atualizar variável WEBHOOK_CAMPANHA_URL no workflow
 const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
@@ -172,6 +186,7 @@ const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
 **Propósito:** Continua execuções multi-dia automaticamente
 
 **Estrutura:**
+
 1. **Schedule Trigger** - 8h30, dias úteis
 2. **Buscar Execuções Pendentes** - Query Supabase:
    ```sql
@@ -184,12 +199,14 @@ const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
 5. **Chamar Webhook** - POST com {execucao_id, continuar: true}
 
 **Configuração Necessária:**
+
 ```javascript
 // Atualizar variável WEBHOOK_CAMPANHA_URL no workflow
 const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
 ```
 
 **Próximo Passo:**
+
 - Importar workflows no N8N
 - Configurar WEBHOOK_CAMPANHA_URL
 - Ativar workflows
@@ -198,7 +215,7 @@ const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
 
 ## ⚠️ Componente Parcialmente Completo
 
-### 4. Workflow Principal (`Disparador_Campanhas_Instacar.json`)
+### 4. Workflow Principal (`Disparador_Web_Campanhas_Instacar.json`)
 
 **Status:** ✅ 100% completo - Implementação completa com todas as funcionalidades
 
@@ -207,24 +224,14 @@ const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
 #### ✅ Nós Implementados (Fase 1 - Validações)
 
 **Triggers Híbridos:**
+
 1. ✅ Webhook Trigger - Campanha (path: `/campanha`)
 2. ✅ Schedule Trigger - 8h30 (dias úteis)
 3. ✅ Manual Trigger
 
-**Validações:**
-4. ✅ Validar Payload - Extrai campanha_id, execucao_id, trigger_tipo
-5. ✅ Set Variables - Configurar Aqui (SUPABASE_URL, keys, etc)
-6. ✅ Verificar Horário e Dia Útil - Valida 9h-18h + dias úteis
-7. ✅ IF Pular Execução - Se fora do horário
+**Validações:** 4. ✅ Validar Payload - Extrai campanha_id, execucao_id, trigger_tipo 5. ✅ Set Variables - Configurar Aqui (SUPABASE_URL, keys, etc) 6. ✅ Verificar Horário e Dia Útil - Valida 9h-18h + dias úteis 7. ✅ IF Pular Execução - Se fora do horário
 
-**Gestão de Campanha:**
-8. ✅ Obter Campanha - Query Supabase (`instacar_campanhas`)
-9. ✅ Validar Período - Verifica data_inicio <= hoje <= data_fim
-10. ✅ Verificar Execução Hoje - Query em `instacar_campanhas_execucoes`
-11. ✅ IF Execução Existe Hoje - Lógica de duplicata
-12. ✅ Preparar Execução - Monta objeto para criar execução
-13. ✅ Criar Execução - INSERT em `instacar_campanhas_execucoes`
-14. ✅ Combinar Campanha Execução - Merge de dados
+**Gestão de Campanha:** 8. ✅ Obter Campanha - Query Supabase (`instacar_campanhas`) 9. ✅ Validar Período - Verifica data_inicio <= hoje <= data_fim 10. ✅ Verificar Execução Hoje - Query em `instacar_campanhas_execucoes` 11. ✅ IF Execução Existe Hoje - Lógica de duplicata 12. ✅ Preparar Execução - Monta objeto para criar execução 13. ✅ Criar Execução - INSERT em `instacar_campanhas_execucoes` 14. ✅ Combinar Campanha Execução - Merge de dados
 
 **Total:** 14 nós funcionais (validação e setup)
 
@@ -233,16 +240,19 @@ const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
 #### ✅ Nós Implementados (Fase 2 - Processamento Core)
 
 **Grupo 1: Busca de Clientes do Supabase** ✅
+
 - ✅ Buscar Clientes Elegíveis Supabase - Query Supabase (não usa Google Sheets)
 - ✅ Filtrar Clientes Elegíveis para Campanha - Code (verifica intervalo mínimo)
 - ✅ Calcular Lote e Verificar Horário - Code (seleciona lote atual, verifica horário)
 
 **Grupo 2: Processamento em Lotes** ✅
+
 - ✅ IF Dentro Horário e Pode Processar - IF (rota para pausar ou continuar)
 - ✅ Pausar e Agendar Próxima Execução - Supabase UPDATE (atualiza status e próxima execução)
 - ✅ Split in Batches - Processa apenas `clientesLoteAtual` (não todos os clientes)
 
 **Grupo 3: Processamento de Clientes (Loop)** ✅
+
 - ✅ Verificar Duplicata por Campanha - Supabase Query
 - ✅ Preparar Dados IA Campanha - Code (constrói contexto dinâmico baseado em flags)
 - ✅ AI Agent - Gerar Mensagem - LangChain (com contexto opcional)
@@ -250,11 +260,13 @@ const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
 - ✅ Atualizar Execução Após Lote - Supabase UPDATE (incrementa lote_atual)
 
 **Grupo 4: Controle de Loop e Continuação** ✅
+
 - ✅ Calcular Intervalo e Verificar Pausa - Code (verifica lote completo OU fora horário)
 - ✅ Wait - Intervalo Randomizado - Wait node
 - ✅ Retornar ao Split in Batches (loop)
 
 **Funcionalidades Implementadas:**
+
 - ✅ Busca clientes do Supabase (não usa Google Sheets)
 - ✅ Processamento em lotes configurável
 - ✅ Horário configurável por campanha
@@ -269,6 +281,7 @@ const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
 ### Fase 1: Setup Inicial (1-2 horas)
 
 1. ✅ **Executar Schema SQL**
+
    ```sql
    -- No Editor SQL do Supabase:
    -- Copiar e colar: docs/supabase/schema-campanhas.sql
@@ -276,11 +289,13 @@ const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
    ```
 
 2. ✅ **Importar Workflows no N8N**
-   - Importar `Disparador_Campanhas_Instacar.json`
+
+   - Importar `Disparador_Web_Campanhas_Instacar.json`
    - Importar `Disparador_Campanhas_Agendadas.json`
    - Importar `Continuar_Execucoes_Pendentes.json`
 
 3. ✅ **Configurar Credenciais N8N**
+
    - Supabase API (Service Role Key)
    - Google Sheets OAuth2
    - OpenAI API Key
@@ -302,6 +317,7 @@ const WEBHOOK_CAMPANHA_URL = "https://n8n.dominio.com/webhook/campanha";
 #### Passo 2.1: Processamento de Planilhas
 
 1. Copiar nós do workflow base:
+
    - Lista Planilhas
    - Loop Over Planilhas
    - Read Google Sheets
@@ -353,6 +369,7 @@ return elegiveis;
 #### Passo 2.3: Loop de Processamento
 
 Copiar e adaptar nós do workflow base:
+
 - Split in Batches (batchSize: 1)
 - Preservar Dados Planilha
 - Supabase - Verificar Cliente
@@ -366,30 +383,32 @@ Copiar e adaptar nós do workflow base:
 Criar nó "Aplicar Template":
 
 ```javascript
-const campanha = $('Combinar Campanha Execução').first().json;
+const campanha = $("Combinar Campanha Execução").first().json;
 const cliente = $input.first().json;
 
 // Templates por época (hardcoded ou carregar de arquivo)
 const templates = {
-  'janeiro': {
-    'prompt': 'Parabenize pelo Ano Novo, mencione renovação...'
+  janeiro: {
+    prompt: "Parabenize pelo Ano Novo, mencione renovação...",
   },
-  'black-friday': {
-    'prompt': 'Enfatize urgência, descontos imperdíveis...'
-  }
+  "black-friday": {
+    prompt: "Enfatize urgência, descontos imperdíveis...",
+  },
   // ... outros templates de docs/campanhas/templates-epoca.json
 };
 
-const template = templates[campanha.periodo_ano] || templates['janeiro'];
+const template = templates[campanha.periodo_ano] || templates["janeiro"];
 const promptFinal = `${template.prompt}\n\n${campanha.prompt_ia}`;
 
-return [{
-  json: {
-    ...cliente,
-    campanha: campanha,
-    promptFinal: promptFinal
-  }
-}];
+return [
+  {
+    json: {
+      ...cliente,
+      campanha: campanha,
+      promptFinal: promptFinal,
+    },
+  },
+];
 ```
 
 Modificar nó "Preparar Dados IA" para usar `promptFinal`.
@@ -397,6 +416,7 @@ Modificar nó "Preparar Dados IA" para usar `promptFinal`.
 #### Passo 2.5: Envio e Registro
 
 Copiar nós do workflow base:
+
 - AI Agent - Gerar Mensagem
 - Uazapi - Enviar Mensagem
 - Preparar Dados Cliente (MODIFICAR para incluir `ultima_campanha_id`, `ultima_campanha_data`)
@@ -412,16 +432,18 @@ Criar nó "Calcular Intervalo e Verificar Pausa":
 ```javascript
 const agora = new Date();
 const hora = agora.getHours();
-const campanha = $('Combinar Campanha Execução').first().json;
+const campanha = $("Combinar Campanha Execução").first().json;
 
 // Verificar pausa por horário
 if (hora >= 18) {
-  return [{
-    json: {
-      pausarProcessamento: true,
-      continuarAmanha: true
-    }
-  }];
+  return [
+    {
+      json: {
+        pausarProcessamento: true,
+        continuarAmanha: true,
+      },
+    },
+  ];
 }
 
 // Calcular intervalo baseado na campanha
@@ -433,15 +455,18 @@ if (campanha.intervalo_envios_segundos) {
   intervalo = 130 + Math.floor(Math.random() * 21);
 }
 
-return [{
-  json: {
-    intervaloSegundos: intervalo,
-    podeContinuar: true
-  }
-}];
+return [
+  {
+    json: {
+      intervaloSegundos: intervalo,
+      podeContinuar: true,
+    },
+  },
+];
 ```
 
 Copiar nós do workflow base:
+
 - Verificar Limite Diário (MODIFICAR para usar limite da campanha)
 - IF Atingiu Limite
 - Wait - Intervalo
@@ -468,17 +493,20 @@ return [{
 ### Fase 3: Testes (2-4 horas)
 
 #### Teste 1: Criar Campanha via Interface
+
 - Criar campanha "Teste MVP"
 - Configurar limite: 10/dia
 - Configurar intervalo: 60s
 - Prioridade: 5
 
 #### Teste 2: Executar Schema SQL
+
 - Executar `schema-campanhas.sql`
 - Verificar criação de tabelas
 - Testar funções SQL
 
 #### Teste 3: Disparo Manual (Poucos Contatos)
+
 - Preparar planilha de teste com 10-20 contatos
 - Disparar campanha manualmente via interface
 - Verificar:
@@ -489,6 +517,7 @@ return [{
   - Dashboard atualizado
 
 #### Teste 4: Validação de Duplicatas
+
 - Tentar disparar mesma campanha novamente
 - Verificar que:
   - Interface avisa "já executada hoje"
@@ -496,6 +525,7 @@ return [{
   - Contatos não recebem mensagem novamente
 
 #### Teste 5: Distribuição Multi-dia (Simulação)
+
 - Criar campanha com limite: 5/dia
 - Planilha com 15 contatos
 - Executar dia 1 → 5 enviados
@@ -504,6 +534,7 @@ return [{
 - Verificar execução marcada como "concluida"
 
 #### Teste 6: Agendamento Automático
+
 - Criar campanha com cron: `0 9 * * 1-5`
 - Ativar workflow "Disparador_Campanhas_Agendadas"
 - Aguardar próximo dia útil às 9h
@@ -516,33 +547,39 @@ return [{
 ### N8N
 
 **Credenciais a Configurar:**
+
 - [ ] Supabase (Service Role Key)
 - [ ] Google Sheets OAuth2
 - [ ] OpenAI API Key
 - [ ] Uazapi Token
 
 **Workflows a Ativar:**
-- [ ] Disparador_Campanhas_Instacar (inicialmente desativado até expandir)
+
+- [ ] Disparador_Web_Campanhas_Instacar (inicialmente desativado até expandir)
 - [ ] Disparador_Campanhas_Agendadas (ativar após expandir principal)
 - [ ] Continuar_Execucoes_Pendentes (ativar após expandir principal)
 
 **Variáveis a Configurar:**
+
 - [ ] `WEBHOOK_CAMPANHA_URL` nos workflows auxiliares
 
 ### Interface Web
 
 **Configurações do Usuário:**
+
 - [ ] URL do Supabase
 - [ ] Anon Key do Supabase
 - [ ] URL do webhook N8N de campanhas
 
 **Deploy:**
+
 - Opção 1: Cloudflare Pages (guia em `interface-web/README-DEPLOY.md`)
 - Opção 2: Servidor local (scripts `start-dev.bat` / `start-dev.sh`)
 
 ### Supabase
 
 **SQL a Executar:**
+
 ```sql
 -- 1. Executar schema principal (se ainda não foi)
 -- docs/supabase/schema.sql
@@ -563,12 +600,12 @@ ORDER BY table_name;
 
 ## 📈 Estimativa de Esforço
 
-| Fase | Atividade | Tempo Estimado |
-|------|-----------|----------------|
-| **Fase 1** | Setup Inicial (Schema + Importação) | 1-2 horas |
-| **Fase 2** | Expandir Workflow Principal | 4-8 horas |
-| **Fase 3** | Testes Completos | 2-4 horas |
-| **TOTAL** | **MVP Funcional** | **7-14 horas** |
+| Fase       | Atividade                           | Tempo Estimado |
+| ---------- | ----------------------------------- | -------------- |
+| **Fase 1** | Setup Inicial (Schema + Importação) | 1-2 horas      |
+| **Fase 2** | Expandir Workflow Principal         | 4-8 horas      |
+| **Fase 3** | Testes Completos                    | 2-4 horas      |
+| **TOTAL**  | **MVP Funcional**                   | **7-14 horas** |
 
 ---
 
@@ -587,6 +624,7 @@ ORDER BY table_name;
 - [ ] Documentação atualizada
 
 **Critérios de Aceitação:**
+
 1. Criar campanha via interface ✅
 2. Disparar campanha manualmente ✅ (após expandir workflow)
 3. Processar 20 contatos com sucesso ⏳

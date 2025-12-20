@@ -40,7 +40,7 @@
 
 ### 3. Workflows N8N
 
-#### Disparador_Campanhas_Instacar.json
+#### Disparador_Web_Campanhas_Instacar.json
 
 - ✅ Triggers híbridos (Webhook, Schedule, Manual)
 - ✅ Validação de payload
@@ -104,7 +104,7 @@ Seguir instruções em `docs/campanhas/NOTA-WORKFLOW-CAMPANHAS.md` para:
 
 1. Importar workflows:
 
-   - `Disparador_Campanhas_Instacar.json`
+   - `Disparador_Web_Campanhas_Instacar.json`
    - `Disparador_Campanhas_Agendadas.json`
    - `Continuar_Execucoes_Pendentes.json`
 
@@ -154,7 +154,7 @@ Seguir instruções em `docs/campanhas/NOTA-WORKFLOW-CAMPANHAS.md` para:
 
 ## ⚠️ Observações Importantes
 
-1. **Workflow Principal**: O workflow `Disparador_Campanhas_Instacar.json` contém apenas a estrutura base. Precisa ser expandido com base no workflow existente `Disparador_Instacar_Escalonado_Supabase.json`.
+1. **Workflow Principal**: O workflow `Disparador_Web_Campanhas_Instacar.json` contém apenas a estrutura base. Precisa ser expandido com base no workflow existente `Disparador_Instacar_Escalonado_Supabase.json`.
 
 2. **Webhooks**: Os workflows auxiliares precisam ter a URL do webhook de campanhas configurada corretamente.
 
