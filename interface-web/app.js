@@ -889,7 +889,7 @@
    */
   async function criarInstanciaUazapi(baseUrl, adminToken, nomeInstancia) {
     try {
-      const response = await fetch(`${baseUrl}/instance`, {
+      const response = await fetch(`${baseUrl}/instance/init`, {
         method: "POST",
         headers: {
           admintoken: adminToken,
@@ -909,12 +909,17 @@
 
       const data = await response.json();
       
+      // A resposta pode ter 'token' diretamente ou dentro de 'instance'
+      // Segundo a documentação: token pode estar no nível raiz ou dentro de instance
+      const instanceToken = data.token || data.instance?.token;
+      const instanceId = data.instance?.id || data.id;
+      
       // Retornar o Instance Token gerado
       return {
         success: true,
-        instanceToken: data.token,
-        instanceId: data.instance?.id,
-        instance: data.instance,
+        instanceToken: instanceToken,
+        instanceId: instanceId,
+        instance: data.instance || data,
       };
     } catch (error) {
       console.error("Erro ao criar instância na Uazapi:", error);
