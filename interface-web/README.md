@@ -130,8 +130,25 @@ A interface foi atualizada com:
 - **Layout de Lista**: Visualização de campanhas seguindo padrão das instâncias Uazapi
 - **Responsividade**: Otimizado para mobile, tablet e desktop
 - **Acessibilidade**: Cores e contrastes melhorados
+- **Sistema de Tooltips e Ajuda**: Tooltips contextuais em todos os campos e modal de ajuda completo
 
-📖 **Changelog completo**: [../docs/interface-web/CHANGELOG-UI-UX-2025-12.md](../docs/interface-web/CHANGELOG-UI-UX-2025-12.md)
+📖 **Changelogs:**
+- [CHANGELOG-UI-UX-2025-12.md](../docs/interface-web/CHANGELOG-UI-UX-2025-12.md) - Melhorias de design
+- [CHANGELOG-tooltips-ajuda-2025-12.md](../docs/interface-web/CHANGELOG-tooltips-ajuda-2025-12.md) - Sistema de tooltips e ajuda
+
+## ❓ Sistema de Ajuda
+
+A interface possui um sistema completo de ajuda integrado:
+
+- **Tooltips contextuais**: Passe o mouse ou clique no ícone "?" ao lado de qualquer campo para ver explicações e exemplos
+- **Modal de ajuda**: Clique no botão "❓ Ajuda" no cabeçalho para acessar documentação completa
+- **Guia de agendamento cron**: Seção dedicada com exemplos práticos de expressões cron
+
+Os tooltips incluem:
+- Explicações detalhadas de cada campo
+- Exemplos práticos de uso
+- Dicas de boas práticas
+- Guia completo de agendamento cron com 6 exemplos
 
 ## 🎯 Próximos Passos
 

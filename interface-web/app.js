@@ -689,6 +689,11 @@
     }
 
     modal.classList.add("active");
+
+    // Adicionar tooltips após um pequeno delay
+    setTimeout(() => {
+      adicionarTooltipsFormularioInstancia();
+    }, 100);
   }
 
   /**
@@ -1390,6 +1395,99 @@
   }
 
   // Abrir modal para nova campanha
+  /**
+   * Adiciona tooltips aos labels do formulário de instância Uazapi
+   */
+  function adicionarTooltipsFormularioInstancia() {
+    const mapeamentoLabels = {
+      instanciaUazapiNome: "instanciaUazapiNome",
+      instanciaUazapiTipoApi: "instanciaUazapiTipoApi",
+      instanciaUazapiBaseUrl: "instanciaUazapiBaseUrl",
+      instanciaUazapiToken: "instanciaUazapiToken",
+      instanciaUazapiConfigExtra: "instanciaUazapiConfigExtra",
+    };
+
+    Object.entries(mapeamentoLabels).forEach(([campoId, configKey]) => {
+      const input = document.getElementById(campoId);
+      if (!input) return;
+
+      const label = document.querySelector(`label[for="${campoId}"]`);
+      if (label && !label.querySelector(".help-icon")) {
+        adicionarTooltipAoLabel(label, configKey);
+      }
+    });
+  }
+
+  /**
+   * Adiciona tooltips aos labels do formulário de campanha
+   */
+  function adicionarTooltipsFormularioCampanha() {
+    // Mapeamento de labels para IDs de campo
+    const mapeamentoLabels = {
+      nome: "nome",
+      descricao: "descricao",
+      periodo_ano: "periodo_ano",
+      status: "status",
+      data_inicio: "data_inicio",
+      data_fim: "data_fim",
+      limite_envios_dia: "limite_envios_dia",
+      intervalo_minimo_dias: "intervalo_minimo_dias",
+      intervalo_envios_segundos: "intervalo_envios_segundos",
+      prioridade: "prioridade",
+      whatsapp_api_id: "whatsapp_api_id",
+      agendamento_cron: "agendamento_cron",
+      prompt_ia: "prompt_ia",
+      template_mensagem: "template_mensagem",
+      usar_veiculos: "usar_veiculos",
+      usar_vendedor: "usar_vendedor",
+      tamanho_lote: "tamanho_lote",
+      processar_finais_semana: "processar_finais_semana",
+      horario_inicio: "horario_inicio",
+      horario_fim: "horario_fim",
+    };
+
+    // Adicionar tooltips aos labels
+    Object.entries(mapeamentoLabels).forEach(([campoId, configKey]) => {
+      const input = document.getElementById(campoId);
+      if (!input) return;
+
+      // Encontrar o label associado
+      let label = null;
+      if (
+        input.id === "usar_veiculos" ||
+        input.id === "usar_vendedor" ||
+        input.id === "processar_finais_semana"
+      ) {
+        // Para checkboxes, o label pode estar em um elemento pai
+        const parent = input.closest("label") || input.parentElement;
+        if (parent) {
+          // Procurar pelo span dentro do label
+          const span = parent.querySelector("span");
+          if (span) {
+            label = span;
+          } else {
+            label = parent;
+          }
+        }
+      } else {
+        // Para outros campos, procurar label pelo atributo for
+        label = document.querySelector(`label[for="${campoId}"]`);
+      }
+
+      if (label && !label.querySelector(".help-icon")) {
+        // Para checkboxes, adicionar tooltip após o texto do label
+        if (input.type === "checkbox") {
+          const icon = criarTooltipHelpIcon(configKey);
+          if (icon) {
+            label.appendChild(icon);
+          }
+        } else {
+          adicionarTooltipAoLabel(label, configKey);
+        }
+      }
+    });
+  }
+
   async function abrirModalNovaCampanha() {
     if (!supabaseClient) {
       mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
@@ -1405,6 +1503,11 @@
     await carregarInstanciasParaSelect();
 
     document.getElementById("modalCampanha").classList.add("active");
+
+    // Adicionar tooltips após um pequeno delay para garantir que o DOM está pronto
+    setTimeout(() => {
+      adicionarTooltipsFormularioCampanha();
+    }, 100);
   }
 
   // Editar campanha
@@ -1469,6 +1572,11 @@
       setTimeout(atualizarEstimativas, 100);
 
       document.getElementById("modalCampanha").classList.add("active");
+
+      // Adicionar tooltips após um pequeno delay
+      setTimeout(() => {
+        adicionarTooltipsFormularioCampanha();
+      }, 100);
     } catch (error) {
       mostrarAlerta("Erro ao carregar campanha: " + error.message, "error");
       console.error(error);
@@ -6326,6 +6434,636 @@
     }
   }
 
+  // ============================================
+  // SISTEMA DE TOOLTIPS E AJUDA
+  // ============================================
+
+  /**
+   * Configuração de tooltips para todos os campos
+   */
+  const tooltipsConfig = {
+    // Formulário de Campanha
+    nome: {
+      titulo: "Nome da Campanha",
+      resumo: "Nome identificador da campanha",
+      detalhes: `
+        <p>Escolha um nome descritivo e único para identificar esta campanha.</p>
+        <h5>Exemplos:</h5>
+        <ul>
+          <li><strong>Natal 2025</strong> - Campanha de fim de ano</li>
+          <li><strong>Black Friday 2025</strong> - Promoção especial</li>
+          <li><strong>Dia das Mães</strong> - Campanha sazonal</li>
+        </ul>
+        <p><strong>Dica:</strong> Use nomes que facilitem a identificação rápida da campanha na lista.</p>
+      `,
+    },
+    descricao: {
+      titulo: "Descrição",
+      resumo: "Campo opcional para notas internas",
+      detalhes: `
+        <p>Use este campo para adicionar informações internas sobre a campanha.</p>
+        <p>Esta descrição não será enviada aos clientes, apenas para referência interna da equipe.</p>
+      `,
+    },
+    periodo_ano: {
+      titulo: "Período do Ano",
+      resumo: "Selecione a época/ocasião da campanha",
+      detalhes: `
+        <p>Selecione o período ou ocasião relacionada à campanha.</p>
+        <h5>Quando usar cada opção:</h5>
+        <ul>
+          <li><strong>Meses do ano:</strong> Para campanhas mensais regulares</li>
+          <li><strong>Black Friday:</strong> Promoções de novembro</li>
+          <li><strong>Dia das Mães/Pais:</strong> Campanhas sazonais específicas</li>
+          <li><strong>Natal/Ano Novo:</strong> Campanhas de fim de ano</li>
+        </ul>
+      `,
+    },
+    status: {
+      titulo: "Status da Campanha",
+      resumo: "Estado atual da campanha",
+      detalhes: `
+        <h5>Status disponíveis:</h5>
+        <ul>
+          <li><strong>Ativa:</strong> Campanha está sendo processada e enviando mensagens</li>
+          <li><strong>Pausada:</strong> Campanha temporariamente pausada (pode ser reativada)</li>
+          <li><strong>Concluída:</strong> Campanha finalizada (não processa mais envios)</li>
+          <li><strong>Cancelada:</strong> Campanha cancelada (não será processada)</li>
+        </ul>
+      `,
+    },
+    data_inicio: {
+      titulo: "Data de Início",
+      resumo: "Data em que a campanha começa a ser processada",
+      detalhes: `
+        <p>Define a data a partir da qual a campanha pode começar a enviar mensagens.</p>
+        <p><strong>Importante:</strong> A campanha só será processada após esta data, mesmo que esteja com status "Ativa".</p>
+      `,
+    },
+    data_fim: {
+      titulo: "Data de Fim",
+      resumo: "Data em que a campanha para de ser processada",
+      detalhes: `
+        <p>Define a data limite para processamento da campanha.</p>
+        <p>Após esta data, a campanha não será mais processada, mesmo que esteja "Ativa".</p>
+        <p><strong>Dica:</strong> Deixe vazio se a campanha não tiver data de término definida.</p>
+      `,
+    },
+    limite_envios_dia: {
+      titulo: "Limite de Envios por Dia",
+      resumo: "Máximo de mensagens enviadas por dia",
+      detalhes: `
+        <p>Define o número máximo de mensagens que podem ser enviadas por dia nesta campanha.</p>
+        <h5>Recomendações:</h5>
+        <ul>
+          <li><strong>Período de Warm-up (primeiros 7 dias):</strong> 50 mensagens/dia</li>
+          <li><strong>Produção:</strong> 200 mensagens/dia (padrão)</li>
+        </ul>
+        <p><strong>Importante:</strong> Este limite é compartilhado entre todas as campanhas ativas. O sistema respeita o limite global de 200/dia.</p>
+      `,
+    },
+    intervalo_minimo_dias: {
+      titulo: "Intervalo Mínimo (dias)",
+      resumo: "Tempo mínimo entre envios para o mesmo cliente",
+      detalhes: `
+        <p>Define quantos dias devem passar antes de enviar outra mensagem para o mesmo cliente nesta campanha.</p>
+        <p><strong>Exemplo:</strong> Se configurado como 30 dias, um cliente só receberá uma nova mensagem desta campanha após 30 dias da última.</p>
+        <p><strong>Padrão:</strong> 30 dias (recomendado para evitar spam)</p>
+      `,
+    },
+    intervalo_envios_segundos: {
+      titulo: "Intervalo Entre Envios (segundos)",
+      resumo: "Tempo de espera entre cada mensagem enviada",
+      detalhes: `
+        <p>Define o intervalo de tempo entre o envio de cada mensagem.</p>
+        <h5>Configurações:</h5>
+        <ul>
+          <li><strong>Vazio (padrão):</strong> Intervalo aleatório entre 130-150 segundos</li>
+          <li><strong>Valor fixo:</strong> Use um valor entre 60-300 segundos para controle preciso</li>
+        </ul>
+        <p><strong>Recomendação:</strong> Deixe vazio para usar o padrão aleatorizado, que ajuda a evitar bloqueios do WhatsApp.</p>
+      `,
+    },
+    prioridade: {
+      titulo: "Prioridade",
+      resumo:
+        "Ordem de processamento quando cliente é elegível para múltiplas campanhas",
+      detalhes: `
+        <p>Define a prioridade desta campanha quando um cliente é elegível para receber mensagens de múltiplas campanhas.</p>
+        <p><strong>Escala:</strong> 1 (maior prioridade) a 10 (menor prioridade)</p>
+        <p><strong>Exemplo:</strong> Se um cliente pode receber mensagens de 3 campanhas diferentes, a campanha com prioridade 1 será processada primeiro.</p>
+        <p><strong>Padrão:</strong> 5</p>
+      `,
+    },
+    whatsapp_api_id: {
+      titulo: "Instância API WhatsApp",
+      resumo: "Selecione qual instância de API WhatsApp usar",
+      detalhes: `
+        <p>Escolha qual instância de API WhatsApp (Uazapi, Z-API, Evolution, etc.) será usada para enviar as mensagens desta campanha.</p>
+        <p><strong>Como configurar:</strong> Vá em "⚙️ Gerenciar Configurações" para adicionar novas instâncias.</p>
+        <p><strong>Importante:</strong> A instância selecionada deve estar ativa e configurada corretamente.</p>
+      `,
+    },
+    agendamento_cron: {
+      titulo: "Agendamento Cron",
+      resumo: "Formato: minuto hora dia mês dia-semana",
+      detalhes: `
+        <h4>Formato Cron</h4>
+        <p>Use expressões cron para agendar execuções automáticas da campanha.</p>
+        <p><strong>Formato:</strong> <code>minuto hora dia mês dia-semana</code></p>
+        
+        <h5>Campos:</h5>
+        <ol>
+          <li><strong>Minuto</strong> (0-59) - Minuto da hora</li>
+          <li><strong>Hora</strong> (0-23) - Hora do dia</li>
+          <li><strong>Dia do mês</strong> (1-31) - Dia do mês</li>
+          <li><strong>Mês</strong> (1-12) - Mês do ano</li>
+          <li><strong>Dia da semana</strong> (0-7, onde 0 e 7 = domingo) - Dia da semana</li>
+        </ol>
+
+        <h5>Caracteres especiais:</h5>
+        <ul>
+          <li><code>*</code> - Qualquer valor</li>
+          <li><code>,</code> - Lista de valores (ex: 1,3,5)</li>
+          <li><code>-</code> - Intervalo (ex: 1-5)</li>
+          <li><code>/</code> - Incremento (ex: */2 = a cada 2)</li>
+        </ul>
+
+        <div class="tooltip-exemplos">
+          <h5>Exemplos práticos:</h5>
+          <div class="tooltip-exemplo-item">
+            <code>0 9 * * 1-5</code>
+            <div class="descricao">9h da manhã, apenas dias úteis (segunda a sexta)</div>
+          </div>
+          <div class="tooltip-exemplo-item">
+            <code>0 9 1 1 *</code>
+            <div class="descricao">1º de janeiro às 9h</div>
+          </div>
+          <div class="tooltip-exemplo-item">
+            <code>0 */2 * * *</code>
+            <div class="descricao">A cada 2 horas (0h, 2h, 4h, 6h...)</div>
+          </div>
+          <div class="tooltip-exemplo-item">
+            <code>30 14 * * 0</code>
+            <div class="descricao">Domingos às 14:30</div>
+          </div>
+          <div class="tooltip-exemplo-item">
+            <code>0 9,14 * * 1-5</code>
+            <div class="descricao">9h e 14h, dias úteis</div>
+          </div>
+        </div>
+
+        <p><strong>Dica:</strong> Deixe vazio se não quiser agendamento automático (disparo apenas manual).</p>
+      `,
+    },
+    prompt_ia: {
+      titulo: "Prompt Personalizado para IA",
+      resumo: "Instruções específicas para a IA gerar mensagens",
+      detalhes: `
+        <p>Este campo contém as instruções que serão enviadas para a IA (GPT-4) gerar as mensagens personalizadas.</p>
+        <h5>Dicas para escrever bons prompts:</h5>
+        <ul>
+          <li>Seja específico sobre o tom e estilo da mensagem</li>
+          <li>Mencione informações que devem ser incluídas (nome do cliente, veículo, etc.)</li>
+          <li>Defina o objetivo da campanha claramente</li>
+          <li>Inclua exemplos de mensagens desejadas, se possível</li>
+        </ul>
+        <h5>Exemplo:</h5>
+        <pre><code>Gere uma mensagem calorosa de Natal para o cliente [NOME]. 
+Mencione que temos oportunidades especiais de fim de ano. 
+Use tom amigável e profissional. 
+Máximo de 3 parágrafos.</code></pre>
+      `,
+    },
+    template_mensagem: {
+      titulo: "Template de Mensagem",
+      resumo: "Template base opcional para a mensagem",
+      detalhes: `
+        <p>Template opcional que serve como base para a mensagem gerada pela IA.</p>
+        <p><strong>Quando usar:</strong></p>
+        <ul>
+          <li>Quando você quer garantir que certas informações sempre apareçam</li>
+          <li>Para manter consistência no formato das mensagens</li>
+          <li>Para incluir informações fixas (contato, endereço, etc.)</li>
+        </ul>
+        <p><strong>Dica:</strong> Use variáveis como [NOME], [VEICULO] que serão substituídas pela IA.</p>
+      `,
+    },
+    usar_veiculos: {
+      titulo: "Incluir Informações de Veículos",
+      resumo: "Se a IA deve ter acesso aos dados de veículos do cliente",
+      detalhes: `
+        <p>Quando marcado, a IA terá acesso aos dados de veículos do cliente para personalizar a mensagem.</p>
+        <h5>Quando marcar:</h5>
+        <ul>
+          <li>Campanhas relacionadas a veículos específicos</li>
+          <li>Ofertas de seguro, revisão, etc.</li>
+        </ul>
+        <h5>Quando desmarcar:</h5>
+        <ul>
+          <li>Campanhas genéricas (Natal, Ano Novo)</li>
+          <li>Mensagens que não mencionam veículos</li>
+        </ul>
+      `,
+    },
+    usar_vendedor: {
+      titulo: "Incluir Nome do Vendedor",
+      resumo: "Se a IA deve mencionar o vendedor do veículo",
+      detalhes: `
+        <p>Quando marcado, a IA poderá mencionar o nome do vendedor do veículo mais recente do cliente.</p>
+        <p><strong>Útil para:</strong></p>
+        <ul>
+          <li>Campanhas de relacionamento</li>
+          <li>Mensagens personalizadas com referência ao vendedor</li>
+        </ul>
+        <p><strong>Nota:</strong> Só funciona se o cliente tiver veículos cadastrados com vendedor.</p>
+      `,
+    },
+    tamanho_lote: {
+      titulo: "Tamanho do Lote",
+      resumo: "Número de clientes processados por execução",
+      detalhes: `
+        <p>Define quantos clientes serão processados a cada execução da campanha.</p>
+        <h5>Recomendações:</h5>
+        <ul>
+          <li><strong>Padrão:</strong> 50 clientes por lote</li>
+          <li><strong>Mínimo:</strong> 10 clientes</li>
+          <li><strong>Máximo:</strong> 500 clientes</li>
+        </ul>
+        <p><strong>Impacto:</strong> Lotes maiores processam mais rápido, mas podem sobrecarregar o sistema. Lotes menores são mais seguros.</p>
+      `,
+    },
+    processar_finais_semana: {
+      titulo: "Processar Finais de Semana",
+      resumo: "Se a campanha deve processar também sábados e domingos",
+      detalhes: `
+        <p>Quando marcado, a campanha será processada também nos finais de semana.</p>
+        <h5>Recomendações:</h5>
+        <ul>
+          <li><strong>Desmarcado (padrão):</strong> Processa apenas dias úteis (segunda a sexta)</li>
+          <li><strong>Marcado:</strong> Processa todos os dias, incluindo sábados e domingos</li>
+        </ul>
+        <p><strong>Atenção:</strong> Enviar mensagens em finais de semana pode aumentar o risco de bloqueio do WhatsApp.</p>
+      `,
+    },
+    horario_inicio: {
+      titulo: "Horário de Início",
+      resumo: "Horário em que a campanha começa a processar",
+      detalhes: `
+        <p>Define o horário de início da janela de processamento diário.</p>
+        <p><strong>Formato:</strong> HH:MM (ex: 09:00)</p>
+        <p><strong>Padrão:</strong> 09:00</p>
+        <p>A campanha só processará clientes dentro da janela entre horário de início e fim.</p>
+      `,
+    },
+    horario_fim: {
+      titulo: "Horário de Fim",
+      resumo: "Horário em que a campanha para de processar",
+      detalhes: `
+        <p>Define o horário de fim da janela de processamento diário.</p>
+        <p><strong>Formato:</strong> HH:MM (ex: 18:00)</p>
+        <p><strong>Padrão:</strong> 18:00</p>
+        <p>A campanha só processará clientes dentro da janela entre horário de início e fim.</p>
+      `,
+    },
+    // Formulário de Instância Uazapi
+    instanciaUazapiNome: {
+      titulo: "Nome da Instância",
+      resumo: "Nome identificador único para esta instância",
+      detalhes: `
+        <p>Escolha um nome descritivo para identificar esta instância de API WhatsApp.</p>
+        <h5>Exemplos:</h5>
+        <ul>
+          <li>Uazapi Principal</li>
+          <li>Z-API Backup</li>
+          <li>Evolution Teste</li>
+        </ul>
+      `,
+    },
+    instanciaUazapiTipoApi: {
+      titulo: "Tipo de API",
+      resumo: "Selecione o tipo de API WhatsApp",
+      detalhes: `
+        <h5>Tipos disponíveis:</h5>
+        <ul>
+          <li><strong>Uazapi:</strong> API Uazapi padrão</li>
+          <li><strong>Z-API:</strong> Z-API WhatsApp</li>
+          <li><strong>Evolution API:</strong> Evolution API</li>
+          <li><strong>WhatsApp Oficial:</strong> API oficial da Meta</li>
+          <li><strong>Outro:</strong> Outro tipo de API compatível</li>
+        </ul>
+      `,
+    },
+    instanciaUazapiBaseUrl: {
+      titulo: "URL Base da Instância",
+      resumo: "URL base da sua instância de API",
+      detalhes: `
+        <p>URL completa da sua instância de API WhatsApp.</p>
+        <h5>Exemplos:</h5>
+        <ul>
+          <li><code>https://fourtakeoff.uazapi.com</code></li>
+          <li><code>https://api.z-api.io</code></li>
+          <li><code>https://evolution-api.example.com</code></li>
+        </ul>
+        <p><strong>Importante:</strong> Use HTTPS e não inclua barra no final.</p>
+      `,
+    },
+    instanciaUazapiToken: {
+      titulo: "Instance Token",
+      resumo: "Token de autenticação da instância",
+      detalhes: `
+        <p>Token de autenticação necessário para acessar a API.</p>
+        <p><strong>⚠️ IMPORTANTE:</strong></p>
+        <ul>
+          <li>Use o <strong>Instance Token</strong>, não o Admin Token</li>
+          <li>Endpoints regulares usam header "token" com Instance Token</li>
+          <li>Mantenha este token seguro e não compartilhe</li>
+        </ul>
+        <p><strong>Onde encontrar:</strong> No painel de administração da sua instância de API.</p>
+      `,
+    },
+    instanciaUazapiConfigExtra: {
+      titulo: "Configuração Extra (JSON)",
+      resumo: "Configurações específicas da API em formato JSON",
+      detalhes: `
+        <p>Configurações adicionais específicas do tipo de API selecionado.</p>
+        <h5>Exemplos por tipo:</h5>
+        <div class="tooltip-exemplo-item">
+          <strong>Evolution API:</strong>
+          <code>{"instance_id": "xxx"}</code>
+        </div>
+        <div class="tooltip-exemplo-item">
+          <strong>WhatsApp Oficial:</strong>
+          <code>{"phone_id": "xxx", "business_account_id": "yyy"}</code>
+        </div>
+        <p><strong>Nota:</strong> Deixe vazio se não necessário para o tipo de API selecionado.</p>
+      `,
+    },
+  };
+
+  /**
+   * Cria um ícone de ajuda com tooltip
+   * @param {string} campoId - ID do campo
+   * @param {string} customResumo - Resumo customizado (opcional)
+   * @returns {HTMLElement} - Elemento do ícone
+   */
+  function criarTooltipHelpIcon(campoId, customResumo = null) {
+    const config = tooltipsConfig[campoId];
+    if (!config) {
+      console.warn(`Tooltip não configurado para campo: ${campoId}`);
+      return null;
+    }
+
+    const icon = document.createElement("span");
+    icon.className = "help-icon";
+    icon.textContent = "?";
+    icon.setAttribute("role", "button");
+    icon.setAttribute("aria-label", `Ajuda sobre ${config.titulo}`);
+    icon.setAttribute("tabindex", "0");
+
+    const resumo = customResumo || config.resumo;
+
+    // Tooltip hover (rápido)
+    const tooltipHover = document.createElement("div");
+    tooltipHover.className = "tooltip-hover";
+    tooltipHover.textContent = resumo;
+    icon.appendChild(tooltipHover);
+
+    // Event listeners
+    let hoverTimeout;
+    let clickTimeout;
+
+    icon.addEventListener("mouseenter", () => {
+      clearTimeout(hoverTimeout);
+      hoverTimeout = setTimeout(() => {
+        tooltipHover.classList.add("show");
+        posicionarTooltipHover(icon, tooltipHover);
+      }, 300);
+    });
+
+    icon.addEventListener("mouseleave", () => {
+      clearTimeout(hoverTimeout);
+      tooltipHover.classList.remove("show");
+    });
+
+    icon.addEventListener("click", (e) => {
+      e.stopPropagation();
+      mostrarTooltipPopover(config, icon);
+    });
+
+    icon.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        mostrarTooltipPopover(config, icon);
+      }
+    });
+
+    return icon;
+  }
+
+  /**
+   * Posiciona tooltip hover para não sair da tela
+   */
+  function posicionarTooltipHover(icon, tooltip) {
+    const rect = icon.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Posição padrão: abaixo do ícone
+    let top = rect.bottom + 8;
+    let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+
+    // Ajustar se sair da tela à direita
+    if (left + tooltipRect.width > viewportWidth) {
+      left = viewportWidth - tooltipRect.width - 10;
+    }
+
+    // Ajustar se sair da tela à esquerda
+    if (left < 10) {
+      left = 10;
+    }
+
+    // Se não couber abaixo, colocar acima
+    if (top + tooltipRect.height > viewportHeight) {
+      top = rect.top - tooltipRect.height - 8;
+      tooltip.style.setProperty("--arrow-position", "bottom");
+    } else {
+      tooltip.style.setProperty("--arrow-position", "top");
+    }
+
+    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${left}px`;
+  }
+
+  /**
+   * Mostra popover com detalhes completos
+   */
+  function mostrarTooltipPopover(config, triggerElement) {
+    const popover = document.getElementById("tooltipPopover");
+    const overlay = document.getElementById("tooltipOverlay");
+    const title = document.getElementById("tooltipPopoverTitle");
+    const content = document.getElementById("tooltipPopoverContent");
+
+    if (!popover || !overlay || !title || !content) {
+      console.error("Elementos do popover não encontrados");
+      return;
+    }
+
+    title.textContent = config.titulo;
+    content.innerHTML = config.detalhes;
+
+    // Posicionar popover próximo ao elemento trigger
+    const rect = triggerElement.getBoundingClientRect();
+    const popoverRect = popover.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let top = rect.bottom + 10;
+    let left = rect.left + rect.width / 2 - popoverRect.width / 2;
+
+    // Ajustar posicionamento
+    if (left + popoverRect.width > viewportWidth) {
+      left = viewportWidth - popoverRect.width - 20;
+    }
+    if (left < 20) {
+      left = 20;
+    }
+    if (top + popoverRect.height > viewportHeight) {
+      top = rect.top - popoverRect.height - 10;
+    }
+    if (top < 20) {
+      top = 20;
+    }
+
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
+
+    // Mostrar
+    overlay.classList.add("show");
+    popover.classList.add("show");
+
+    // Focar no botão de fechar para acessibilidade
+    setTimeout(() => {
+      const closeBtn = popover.querySelector(".tooltip-popover-close");
+      if (closeBtn) closeBtn.focus();
+    }, 100);
+  }
+
+  /**
+   * Fecha popover de tooltip
+   */
+  function fecharTooltipPopover() {
+    const popover = document.getElementById("tooltipPopover");
+    const overlay = document.getElementById("tooltipOverlay");
+
+    if (popover) popover.classList.remove("show");
+    if (overlay) overlay.classList.remove("show");
+  }
+
+  /**
+   * Adiciona tooltip a um label
+   */
+  function adicionarTooltipAoLabel(labelElement, campoId) {
+    if (!labelElement || !campoId) return;
+
+    // Verificar se já tem tooltip
+    if (labelElement.querySelector(".help-icon")) return;
+
+    const icon = criarTooltipHelpIcon(campoId);
+    if (icon) {
+      labelElement.classList.add("with-help");
+      labelElement.appendChild(icon);
+    }
+  }
+
+  // Fechar popover ao pressionar ESC
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      fecharTooltipPopover();
+    }
+  });
+
+  // Fechar popover ao clicar no overlay
+  const overlay = document.getElementById("tooltipOverlay");
+  if (overlay) {
+    overlay.addEventListener("click", fecharTooltipPopover);
+  }
+
+  /**
+   * Abre modal de ajuda
+   */
+  function abrirModalAjuda() {
+    const modal = document.getElementById("modalAjuda");
+    if (modal) {
+      modal.classList.add("active");
+      // Ir para primeira tab
+      trocarTabAjuda("visao-geral");
+    }
+  }
+
+  /**
+   * Fecha modal de ajuda
+   */
+  function fecharModalAjuda() {
+    const modal = document.getElementById("modalAjuda");
+    if (modal) {
+      modal.classList.remove("active");
+    }
+  }
+
+  /**
+   * Troca tab do modal de ajuda
+   */
+  function trocarTabAjuda(tabId) {
+    // Mapeamento de IDs para IDs reais dos elementos
+    const mapeamento = {
+      "visao-geral": { content: "ajudaVisaoGeral", tab: "tabVisaoGeral" },
+      campos: { content: "ajudaCampos", tab: "tabCampos" },
+      cron: { content: "ajudaCron", tab: "tabCron" },
+      funcionalidades: {
+        content: "ajudaFuncionalidades",
+        tab: "tabFuncionalidades",
+      },
+      troubleshooting: {
+        content: "ajudaTroubleshooting",
+        tab: "tabTroubleshooting",
+      },
+    };
+
+    const config = mapeamento[tabId];
+    if (!config) {
+      console.warn(`Tab não encontrada: ${tabId}`);
+      return;
+    }
+
+    // Esconder todos os conteúdos
+    const contents = document.querySelectorAll(
+      "#modalAjuda .modal-tab-content"
+    );
+    contents.forEach((content) => {
+      content.classList.remove("active");
+    });
+
+    // Remover active de todas as tabs
+    const tabs = document.querySelectorAll("#modalAjuda .modal-tab");
+    tabs.forEach((tab) => {
+      tab.classList.remove("active");
+    });
+
+    // Mostrar conteúdo selecionado
+    const content = document.getElementById(config.content);
+    if (content) {
+      content.classList.add("active");
+    }
+
+    // Ativar tab selecionada
+    const tab = document.getElementById(config.tab);
+    if (tab) {
+      tab.classList.add("active");
+    }
+  }
+
   // Expor funções globalmente
   window.verDetalhesCliente = verDetalhesCliente;
   window.trocarTabCliente = trocarTabCliente;
@@ -6343,6 +7081,12 @@
   window.fecharModalCliente = fecharModalCliente;
   window.verificarWhatsAppDoModal = verificarWhatsAppDoModal;
   window.filtrarHistorico = filtrarHistorico;
+  window.fecharTooltipPopover = fecharTooltipPopover;
+  window.criarTooltipHelpIcon = criarTooltipHelpIcon;
+  window.adicionarTooltipAoLabel = adicionarTooltipAoLabel;
+  window.abrirModalAjuda = abrirModalAjuda;
+  window.fecharModalAjuda = fecharModalAjuda;
+  window.trocarTabAjuda = trocarTabAjuda;
 
   // Adicionar listeners de upload e envio na inicialização
   const originalInicializarApp = inicializarApp;

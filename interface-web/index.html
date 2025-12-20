@@ -23,8 +23,8 @@
     <script id="env-config">
       // Variáveis de ambiente injetadas em build time
       window.ENV = {
-        SUPABASE_URL: "",
-        SUPABASE_ANON_KEY: "",
+        SUPABASE_URL: "https://rirrnhelyutzunwicmkg.supabase.co",
+        SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpcnJuaGVseXV0enVud2ljbWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3OTIyMzAsImV4cCI6MjA2ODM2ODIzMH0.L2nJDqybzrl8sC4g5Oo9B92yfx2xfGAoTnZihCPtwg0"
       };
     </script>
     <!-- Configuração opcional (apenas para Uazapi e N8N) -->
@@ -1211,14 +1211,293 @@
           margin-left: 20px;
         }
       }
+
+      /* Estilos para Tooltips e Help Icons */
+      .help-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #667eea;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: help;
+        margin-left: 6px;
+        vertical-align: middle;
+        transition: all 0.2s ease;
+        position: relative;
+        flex-shrink: 0;
+      }
+
+      .help-icon:hover {
+        background: #5568d3;
+        transform: scale(1.1);
+      }
+
+      .help-icon:focus {
+        outline: 2px solid #667eea;
+        outline-offset: 2px;
+      }
+
+      /* Tooltip hover (rápido) */
+      .tooltip-hover {
+        position: absolute;
+        background: #1f2937;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        white-space: nowrap;
+        z-index: 10000;
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(-5px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        max-width: 300px;
+        white-space: normal;
+        line-height: 1.4;
+      }
+
+      .tooltip-hover.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .tooltip-hover::after {
+        content: "";
+        position: absolute;
+        bottom: -5px;
+        left: 20px;
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 5px solid #1f2937;
+      }
+
+      /* Popover de detalhes (click) */
+      .tooltip-popover {
+        position: fixed;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+        z-index: 10001;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        max-width: 500px;
+        max-height: 80vh;
+        overflow-y: auto;
+        display: none;
+        animation: fadeIn 0.2s ease;
+      }
+
+      .tooltip-popover.show {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .tooltip-popover-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .tooltip-popover-header h4 {
+        margin: 0;
+        color: #111827;
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+
+      .tooltip-popover-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #6b7280;
+        padding: 0;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+      }
+
+      .tooltip-popover-close:hover {
+        background: #f3f4f6;
+        color: #111827;
+      }
+
+      .tooltip-popover-content {
+        color: #374151;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .tooltip-popover-content h5 {
+        margin: 15px 0 8px 0;
+        color: #111827;
+        font-size: 0.95rem;
+        font-weight: 600;
+      }
+
+      .tooltip-popover-content ul,
+      .tooltip-popover-content ol {
+        margin: 10px 0;
+        padding-left: 20px;
+      }
+
+      .tooltip-popover-content li {
+        margin: 5px 0;
+      }
+
+      .tooltip-popover-content code {
+        background: #f3f4f6;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: "Courier New", monospace;
+        font-size: 0.9em;
+        color: #dc2626;
+      }
+
+      .tooltip-popover-content pre {
+        background: #f9fafb;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 10px 0;
+        border: 1px solid #e5e7eb;
+      }
+
+      .tooltip-popover-content pre code {
+        background: none;
+        padding: 0;
+        color: #111827;
+      }
+
+      .tooltip-exemplos {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #e5e7eb;
+      }
+
+      .tooltip-exemplo-item {
+        background: #f9fafb;
+        padding: 10px;
+        border-radius: 6px;
+        margin: 8px 0;
+        border-left: 3px solid #667eea;
+      }
+
+      .tooltip-exemplo-item code {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+      }
+
+      .tooltip-exemplo-item .descricao {
+        color: #6b7280;
+        font-size: 0.9em;
+      }
+
+      /* Overlay para fechar popover ao clicar fora */
+      .tooltip-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10000;
+        background: transparent;
+        display: none;
+      }
+
+      .tooltip-overlay.show {
+        display: block;
+      }
+
+      /* Label com help icon */
+      label.with-help {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      /* Responsivo para tooltips */
+      @media (max-width: 639px) {
+        .tooltip-popover {
+          max-width: 90vw;
+          padding: 15px;
+        }
+
+        .help-icon {
+          width: 16px;
+          height: 16px;
+          font-size: 11px;
+        }
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>🎯 Gerenciador de Campanhas</h1>
-      <p class="subtitle">
-        Instacar Automóveis - Sistema de Marketing WhatsApp
-      </p>
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <h1>🎯 Gerenciador de Campanhas</h1>
+          <p class="subtitle">
+            Instacar Automóveis - Sistema de Marketing WhatsApp
+          </p>
+        </div>
+        <button
+          onclick="abrirModalAjuda()"
+          style="
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            white-space: nowrap;
+            margin-top: 8px;
+          "
+          onmouseover="this.style.background='#5568d3'"
+          onmouseout="this.style.background='#667eea'"
+          title="Ajuda e Documentação"
+        >
+          ❓ Ajuda
+        </button>
+      </div>
 
       <div id="alertContainer"></div>
 
@@ -2203,6 +2482,620 @@
       </div>
     </div>
 
+    <!-- Modal de Ajuda -->
+    <div id="modalAjuda" class="modal">
+      <div class="modal-content" style="max-width: 900px; max-height: 90vh">
+        <div class="modal-header">
+          <h2>❓ Ajuda e Documentação</h2>
+          <button class="close" onclick="fecharModalAjuda()">&times;</button>
+        </div>
+        <div style="overflow-y: auto; max-height: calc(90vh - 100px)">
+          <!-- Tabs de navegação -->
+          <div
+            class="modal-tabs"
+            style="
+              position: sticky;
+              top: 0;
+              background: white;
+              z-index: 10;
+              margin-bottom: 20px;
+            "
+          >
+            <button
+              class="modal-tab active"
+              onclick="trocarTabAjuda('visao-geral')"
+              id="tabVisaoGeral"
+            >
+              📖 Visão Geral
+            </button>
+            <button
+              class="modal-tab"
+              onclick="trocarTabAjuda('campos')"
+              id="tabCampos"
+            >
+              📝 Campos do Formulário
+            </button>
+            <button
+              class="modal-tab"
+              onclick="trocarTabAjuda('cron')"
+              id="tabCron"
+            >
+              ⏰ Agendamento Cron
+            </button>
+            <button
+              class="modal-tab"
+              onclick="trocarTabAjuda('funcionalidades')"
+              id="tabFuncionalidades"
+            >
+              ⚙️ Funcionalidades
+            </button>
+            <button
+              class="modal-tab"
+              onclick="trocarTabAjuda('troubleshooting')"
+              id="tabTroubleshooting"
+            >
+              🔧 Troubleshooting
+            </button>
+          </div>
+
+          <!-- Conteúdo das tabs -->
+          <div id="ajudaVisaoGeral" class="modal-tab-content active">
+            <h3>Visão Geral do Sistema</h3>
+            <p>
+              O <strong>Gerenciador de Campanhas</strong> é um sistema completo
+              para gerenciar e disparar campanhas de marketing via WhatsApp para
+              a Instacar Automóveis.
+            </p>
+
+            <h4>Como Funciona</h4>
+            <ol>
+              <li>
+                <strong>Cadastro:</strong> Crie campanhas na interface web com
+                todas as configurações necessárias
+              </li>
+              <li>
+                <strong>Processamento:</strong> O sistema N8N processa as
+                campanhas automaticamente ou manualmente
+              </li>
+              <li>
+                <strong>Envio:</strong> Mensagens são geradas por IA e enviadas
+                via WhatsApp usando a API configurada
+              </li>
+              <li>
+                <strong>Monitoramento:</strong> Acompanhe envios, erros e
+                estatísticas em tempo real
+              </li>
+            </ol>
+
+            <h4>Componentes Principais</h4>
+            <ul>
+              <li>
+                <strong>Interface Web:</strong> Onde você está agora - gerencia
+                campanhas, clientes e configurações
+              </li>
+              <li>
+                <strong>N8N:</strong> Motor de orquestração que processa as
+                campanhas e envia mensagens
+              </li>
+              <li>
+                <strong>Supabase:</strong> Banco de dados que armazena
+                campanhas, clientes e histórico
+              </li>
+              <li>
+                <strong>Uazapi/Z-API/Evolution:</strong> APIs de WhatsApp que
+                fazem o envio real das mensagens
+              </li>
+              <li>
+                <strong>OpenAI GPT-4:</strong> Gera mensagens personalizadas
+                para cada cliente
+              </li>
+            </ul>
+
+            <h4>Fluxo Completo</h4>
+            <pre
+              style="
+                background: #f9fafb;
+                padding: 15px;
+                border-radius: 8px;
+                border: 1px solid #e5e7eb;
+              "
+            >
+Interface Web → Salva Campanha no Supabase
+     ↓
+Disparo Manual ou Agendamento Cron
+     ↓
+N8N Workflow busca dados da campanha
+     ↓
+Processa clientes elegíveis
+     ↓
+Gera mensagem personalizada (IA)
+     ↓
+Envia via WhatsApp (Uazapi)
+     ↓
+Registra no histórico (Supabase)
+            </pre>
+          </div>
+
+          <div id="ajudaCampos" class="modal-tab-content">
+            <h3>Guia de Campos do Formulário</h3>
+            <p>
+              Esta seção explica cada campo do formulário de criação de
+              campanha. Para ver ajuda específica de um campo, passe o mouse ou
+              clique no ícone
+              <span class="help-icon" style="display: inline-flex">?</span> ao
+              lado do label.
+            </p>
+
+            <h4>Campos Básicos</h4>
+            <ul>
+              <li>
+                <strong>Nome da Campanha:</strong> Identificador único e
+                descritivo
+              </li>
+              <li>
+                <strong>Descrição:</strong> Notas internas (não enviadas aos
+                clientes)
+              </li>
+              <li>
+                <strong>Período do Ano:</strong> Época/ocasião da campanha
+              </li>
+              <li>
+                <strong>Status:</strong> Ativa, Pausada, Concluída ou Cancelada
+              </li>
+            </ul>
+
+            <h4>Datas e Períodos</h4>
+            <ul>
+              <li>
+                <strong>Data Início/Fim:</strong> Período de execução da
+                campanha
+              </li>
+              <li>
+                <strong>Horário Início/Fim:</strong> Janela diária de
+                processamento (padrão: 9h-18h)
+              </li>
+            </ul>
+
+            <h4>Controle de Envios</h4>
+            <ul>
+              <li>
+                <strong>Limite de Envios/Dia:</strong> Máximo de mensagens por
+                dia (recomendado: 50 warm-up, 200 produção)
+              </li>
+              <li>
+                <strong>Intervalo Mínimo (dias):</strong> Tempo entre envios
+                para mesmo cliente (padrão: 30 dias)
+              </li>
+              <li>
+                <strong>Intervalo Entre Envios:</strong> Tempo entre cada
+                mensagem (padrão: 130-150s aleatorizado)
+              </li>
+              <li>
+                <strong>Prioridade:</strong> Ordem quando cliente é elegível
+                para múltiplas campanhas (1-10)
+              </li>
+            </ul>
+
+            <h4>Configurações de IA</h4>
+            <ul>
+              <li>
+                <strong>Prompt Personalizado:</strong> Instruções para a IA
+                gerar mensagens
+              </li>
+              <li>
+                <strong>Template de Mensagem:</strong> Base opcional para as
+                mensagens
+              </li>
+              <li>
+                <strong>Usar Veículos:</strong> Incluir dados de veículos no
+                contexto da IA
+              </li>
+              <li>
+                <strong>Usar Vendedor:</strong> Incluir nome do vendedor nas
+                mensagens
+              </li>
+            </ul>
+
+            <h4>Processamento</h4>
+            <ul>
+              <li>
+                <strong>Tamanho do Lote:</strong> Clientes processados por
+                execução (padrão: 50)
+              </li>
+              <li>
+                <strong>Processar Finais de Semana:</strong> Se deve processar
+                sábados e domingos
+              </li>
+              <li>
+                <strong>Agendamento Cron:</strong> Agendamento automático (veja
+                seção dedicada)
+              </li>
+            </ul>
+          </div>
+
+          <div id="ajudaCron" class="modal-tab-content">
+            <h3>Agendamento Cron - Guia Completo</h3>
+            <p>
+              O agendamento cron permite executar campanhas automaticamente em
+              horários específicos.
+            </p>
+
+            <h4>Formato Cron</h4>
+            <p>O formato cron é: <code>minuto hora dia mês dia-semana</code></p>
+
+            <table
+              style="width: 100%; border-collapse: collapse; margin: 15px 0"
+            >
+              <thead>
+                <tr style="background: #f9fafb">
+                  <th
+                    style="
+                      padding: 10px;
+                      border: 1px solid #e5e7eb;
+                      text-align: left;
+                    "
+                  >
+                    Campo
+                  </th>
+                  <th
+                    style="
+                      padding: 10px;
+                      border: 1px solid #e5e7eb;
+                      text-align: left;
+                    "
+                  >
+                    Valores
+                  </th>
+                  <th
+                    style="
+                      padding: 10px;
+                      border: 1px solid #e5e7eb;
+                      text-align: left;
+                    "
+                  >
+                    Descrição
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">
+                    <strong>Minuto</strong>
+                  </td>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">0-59</td>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">
+                    Minuto da hora
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">
+                    <strong>Hora</strong>
+                  </td>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">0-23</td>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">
+                    Hora do dia (formato 24h)
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">
+                    <strong>Dia do mês</strong>
+                  </td>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">1-31</td>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">
+                    Dia do mês
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">
+                    <strong>Mês</strong>
+                  </td>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">1-12</td>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">
+                    Mês do ano
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">
+                    <strong>Dia da semana</strong>
+                  </td>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">0-7</td>
+                  <td style="padding: 10px; border: 1px solid #e5e7eb">
+                    0 e 7 = Domingo, 1 = Segunda, ..., 6 = Sábado
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4>Caracteres Especiais</h4>
+            <ul>
+              <li>
+                <code>*</code> - Qualquer valor (ex: <code>* * * * *</code> = a
+                cada minuto)
+              </li>
+              <li>
+                <code>,</code> - Lista de valores (ex: <code>1,3,5</code> = 1, 3
+                ou 5)
+              </li>
+              <li>
+                <code>-</code> - Intervalo (ex: <code>1-5</code> = de 1 a 5)
+              </li>
+              <li>
+                <code>/</code> - Incremento (ex: <code>*/2</code> = a cada 2)
+              </li>
+            </ul>
+
+            <h4>Exemplos Práticos</h4>
+            <div
+              style="
+                background: #f9fafb;
+                padding: 15px;
+                border-radius: 8px;
+                margin: 15px 0;
+              "
+            >
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  background: white;
+                  border-left: 3px solid #667eea;
+                  border-radius: 4px;
+                "
+              >
+                <code style="font-size: 16px; font-weight: bold"
+                  >0 9 * * 1-5</code
+                >
+                <p style="margin: 5px 0 0 0; color: #666">
+                  9h da manhã, apenas dias úteis (segunda a sexta)
+                </p>
+              </div>
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  background: white;
+                  border-left: 3px solid #667eea;
+                  border-radius: 4px;
+                "
+              >
+                <code style="font-size: 16px; font-weight: bold"
+                  >0 9 1 1 *</code
+                >
+                <p style="margin: 5px 0 0 0; color: #666">
+                  1º de janeiro às 9h
+                </p>
+              </div>
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  background: white;
+                  border-left: 3px solid #667eea;
+                  border-radius: 4px;
+                "
+              >
+                <code style="font-size: 16px; font-weight: bold"
+                  >0 */2 * * *</code
+                >
+                <p style="margin: 5px 0 0 0; color: #666">
+                  A cada 2 horas (0h, 2h, 4h, 6h, 8h...)
+                </p>
+              </div>
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  background: white;
+                  border-left: 3px solid #667eea;
+                  border-radius: 4px;
+                "
+              >
+                <code style="font-size: 16px; font-weight: bold"
+                  >30 14 * * 0</code
+                >
+                <p style="margin: 5px 0 0 0; color: #666">Domingos às 14:30</p>
+              </div>
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  background: white;
+                  border-left: 3px solid #667eea;
+                  border-radius: 4px;
+                "
+              >
+                <code style="font-size: 16px; font-weight: bold"
+                  >0 9,14 * * 1-5</code
+                >
+                <p style="margin: 5px 0 0 0; color: #666">
+                  9h e 14h, apenas dias úteis
+                </p>
+              </div>
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  background: white;
+                  border-left: 3px solid #667eea;
+                  border-radius: 4px;
+                "
+              >
+                <code style="font-size: 16px; font-weight: bold"
+                  >0 0 1 * *</code
+                >
+                <p style="margin: 5px 0 0 0; color: #666">
+                  Todo dia 1 de cada mês à meia-noite
+                </p>
+              </div>
+            </div>
+
+            <h4>Dicas</h4>
+            <ul>
+              <li>
+                Deixe o campo vazio se não quiser agendamento automático
+                (disparo apenas manual)
+              </li>
+              <li>Use horários comerciais (9h-18h) para evitar bloqueios</li>
+              <li>
+                Evite processar em finais de semana (a menos que necessário)
+              </li>
+              <li>
+                Teste primeiro com uma campanha de teste antes de usar em
+                produção
+              </li>
+            </ul>
+          </div>
+
+          <div id="ajudaFuncionalidades" class="modal-tab-content">
+            <h3>Funcionalidades Principais</h3>
+
+            <h4>Gerenciar Campanhas</h4>
+            <ul>
+              <li>
+                <strong>Criar Campanha:</strong> Clique em "Criar Nova Campanha"
+                e preencha o formulário
+              </li>
+              <li>
+                <strong>Editar Campanha:</strong> Clique no botão "✏️ Editar" na
+                campanha desejada
+              </li>
+              <li>
+                <strong>Disparar Manualmente:</strong> Clique em "🚀 Disparar"
+                para executar a campanha imediatamente
+              </li>
+              <li>
+                <strong>Pausar/Reativar:</strong> Altere o status da campanha
+                para pausar ou reativar
+              </li>
+            </ul>
+
+            <h4>Upload de Planilhas</h4>
+            <ul>
+              <li>Arraste arquivos XLSX, CSV ou TXT na área de upload</li>
+              <li>Ou cole a URL de um Google Sheets</li>
+              <li>
+                O sistema detecta automaticamente as colunas e normaliza
+                telefones
+              </li>
+              <li>Clientes com mesmo telefone são agrupados automaticamente</li>
+            </ul>
+
+            <h4>Gerenciar Clientes</h4>
+            <ul>
+              <li>
+                <strong>Buscar:</strong> Use a barra de busca para encontrar
+                clientes por nome ou telefone
+              </li>
+              <li>
+                <strong>Filtrar:</strong> Filtre por status do WhatsApp (Válido,
+                Inválido, Não Verificado)
+              </li>
+              <li>
+                <strong>Ver Detalhes:</strong> Clique em um cliente para ver
+                informações completas
+              </li>
+              <li>
+                <strong>Editar:</strong> Clique em "✏️ Editar" no modal de
+                detalhes
+              </li>
+              <li>
+                <strong>Adicionar Veículo:</strong> Adicione veículos aos
+                clientes no modal de detalhes
+              </li>
+              <li>
+                <strong>Enviar Mensagem Individual:</strong> Use o botão "📤
+                Enviar" para enviar mensagem direta
+              </li>
+            </ul>
+
+            <h4>Configurar Instâncias WhatsApp</h4>
+            <ul>
+              <li>Vá em "⚙️ Gerenciar Configurações"</li>
+              <li>Clique em "➕ Adicionar Instância"</li>
+              <li>
+                Preencha os dados da sua API (Uazapi, Z-API, Evolution, etc.)
+              </li>
+              <li>Selecione a instância ao criar/editar uma campanha</li>
+            </ul>
+          </div>
+
+          <div id="ajudaTroubleshooting" class="modal-tab-content">
+            <h3>Troubleshooting</h3>
+
+            <h4>Problemas Comuns</h4>
+
+            <h5>Campanha não está enviando mensagens</h5>
+            <ul>
+              <li>Verifique se o status está "Ativa"</li>
+              <li>Confirme se a data de início já passou (se configurada)</li>
+              <li>Verifique se há clientes elegíveis na base</li>
+              <li>Confirme se a instância WhatsApp está ativa e configurada</li>
+              <li>Verifique os logs do N8N para erros</li>
+            </ul>
+
+            <h5>Erro de conexão com Supabase</h5>
+            <ul>
+              <li>Verifique se as variáveis de ambiente estão configuradas</li>
+              <li>Confirme se está usando a Anon Key (não Service Key)</li>
+              <li>
+                Verifique se as políticas RLS estão configuradas corretamente
+              </li>
+            </ul>
+
+            <h5>Mensagens não estão sendo geradas pela IA</h5>
+            <ul>
+              <li>Verifique se o prompt da IA está preenchido</li>
+              <li>Confirme se a API key do OpenAI está configurada no N8N</li>
+              <li>Verifique os logs do N8N para erros da API OpenAI</li>
+            </ul>
+
+            <h5>WhatsApp bloqueando mensagens</h5>
+            <ul>
+              <li>Reduza o limite diário (use 50 durante warm-up)</li>
+              <li>Aumente o intervalo entre envios</li>
+              <li>Evite enviar em finais de semana</li>
+              <li>Respeite a janela de horário comercial (9h-18h)</li>
+              <li>Verifique se os números de telefone são válidos</li>
+            </ul>
+
+            <h4>Como Verificar Status</h4>
+            <ul>
+              <li>
+                <strong>Status do Sistema:</strong> Veja os indicadores no
+                rodapé da página
+              </li>
+              <li>
+                <strong>Status da Campanha:</strong> Veja os badges na lista de
+                campanhas
+              </li>
+              <li>
+                <strong>Histórico de Envios:</strong> Abra os detalhes do
+                cliente e vá na aba "Histórico"
+              </li>
+              <li>
+                <strong>Logs do N8N:</strong> Acesse o N8N para ver logs
+                detalhados de execução
+              </li>
+            </ul>
+
+            <h4>Contatos de Suporte</h4>
+            <p>Se o problema persistir:</p>
+            <ul>
+              <li>
+                Verifique a documentação completa em
+                <code>docs/campanhas/GUIA-COMPLETO-CAMPANHAS.md</code>
+              </li>
+              <li>Consulte os logs do N8N para erros específicos</li>
+              <li>
+                Verifique o status das APIs (Supabase, Uazapi, OpenAI) nos
+                respectivos painéis
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal Detalhes do Cliente -->
     <div id="modalCliente" class="modal modal-cliente">
       <div class="modal-content">
@@ -2472,6 +3365,24 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Overlay para fechar tooltips -->
+    <div
+      class="tooltip-overlay"
+      id="tooltipOverlay"
+      onclick="fecharTooltipPopover()"
+    ></div>
+
+    <!-- Popover de Tooltip -->
+    <div class="tooltip-popover" id="tooltipPopover">
+      <div class="tooltip-popover-header">
+        <h4 id="tooltipPopoverTitle"></h4>
+        <button class="tooltip-popover-close" onclick="fecharTooltipPopover()">
+          &times;
+        </button>
+      </div>
+      <div class="tooltip-popover-content" id="tooltipPopoverContent"></div>
     </div>
 
     <script src="app.js"></script>
