@@ -172,6 +172,23 @@ docs/supabase/verificar-status-clientes.sql
 3. **Seleção vazia = todos os elegíveis** (comportamento padrão)
 4. **Deletar campanha** remove automaticamente todas as seleções (CASCADE)
 
+## 🎨 Interface e UX
+
+### Layout da Lista de Seleção
+
+A lista de clientes na seleção de campanhas foi otimizada para:
+- Checkbox compacto (18x18px) que não ocupa espaço excessivo
+- Nome do cliente em destaque com quebra de linha automática
+- Telefone e status em linhas separadas para melhor legibilidade
+- Espaçamento otimizado usando `gap` em vez de margens fixas
+
+### Responsividade
+
+A interface se adapta a diferentes tamanhos de tela:
+- Lista com scroll vertical quando há muitos clientes
+- Busca responsiva que filtra em tempo real
+- Contador de seleção sempre visível
+
 ## 🐛 Troubleshooting
 
 ### Problema: Cliente bloqueado ainda recebe mensagens

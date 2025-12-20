@@ -1591,23 +1591,21 @@
     clientesFiltrados.forEach((cliente) => {
       const isSelected = clientesSelecionados.has(cliente.id);
       // Todos os clientes aqui já são 'valid', mas mantemos o badge para consistência
-      const statusBadge = '<span style="color: #4caf50; font-size: 11px;">✅ Válido</span>';
+      const statusBadge = '<span style="color: #4caf50; font-size: 10px;">✅ Válido</span>';
       
       html += `
-        <label style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer">
+        <label style="display: flex; align-items: flex-start; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; gap: 8px">
           <input
             type="checkbox"
             data-cliente-id="${cliente.id}"
             ${isSelected ? "checked" : ""}
             onchange="toggleClienteSelecao('${cliente.id}')"
-            style="margin-right: 10px"
+            style="margin-top: 2px; flex-shrink: 0; width: 18px; height: 18px; cursor: pointer"
           />
-          <span style="flex: 1">
-            <strong>${cliente.nome_cliente || "-"}</strong>
-            <br>
-            <small style="color: #666">${cliente.telefone}</small>
-            <br>
-            ${statusBadge}
+          <span style="flex: 1; min-width: 0">
+            <div style="font-weight: 600; margin-bottom: 4px; word-break: break-word">${cliente.nome_cliente || "-"}</div>
+            <div style="color: #666; font-size: 13px; margin-bottom: 2px">${cliente.telefone}</div>
+            <div>${statusBadge}</div>
           </span>
         </label>
       `;
