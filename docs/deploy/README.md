@@ -7,6 +7,7 @@ Documentação para fazer deploy do sistema em diferentes plataformas.
 ### Interface Web
 
 - **[Cloudflare Pages](cloudflare-pages.md)** ⭐ Recomendado (Gratuito, rápido, CDN global)
+  - **[Cloudflare Access](cloudflare-access.md)** - Proteção por lista de emails (gratuito até 50 usuários)
 - Vercel (alternativa)
 - Netlify (alternativa)
 - GitHub Pages (alternativa)
@@ -36,11 +37,20 @@ Antes de fazer deploy:
 
 ## 🔐 Segurança
 
+### Frontend
+
 - ✅ Use apenas Anon Key no frontend
 - ✅ Service Role Key apenas no N8N
 - ✅ RLS (Row Level Security) configurado
 - ✅ CORS configurado corretamente
 - ✅ Tokens rotacionados regularmente
+- ✅ **Cloudflare Access** configurado (proteção por lista de emails) - [Guia](cloudflare-access.md)
+
+### Backend
+
+- ✅ Variáveis de ambiente protegidas
+- ✅ Credenciais não versionadas
+- ✅ Logs de acesso monitorados
 
 ## 📚 Documentação Adicional
 

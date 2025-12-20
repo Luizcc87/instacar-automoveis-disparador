@@ -1,20 +1,14 @@
 // ============================================================================
-// Arquivo de Configuração - Interface Web
+// Arquivo de Configuração Padrão - Interface Web
 // Instacar Automóveis - Sistema de Campanhas WhatsApp
 // ============================================================================
 //
-// INSTRUÇÕES:
-// 1. Copie este arquivo para config.js (na mesma pasta)
-// 2. Preencha com seus valores reais
-// 3. O arquivo config.js está no .gitignore e não será versionado
-// 4. O config.js local sobrescreve o config.default.js (versionado)
-//
-// NOTA: O config.default.js já existe e é versionado com valores vazios.
-//       Este arquivo (config.js) é opcional e apenas para desenvolvimento local.
+// Este arquivo é versionado e serve como padrão.
+// Para desenvolvimento local, crie um config.js (não versionado) que sobrescreve estes valores.
 //
 // ============================================================================
 
-window.INSTACAR_CONFIG = {
+window.INSTACAR_CONFIG = window.INSTACAR_CONFIG || {
   // NOTA: Supabase agora é configurado via variáveis de ambiente
   // Não configure Supabase aqui - use SUPABASE_URL e SUPABASE_ANON_KEY no .env ou Cloudflare Pages
 

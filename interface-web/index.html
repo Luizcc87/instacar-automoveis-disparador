@@ -28,7 +28,26 @@
       };
     </script>
     <!-- Configuração opcional (apenas para Uazapi e N8N) -->
-    <script src="config.js"></script>
+    <!-- Carrega config.js se existir (desenvolvimento local), senão usa config.default.js -->
+    <script>
+      // Inicializar configuração padrão primeiro
+      window.INSTACAR_CONFIG = window.INSTACAR_CONFIG || {
+        uazapi: { baseUrl: "", token: "" },
+        n8nWebhookUrl: null,
+      };
+    </script>
+    <script src="config.default.js"></script>
+    <script>
+      // Tentar carregar config.js (se existir localmente, sobrescreve o padrão)
+      // Se não existir, não gera erro (comportamento silencioso)
+      const configScript = document.createElement("script");
+      configScript.src = "config.js";
+      configScript.onerror = function () {
+        // config.js não existe, usar apenas config.default.js (comportamento normal)
+        console.log("config.js não encontrado, usando configuração padrão");
+      };
+      document.head.appendChild(configScript);
+    </script>
     <style>
       * {
         margin: 0;

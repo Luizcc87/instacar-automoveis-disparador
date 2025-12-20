@@ -27,11 +27,22 @@ Use este checklist antes de colocar o sistema em produção.
 
 ## 🔒 Segurança de Acesso
 
+### Banco de Dados (Supabase)
+
 - [ ] Apenas service_role tem acesso de escrita
 - [ ] Usuários autenticados têm apenas leitura (se aplicável)
 - [ ] Acesso anônimo está bloqueado
 - [ ] Logs de acesso estão sendo monitorados
 - [ ] Contas de serviço têm permissões mínimas necessárias
+
+### Interface Web (Cloudflare Pages)
+
+- [ ] Cloudflare Access configurado (proteção por lista de emails)
+- [ ] Lista de emails permitidos está atualizada
+- [ ] Provedor de identidade configurado (Google/Microsoft/GitHub)
+- [ ] Session duration configurado adequadamente (8-24h recomendado)
+- [ ] Logs de acesso estão sendo monitorados no Zero Trust
+- [ ] MFA habilitado (se disponível no plano)
 
 ## 📊 Dados Sensíveis
 
@@ -135,8 +146,8 @@ Após colocar em produção:
 
 ---
 
-**Data da verificação**: ******\_\_\_******  
-**Verificado por**: ******\_\_\_******  
+**Data da verificação**: **\*\***\_\_\_**\*\***  
+**Verificado por**: **\*\***\_\_\_**\*\***  
 **Status**: ⬜ Aprovado | ⬜ Pendente | ⬜ Rejeitado
 
 **Observações**:

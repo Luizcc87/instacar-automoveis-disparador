@@ -70,12 +70,35 @@ O Cloudflare Pages precisa apenas dos arquivos estáticos da pasta `interface-we
 
 ## 🔐 Segurança
 
+### Proteção Básica
+
 1. **NUNCA** commite o arquivo `config.js` com credenciais reais
 2. **CRÍTICO**: **NUNCA** commite `index.html` após executar `inject-env.js` localmente - sempre mantenha valores vazios no script `env-config` antes de commitar
 3. Use apenas a **Anon Key** do Supabase no frontend
 4. As políticas RLS (Row Level Security) do Supabase protegem os dados
 5. Se acidentalmente commitar credenciais, rotacione as chaves imediatamente
 6. O script `inject-env.js` injeta credenciais no HTML - isso é seguro apenas durante o build no Cloudflare Pages
+
+### Proteção por Lista de Emails (Recomendado)
+
+Para proteger a interface web com autenticação por lista de emails permitidos, use **Cloudflare Access (Zero Trust)**:
+
+📖 **Guia completo**: [cloudflare-access.md](cloudflare-access.md)
+
+**Benefícios:**
+
+- ✅ Login via Google, Microsoft, GitHub, etc.
+- ✅ Lista de emails permitidos
+- ✅ Gratuito para até 50 usuários
+- ✅ Logs de acesso e auditoria
+- ✅ Sem necessidade de código adicional
+
+**Configuração rápida:**
+
+1. Ative Zero Trust no Cloudflare Dashboard
+2. Configure um provedor de identidade (Google recomendado)
+3. Crie uma aplicação protegida apontando para seu Cloudflare Pages
+4. Configure política de acesso com lista de emails permitidos
 
 ## 🐛 Troubleshooting
 
