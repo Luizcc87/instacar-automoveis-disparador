@@ -665,6 +665,8 @@
     const tipoApiSelect = document.getElementById("instanciaUazapiTipoApi");
     if (tipoApiSelect) tipoApiSelect.value = "uazapi";
     document.getElementById("instanciaUazapiAtivo").checked = true;
+    const adminTokenInput = document.getElementById("instanciaUazapiAdminToken");
+    if (adminTokenInput) adminTokenInput.value = "";
     const configExtraInput = document.getElementById(
       "instanciaUazapiConfigExtra"
     );
@@ -691,13 +693,18 @@
         }
 
         document.getElementById("instanciaUazapiId").value = data.id;
-        document.getElementById("instanciaUazapiNome").value = data.nome || "";
+        // Remover prefixo ao carregar para edição (será reaplicado ao salvar)
+        const nomeSemPrefixo = removerPrefixoInstancia(data.nome || "");
+        document.getElementById("instanciaUazapiNome").value = nomeSemPrefixo;
         const tipoApiSelect = document.getElementById("instanciaUazapiTipoApi");
         if (tipoApiSelect) tipoApiSelect.value = data.tipo_api || "uazapi";
         document.getElementById("instanciaUazapiBaseUrl").value =
           data.base_url || "";
         document.getElementById("instanciaUazapiToken").value =
           data.token || "";
+        // Limpar Admin Token ao editar (não salvamos no banco, apenas usamos para criar)
+        const adminTokenInput = document.getElementById("instanciaUazapiAdminToken");
+        if (adminTokenInput) adminTokenInput.value = "";
         document.getElementById("instanciaUazapiDescricao").value =
           data.descricao || "";
         const configExtraInput = document.getElementById(
@@ -738,6 +745,207 @@
   }
 
   /**
+   * Normaliza o nome da instância para minúsculas e kebab-case (palavras separadas por hífen)
+   * @param {string} nome - Nome original da instância
+   * @returns {string} - Nome normalizado em minúsculas com palavras separadas por hífen
+   */
+  function normalizarNomeInstancia(nome) {
+    if (!nome || !nome.trim()) {
+      return nome;
+    }
+
+    return nome
+      .trim()
+      .toLowerCase()
+      // Substituir espaços, underscores e múltiplos hífens por um único hífen
+      .replace(/[\s_]+/g, "-")
+      .replace(/-+/g, "-")
+      // Remover caracteres especiais, mantendo apenas letras, números e hífens
+      .replace(/[^a-z0-9-]/g, "")
+      // Remover hífens no início e fim
+      .replace(/^-+|-+$/g, "");
+  }
+
+  /**
+   * Remove prefixo Instacar_UUID_ do nome da instância (para exibição em edição)
+   * @param {string} nome - Nome com ou sem prefixo
+   * @returns {string} - Nome sem prefixo
+   */
+  function removerPrefixoInstancia(nome) {
+    if (!nome || !nome.trim()) {
+      return nome;
+    }
+
+    // Remover prefixo existente se houver (formato: Instacar_XXXXXX_ onde XXXX é código de 6 caracteres alfanuméricos)
+    const nomeLimpo = nome.replace(/^Instacar_[a-z0-9]{6}_/i, "").trim();
+    
+    // Se não sobrou nada após remover o prefixo, retornar o nome original
+    return nomeLimpo || nome;
+  }
+
+  /**
+   * Aplica prefixo obrigatório Instacar_UUID_ no nome da instância
+   * Normaliza o nome para minúsculas e kebab-case antes de aplicar o prefixo
+   * @param {string} nome - Nome original da instância
+   * @param {string} uuidExistente - UUID existente para manter (opcional, usado ao editar)
+   * @returns {string} - Nome normalizado com prefixo aplicado no formato Instacar_{UUID}_{nome-normalizado}
+   */
+  function aplicarPrefixoInstancia(nome, uuidExistente = null) {
+    if (!nome || !nome.trim()) {
+      return nome;
+    }
+
+    // Extrair código existente do nome se houver (formato: Instacar_XXXXXX_ onde XXXX é código de 6 caracteres alfanuméricos)
+    let uuidCurto = uuidExistente;
+    let nomeLimpo = nome.replace(/^Instacar_[a-z0-9]{6}_?/i, "").trim();
+    
+    // Se não encontrou código no nome e não foi fornecido, tentar extrair do nome original
+    if (!uuidCurto) {
+      const match = nome.match(/^Instacar_([a-z0-9]{6})_/i);
+      if (match) {
+        uuidCurto = match[1];
+      }
+    }
+    
+    // Se não sobrou nada após remover o prefixo, usar um nome padrão
+    if (!nomeLimpo) {
+      return nome; // Retornar original se ficou vazio
+    }
+
+    // Normalizar nome para minúsculas e kebab-case
+    nomeLimpo = normalizarNomeInstancia(nomeLimpo);
+    
+    // Se após normalização ficou vazio, retornar original
+    if (!nomeLimpo) {
+      return nome;
+    }
+
+    // Se não tem UUID existente, gerar novo código curto (6 caracteres) com letras e números misturados
+    if (!uuidCurto) {
+      // Gerar código de 6 caracteres com letras minúsculas e números
+      // Usa caracteres: a-z (26) + 0-9 (10) = 36 possibilidades por caractere
+      const caracteres = "abcdefghijklmnopqrstuvwxyz0123456789";
+      uuidCurto = "";
+      for (let i = 0; i < 6; i++) {
+        uuidCurto += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+      }
+    }
+
+    // Aplicar formato: Instacar_{UUID}_{nome-normalizado}
+    return `Instacar_${uuidCurto}_${nomeLimpo}`;
+  }
+
+  /**
+   * Cria uma nova instância na Uazapi usando Admin Token
+   * @param {string} baseUrl - URL base da API Uazapi
+   * @param {string} adminToken - Admin Token para criar instância
+   * @param {string} nomeInstancia - Nome da instância a ser criada
+   * @returns {Promise<Object>} - Dados da instância criada incluindo o Instance Token
+   */
+  async function criarInstanciaUazapi(baseUrl, adminToken, nomeInstancia) {
+    try {
+      const response = await fetch(`${baseUrl}/instance`, {
+        method: "POST",
+        headers: {
+          admintoken: adminToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: nomeInstancia,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || `Erro HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      
+      // Retornar o Instance Token gerado
+      return {
+        success: true,
+        instanceToken: data.token,
+        instanceId: data.instance?.id,
+        instance: data.instance,
+      };
+    } catch (error) {
+      console.error("Erro ao criar instância na Uazapi:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Atualiza o nome de uma instância na Uazapi usando Instance Token
+   * @param {string} baseUrl - URL base da API Uazapi
+   * @param {string} instanceToken - Instance Token da instância
+   * @param {string} novoNome - Novo nome para a instância (sem prefixo Instacar_UUID_)
+   * @returns {Promise<boolean>} - true se atualizado com sucesso
+   */
+  async function atualizarNomeInstanciaUazapi(baseUrl, instanceToken, novoNome) {
+    try {
+      const response = await fetch(`${baseUrl}/instance/updateInstanceName`, {
+        method: "POST",
+        headers: {
+          token: instanceToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: novoNome,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || `Erro HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Erro ao atualizar nome da instância na Uazapi:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Deleta uma instância na Uazapi usando Instance Token
+   * @param {string} baseUrl - URL base da API Uazapi
+   * @param {string} instanceToken - Instance Token da instância a ser deletada
+   * @returns {Promise<boolean>} - true se deletado com sucesso
+   */
+  async function deletarInstanciaUazapi(baseUrl, instanceToken) {
+    try {
+      const response = await fetch(`${baseUrl}/instance`, {
+        method: "DELETE",
+        headers: {
+          token: instanceToken,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        // Se a instância já não existe (404), considerar sucesso
+        if (response.status === 404) {
+          return true;
+        }
+        throw new Error(
+          errorData.error || `Erro HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Erro ao deletar instância na Uazapi:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Salva instância Uazapi (criar ou atualizar)
    */
   async function salvarInstanciaUazapi() {
@@ -747,13 +955,53 @@
     }
 
     const id = document.getElementById("instanciaUazapiId").value;
-    const nome = document.getElementById("instanciaUazapiNome").value.trim();
+    let nomeOriginal = document.getElementById("instanciaUazapiNome").value.trim();
+    
+    // Se está editando, buscar UUID existente para manter
+    let uuidExistente = null;
+    let instanciaExistente = null;
+    if (id) {
+      try {
+        const { data, error } = await supabaseClient
+          .from("instacar_whatsapp_apis")
+          .select("nome, tipo_api, base_url, token")
+          .eq("id", id)
+          .single();
+        
+        if (!error && data) {
+          instanciaExistente = data;
+          // Extrair código do nome existente (formato: Instacar_XXXXXX_ onde XXXX é código de 6 caracteres)
+          const match = data.nome?.match(/^Instacar_([a-z0-9]{6})_/i);
+          if (match) {
+            uuidExistente = match[1];
+          }
+        }
+      } catch (error) {
+        console.warn("Erro ao buscar instância existente:", error);
+      }
+    }
+    
+    // IMPORTANTE: Remover qualquer prefixo que o usuário possa ter digitado manualmente
+    // O prefixo deve ser sempre gerado automaticamente pelo sistema
+    nomeOriginal = removerPrefixoInstancia(nomeOriginal);
+    
+    // Aplicar prefixo obrigatório Instacar_codigo_ (mantendo código existente se estiver editando)
+    const nome = aplicarPrefixoInstancia(nomeOriginal, uuidExistente);
+    
+    // Atualizar campo do formulário com nome prefixado (feedback visual)
+    // Mas apenas se o usuário não estiver editando (para não confundir durante a edição)
+    const nomeInput = document.getElementById("instanciaUazapiNome");
+    if (nomeInput && !id && nome !== nomeOriginal) {
+      nomeInput.value = nome;
+    }
+    
     const tipoApi =
       document.getElementById("instanciaUazapiTipoApi")?.value || "uazapi";
     const baseUrl = document
       .getElementById("instanciaUazapiBaseUrl")
       .value.trim();
-    const token = document.getElementById("instanciaUazapiToken").value.trim();
+    const adminToken = document.getElementById("instanciaUazapiAdminToken")?.value.trim() || "";
+    let token = document.getElementById("instanciaUazapiToken").value.trim();
     const descricao = document
       .getElementById("instanciaUazapiDescricao")
       .value.trim();
@@ -777,8 +1025,20 @@
     }
 
     // Validações
-    if (!nome || !baseUrl || !token) {
+    if (!nome || !baseUrl) {
       mostrarAlerta("Preencha todos os campos obrigatórios!", "error");
+      return;
+    }
+
+    // Se é nova instância Uazapi e tem Admin Token, não precisa de Instance Token ainda
+    // Se é edição ou não é Uazapi, precisa do Instance Token
+    if (id || tipoApi !== "uazapi") {
+      if (!token) {
+        mostrarAlerta("Instance Token é obrigatório para edição ou APIs que não sejam Uazapi!", "error");
+        return;
+      }
+    } else if (tipoApi === "uazapi" && !id && !adminToken && !token) {
+      mostrarAlerta("Para criar uma nova instância Uazapi, forneça o Admin Token ou o Instance Token de uma instância existente!", "error");
       return;
     }
 
@@ -788,6 +1048,32 @@
     }
 
     try {
+      // Se é nova instância Uazapi e tem Admin Token, criar na Uazapi primeiro
+      if (!id && tipoApi === "uazapi" && adminToken) {
+        try {
+          // Enviar nome completo com prefixo para a Uazapi (para identificar instâncias da Instacar no servidor)
+          const resultadoCriacao = await criarInstanciaUazapi(
+            baseUrl,
+            adminToken,
+            nome
+          );
+          
+          // Usar o Instance Token retornado pela Uazapi
+          token = resultadoCriacao.instanceToken;
+          
+          mostrarAlerta(
+            `Instância criada na Uazapi com sucesso! Instance Token gerado automaticamente.`,
+            "success"
+          );
+        } catch (error) {
+          mostrarAlerta(
+            `Erro ao criar instância na Uazapi: ${error.message}. Verifique o Admin Token e tente novamente.`,
+            "error"
+          );
+          return;
+        }
+      }
+
       const dados = {
         nome,
         tipo_api: tipoApi,
@@ -801,6 +1087,28 @@
       let result;
       if (id) {
         // Atualizar
+        // Se é instância Uazapi e o nome mudou, atualizar na Uazapi também
+        if (instanciaExistente && instanciaExistente.tipo_api === "uazapi" && 
+            instanciaExistente.base_url && instanciaExistente.token) {
+          try {
+            // Enviar nome completo com prefixo para a Uazapi (para identificar instâncias da Instacar no servidor)
+            await atualizarNomeInstanciaUazapi(
+              instanciaExistente.base_url,
+              instanciaExistente.token,
+              nome
+            );
+            console.log("Nome atualizado na Uazapi com sucesso");
+          } catch (error) {
+            // Se der erro ao atualizar na Uazapi, avisar mas continuar salvando no Supabase
+            console.warn("Erro ao atualizar nome na Uazapi:", error);
+            mostrarAlerta(
+              `Aviso: Nome atualizado no banco de dados, mas houve erro ao atualizar na Uazapi: ${error.message}. ` +
+              `O nome na Uazapi pode estar desatualizado.`,
+              "warning"
+            );
+          }
+        }
+        
         const { data, error } = await supabaseClient
           .from("instacar_whatsapp_apis")
           .update(dados)
@@ -852,6 +1160,39 @@
     }
 
     try {
+      // Buscar dados da instância antes de deletar
+      const { data: instancia, error: errorBuscar } = await supabaseClient
+        .from("instacar_whatsapp_apis")
+        .select("*")
+        .eq("id", instanciaId)
+        .single();
+
+      if (errorBuscar || !instancia) {
+        mostrarAlerta("Erro ao buscar instância: " + (errorBuscar?.message || "Não encontrada"), "error");
+        return;
+      }
+
+      // Se é instância Uazapi, deletar na Uazapi primeiro usando Instance Token
+      if (instancia.tipo_api === "uazapi" && instancia.token && instancia.base_url) {
+        try {
+          await deletarInstanciaUazapi(instancia.base_url, instancia.token);
+          console.log("Instância deletada na Uazapi com sucesso");
+        } catch (error) {
+          // Se der erro ao deletar na Uazapi, perguntar se quer continuar
+          const continuar = confirm(
+            `Erro ao deletar instância na Uazapi: ${error.message}\n\n` +
+            `Deseja continuar e remover apenas do banco de dados local?`
+          );
+          
+          if (!continuar) {
+            return;
+          }
+          
+          console.warn("Continuando exclusão apenas do banco de dados local");
+        }
+      }
+
+      // Deletar do Supabase
       const { error } = await supabaseClient
         .from("instacar_whatsapp_apis")
         .delete()
@@ -1434,6 +1775,7 @@
       instanciaUazapiNome: "instanciaUazapiNome",
       instanciaUazapiTipoApi: "instanciaUazapiTipoApi",
       instanciaUazapiBaseUrl: "instanciaUazapiBaseUrl",
+      instanciaUazapiAdminToken: "instanciaUazapiAdminToken",
       instanciaUazapiToken: "instanciaUazapiToken",
       instanciaUazapiConfigExtra: "instanciaUazapiConfigExtra",
     };
@@ -7283,15 +7625,25 @@ Máximo de 3 parágrafos.</code></pre>
     // Formulário de Instância Uazapi
     instanciaUazapiNome: {
       titulo: "Nome da Instância",
-      resumo: "Nome identificador único para esta instância",
+      resumo: "Nome identificador único (será normalizado para minúsculas com hífens e prefixo Instacar_codigo_ será adicionado)",
       detalhes: `
         <p>Escolha um nome descritivo para identificar esta instância de API WhatsApp.</p>
-        <h5>Exemplos:</h5>
+        <p><strong>⚠️ IMPORTANTE:</strong></p>
         <ul>
-          <li>Uazapi Principal</li>
-          <li>Z-API Backup</li>
-          <li>Evolution Teste</li>
+          <li><strong>Digite apenas o nome</strong> (sem o prefixo "Instacar_"). O prefixo será adicionado automaticamente pelo sistema</li>
+          <li>O nome será <strong>normalizado automaticamente</strong> para minúsculas com palavras separadas por hífen (kebab-case)</li>
+          <li>O prefixo "Instacar_codigo_" será adicionado automaticamente (código de 6 caracteres gerado automaticamente)</li>
+          <li><strong>Não digite o prefixo manualmente</strong> - ele será removido e um novo será aplicado</li>
         </ul>
+        <h5>Exemplos de Normalização:</h5>
+        <ul>
+          <li>Digite: <code>"Uazapi Principal"</code> → Será salvo como: <code>"Instacar_a3k9m2_uazapi-principal"</code></li>
+          <li>Digite: <code>"Z-API Backup"</code> → Será salvo como: <code>"Instacar_x7p4q1_z-api-backup"</code></li>
+          <li>Digite: <code>"Evolution Teste"</code> → Será salvo como: <code>"Instacar_b8n5r3_evolution-teste"</code></li>
+          <li>Digite: <code>"Instância_01"</code> → Será salvo como: <code>"Instacar_c2t6v9_instancia-01"</code></li>
+        </ul>
+        <p><strong>Formato final:</strong> <code>Instacar_{codigo-6-chars}_{nome-normalizado}</code></p>
+        <p>O código de 6 caracteres (letras minúsculas e números) é gerado automaticamente para garantir unicidade. Caracteres especiais serão removidos durante a normalização.</p>
       `,
     },
     instanciaUazapiTipoApi: {
@@ -7322,16 +7674,59 @@ Máximo de 3 parágrafos.</code></pre>
         <p><strong>Importante:</strong> Use HTTPS e não inclua barra no final.</p>
       `,
     },
+    instanciaUazapiAdminToken: {
+      titulo: "Admin Token",
+      resumo: "Token de administrador (opcional - apenas para criar novas instâncias na Uazapi)",
+      detalhes: `
+        <p>Token de administrador necessário para <strong>criar</strong> novas instâncias na Uazapi via API.</p>
+        <p><strong>⚠️ IMPORTANTE - Quando usar Admin Token:</strong></p>
+        <ul>
+          <li>✅ <strong>Apenas para criar</strong> nova instância na Uazapi via interface</li>
+          <li>❌ <strong>Não precisa</strong> para editar instâncias existentes (usa Instance Token)</li>
+          <li>❌ <strong>Não precisa</strong> para deletar instâncias (usa Instance Token)</li>
+          <li>❌ <strong>Não precisa</strong> para operações regulares (conectar, enviar mensagens, etc.)</li>
+        </ul>
+        <p><strong>Detalhes técnicos:</strong></p>
+        <ul>
+          <li><strong>Admin Token</strong> é usado apenas para criar instâncias (POST /instance com header "admintoken")</li>
+          <li>Este campo é <strong>opcional</strong> - necessário apenas se você está criando uma nova instância na Uazapi</li>
+          <li>Se você já tem uma instância criada, deixe este campo vazio e use apenas o Instance Token</li>
+          <li>Após criar a instância, o Instance Token será gerado automaticamente pela Uazapi</li>
+        </ul>
+        <p><strong>🔒 Segurança:</strong></p>
+        <ul>
+          <li>O Admin Token <strong>NÃO é salvo</strong> em nenhuma tabela do banco de dados</li>
+          <li>É usado apenas temporariamente na memória do navegador para criar a instância</li>
+          <li>Após criar a instância, o Admin Token é descartado e nunca mais usado</li>
+          <li>O Instance Token gerado é o que fica salvo no banco de dados</li>
+          <li><strong>Recomendação:</strong> Mantenha o Admin Token seguro e não compartilhe. Use apenas quando necessário para criar novas instâncias.</li>
+        </ul>
+        <p><strong>Resumo:</strong> Admin Token só é necessário na primeira vez, ao criar a instância. Depois disso, use apenas o Instance Token. O Admin Token nunca é salvo no banco de dados.</p>
+      `,
+    },
     instanciaUazapiToken: {
       titulo: "Instance Token",
-      resumo: "Token de autenticação da instância",
+      resumo: "Token de autenticação da instância (obrigatório)",
       detalhes: `
-        <p>Token de autenticação necessário para acessar a API.</p>
+        <p>Token de autenticação necessário para acessar a API e realizar operações na instância.</p>
         <p><strong>⚠️ IMPORTANTE:</strong></p>
         <ul>
           <li>Use o <strong>Instance Token</strong>, não o Admin Token</li>
           <li>Endpoints regulares usam header "token" com Instance Token</li>
           <li>Mantenha este token seguro e não compartilhe</li>
+        </ul>
+        <p><strong>Quando usar:</strong></p>
+        <ul>
+          <li>✅ Conectar/desconectar instância</li>
+          <li>✅ Enviar mensagens</li>
+          <li>✅ Verificar status</li>
+          <li>✅ <strong>Deletar instância</strong> (DELETE /instance com header "token")</li>
+          <li>❌ Não usar para criar instâncias (use Admin Token)</li>
+        </ul>
+        <p><strong>Se você está criando uma nova instância:</strong></p>
+        <ul>
+          <li>Se forneceu o Admin Token acima, o Instance Token será gerado automaticamente pela Uazapi</li>
+          <li>Se não forneceu o Admin Token, você precisa fornecer um Instance Token de uma instância existente</li>
         </ul>
         <p><strong>Onde encontrar:</strong> No painel de administração da sua instância de API.</p>
       `,

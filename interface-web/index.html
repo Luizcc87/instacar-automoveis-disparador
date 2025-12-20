@@ -1967,10 +1967,14 @@
               type="text"
               id="instanciaUazapiNome"
               required
-              placeholder="Ex: Uazapi Principal, Z-API Backup, Evolution Teste"
+              placeholder="Ex: uazapi-principal (será: Instacar_a3k9m2_uazapi-principal)"
             />
             <small style="color: #666">
-              Nome identificador único para esta instância
+              ⚠️ <strong>Digite apenas o nome</strong> (sem o prefixo "Instacar_"). O prefixo será adicionado automaticamente.
+              <br>
+              Nome será normalizado para minúsculas com palavras separadas por hífen.
+              <br>
+              <strong>Exemplo:</strong> Digite "numero-01" → Será salvo como "Instacar_a3k9m2_numero-01" (código de 6 caracteres gerado automaticamente)
             </small>
           </div>
 
@@ -2003,6 +2007,34 @@
           </div>
 
           <div class="form-group">
+            <label>Admin Token (Opcional - Apenas para criar novas instâncias na Uazapi)</label>
+            <div style="display: flex; gap: 10px">
+              <input
+                type="password"
+                id="instanciaUazapiAdminToken"
+                placeholder="Seu admin token da Uazapi (opcional)"
+                style="flex: 1"
+              />
+              <button
+                type="button"
+                onclick="togglePasswordVisibility('instanciaUazapiAdminToken')"
+                style="padding: 10px 15px; white-space: nowrap"
+              >
+                👁️
+              </button>
+            </div>
+            <small style="color: #666">
+              ⚠️ <strong>Quando usar Admin Token:</strong>
+              <ul style="margin: 5px 0; padding-left: 20px;">
+                <li>✅ <strong>Criar</strong> nova instância na Uazapi via interface</li>
+                <li>❌ <strong>Não precisa</strong> para editar instâncias existentes</li>
+                <li>❌ <strong>Não precisa</strong> para deletar instâncias (usa Instance Token)</li>
+              </ul>
+              Se você já tem uma instância criada, deixe este campo vazio e use apenas o Instance Token abaixo.
+            </small>
+          </div>
+
+          <div class="form-group">
             <label>Instance Token *</label>
             <div style="display: flex; gap: 10px">
               <input
@@ -2021,8 +2053,8 @@
               </button>
             </div>
             <small style="color: #666">
-              ⚠️ Use o Instance Token (não o Admin Token). Endpoints regulares
-              usam header "token" com Instance Token.
+              ⚠️ Instance Token é obrigatório. Use para operações regulares (conectar, enviar mensagens, etc.) e para <strong>deletar</strong> instâncias.
+              Se você está criando uma nova instância e forneceu o Admin Token acima, o Instance Token será gerado automaticamente pela Uazapi.
             </small>
           </div>
 

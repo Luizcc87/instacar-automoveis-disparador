@@ -152,11 +152,38 @@ Os tooltips incluem:
 - Dicas de boas práticas
 - Guia completo de agendamento cron com 6 exemplos
 
+## ⚙️ Gerenciamento de Instâncias WhatsApp
+
+A interface permite gerenciar múltiplas instâncias de APIs WhatsApp (Uazapi, Z-API, Evolution, etc.):
+
+### Funcionalidades
+
+- **Criar Instâncias**: Adicione novas instâncias com suporte para múltiplas APIs
+- **Prefixo Automático**: Todas as instâncias recebem automaticamente o prefixo `Instacar_codigo_` onde `codigo` é um código único de 6 caracteres alfanuméricos
+- **Normalização de Nomes**: Nomes são automaticamente normalizados para minúsculas e kebab-case
+- **Sincronização com Uazapi**: Nomes são sincronizados automaticamente com a Uazapi ao criar/editar
+
+### Tokens
+
+- **Admin Token** (opcional): Necessário apenas para criar novas instâncias na Uazapi via API
+  - Não é necessário para editar ou deletar instâncias
+  - Não é salvo no banco de dados (usado apenas temporariamente)
+- **Instance Token** (obrigatório): Token da instância para operações regulares
+  - Usado para conectar, enviar mensagens, deletar instâncias, etc.
+  - É salvo no banco de dados
+
+### Formato de Nome
+
+- **Formato final**: `Instacar_codigo_nome-normalizado`
+- **Exemplo**: Digite "numero-01" → Será salvo como "Instacar_a3k9m2_numero-01"
+- **Proteção**: O prefixo não pode ser editado manualmente - apenas o nome após o prefixo
+
 ## 🎯 Próximos Passos
 
 Após conectar:
 
-1. Crie sua primeira campanha
-2. Configure agendamento (opcional)
-3. Teste disparo manual
-4. Monitore execuções
+1. Configure suas instâncias WhatsApp em "⚙️ Gerenciar Configurações"
+2. Crie sua primeira campanha
+3. Configure agendamento (opcional)
+4. Teste disparo manual
+5. Monitore execuções

@@ -593,4 +593,4 @@ O campo `status_whatsapp` pode ser utilizado para evitar chamadas desnecessária
 ---
 
 **Última atualização**: Dezembro 2025  
-**Versão**: 2.2 (Melhorias de UI/UX e Design System)
+**Versão**: 2.3 (Gerenciamento de Instâncias WhatsApp com Prefixo Obrigatório)

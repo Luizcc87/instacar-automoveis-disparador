@@ -131,19 +131,34 @@ instacar_whatsapp_apis
 **Via Interface:**
 
 1. Acesse "⚙️ Gerenciar Configurações"
-2. Seção "APIs WhatsApp - Instâncias"
+2. Seção "Uazapi (WhatsApp API) - Instâncias"
 3. Clique em "➕ Adicionar Instância"
 4. Selecione o tipo de API
-5. Preencha campos obrigatórios
-6. Adicione configurações extras se necessário
+5. **Nome da Instância**: Digite apenas o nome (sem prefixo). O sistema adicionará automaticamente o prefixo `Instacar_codigo_` onde `codigo` é um código de 6 caracteres alfanuméricos gerado automaticamente
+   - Exemplo: Digite "numero-01" → Será salvo como "Instacar_a3k9m2_numero-01"
+   - O nome será normalizado para minúsculas com palavras separadas por hífen (kebab-case)
+6. **Admin Token** (opcional): Necessário apenas para criar novas instâncias na Uazapi via API
+   - Não é necessário para editar ou deletar instâncias existentes
+   - Não é salvo no banco de dados (usado apenas temporariamente)
+7. **Instance Token** (obrigatório): Token da instância para operações regulares e deletar instâncias
+8. Preencha demais campos obrigatórios
+9. Adicione configurações extras se necessário
+
+**⚠️ Importante sobre Tokens:**
+- **Admin Token**: Usado apenas para criar instâncias (POST /instance com header "admintoken")
+- **Instance Token**: Usado para todas as outras operações (conectar, enviar mensagens, deletar, etc.)
+- O Admin Token nunca é salvo no banco de dados - é usado apenas uma vez para criar a instância
 
 **Via SQL:**
 
 ```sql
+-- ⚠️ IMPORTANTE: O nome deve seguir o formato Instacar_codigo_nome
+-- onde codigo é um código de 6 caracteres alfanuméricos
+-- A interface web aplica isso automaticamente
 INSERT INTO instacar_whatsapp_apis (
   nome, tipo_api, base_url, token, ativo, descricao, configuracao_extra
 ) VALUES (
-  'Z-API Principal',
+  'Instacar_a3k9m2_z-api-principal',  -- Nome com prefixo obrigatório
   'zapi',
   'https://api.z-api.io',
   'seu_token_aqui',

@@ -14,7 +14,7 @@ Este é um sistema automatizado de disparo de mensagens via WhatsApp para a Inst
 - **OpenAI GPT-4**: Geração de mensagens personalizadas
 - **Google Sheets**: Fonte de dados dos clientes (9 planilhas)
 
-**Versão Atual:** 2.2 (Dezembro 2025 - melhorias de UI/UX e design system)
+**Versão Atual:** 2.3 (Dezembro 2025 - gerenciamento de instâncias WhatsApp com prefixo obrigatório e suporte Admin/Instance Token)
 
 ## Arquitetura
 
@@ -341,6 +341,32 @@ Veja [docs/n8n/sintaxe-n8n-variaveis.md](docs/n8n/sintaxe-n8n-variaveis.md) para
 6. **Limite de Google Sheets:** Configurado para máximo de 9 planilhas (pode ser estendido no array SHEET_IDS)
 
 ## Mudanças Recentes
+
+### Versão 2.3 (Dezembro 2025 - Gerenciamento de Instâncias WhatsApp)
+
+Melhorias no sistema de gerenciamento de instâncias de APIs WhatsApp:
+
+1. **Prefixo Obrigatório**: Todas as instâncias recebem automaticamente o prefixo `Instacar_codigo_` onde `codigo` é um código único de 6 caracteres alfanuméricos (letras minúsculas + números)
+   - Formato: `Instacar_a3k9m2_nome-instancia`
+   - Normalização automática: nomes são convertidos para minúsculas e kebab-case
+   - Proteção: usuário não pode editar o prefixo, apenas o nome após o prefixo
+   - Sincronização: nome completo com prefixo é salvo tanto no Supabase quanto na Uazapi
+
+2. **Admin Token e Instance Token**:
+   - **Admin Token**: Necessário apenas para criar novas instâncias na Uazapi via API (POST /instance)
+   - **Instance Token**: Usado para todas as outras operações (editar, deletar, conectar, enviar mensagens)
+   - **Segurança**: Admin Token nunca é salvo no banco de dados, usado apenas temporariamente na memória
+
+3. **Sincronização com Uazapi**:
+   - Ao criar instância: cria na Uazapi usando Admin Token e obtém Instance Token automaticamente
+   - Ao editar instância: atualiza nome na Uazapi usando Instance Token
+   - Ao deletar instância: deleta na Uazapi primeiro usando Instance Token, depois remove do Supabase
+   - Código preservado: ao editar, o código do prefixo é mantido (não gera novo)
+
+4. **Interface Melhorada**:
+   - Campo Admin Token opcional com explicações claras sobre quando usar
+   - Tooltips atualizados explicando diferença entre Admin Token e Instance Token
+   - Validações para garantir que apenas o nome (sem prefixo) seja editado
 
 ### Versão 2.2 (Dezembro 2025 - Melhorias de UI/UX)
 

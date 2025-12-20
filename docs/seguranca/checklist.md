@@ -55,6 +55,9 @@ Use este checklist antes de colocar o sistema em produção.
 ## 🔄 Integrações
 
 - [ ] Uazapi está configurada corretamente
+- [ ] Instance Token está configurado e válido
+- [ ] Admin Token está seguro (não é salvo no banco, usado apenas para criar instâncias)
+- [ ] Nomes de instâncias seguem formato `Instacar_codigo_nome` (aplicado automaticamente)
 - [ ] OpenAI API Key está válida e com limites configurados
 - [ ] Google Sheets tem permissões mínimas necessárias
 - [ ] Webhooks estão usando HTTPS
