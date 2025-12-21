@@ -654,32 +654,36 @@
    */
   function atualizarStatusInstanceToken() {
     const id = document.getElementById("instanciaUazapiId")?.value;
-    const tipoApi = document.getElementById("instanciaUazapiTipoApi")?.value || "uazapi";
-    const adminToken = document.getElementById("instanciaUazapiAdminToken")?.value.trim() || "";
-    const requiredIndicator = document.getElementById("instanciaUazapiTokenRequired");
+    const tipoApi =
+      document.getElementById("instanciaUazapiTipoApi")?.value || "uazapi";
+    const adminToken =
+      document.getElementById("instanciaUazapiAdminToken")?.value.trim() || "";
+    const requiredIndicator = document.getElementById(
+      "instanciaUazapiTokenRequired"
+    );
     const tokenInput = document.getElementById("instanciaUazapiToken");
-    
+
     // Se está editando, sempre obrigatório
     if (id) {
       if (requiredIndicator) requiredIndicator.style.display = "inline";
       if (tokenInput) tokenInput.required = true;
       return;
     }
-    
+
     // Se não é Uazapi, sempre obrigatório
     if (tipoApi !== "uazapi") {
       if (requiredIndicator) requiredIndicator.style.display = "inline";
       if (tokenInput) tokenInput.required = true;
       return;
     }
-    
+
     // Se é nova instância Uazapi e tem Admin Token, não é obrigatório
     if (adminToken) {
       if (requiredIndicator) requiredIndicator.style.display = "none";
       if (tokenInput) tokenInput.required = false;
       return;
     }
-    
+
     // Se é nova instância Uazapi e não tem Admin Token, é obrigatório
     if (requiredIndicator) requiredIndicator.style.display = "inline";
     if (tokenInput) tokenInput.required = true;
@@ -701,13 +705,15 @@
     const tipoApiSelect = document.getElementById("instanciaUazapiTipoApi");
     if (tipoApiSelect) tipoApiSelect.value = "uazapi";
     document.getElementById("instanciaUazapiAtivo").checked = true;
-    const adminTokenInput = document.getElementById("instanciaUazapiAdminToken");
+    const adminTokenInput = document.getElementById(
+      "instanciaUazapiAdminToken"
+    );
     if (adminTokenInput) adminTokenInput.value = "";
     const configExtraInput = document.getElementById(
       "instanciaUazapiConfigExtra"
     );
     if (configExtraInput) configExtraInput.value = "";
-    
+
     // Atualizar status do Instance Token baseado no contexto
     atualizarStatusInstanceToken();
 
@@ -742,7 +748,9 @@
         document.getElementById("instanciaUazapiToken").value =
           data.token || "";
         // Limpar Admin Token ao editar (não salvamos no banco, apenas usamos para criar)
-        const adminTokenInput = document.getElementById("instanciaUazapiAdminToken");
+        const adminTokenInput = document.getElementById(
+          "instanciaUazapiAdminToken"
+        );
         if (adminTokenInput) adminTokenInput.value = "";
         document.getElementById("instanciaUazapiDescricao").value =
           data.descricao || "";
@@ -756,7 +764,7 @@
         }
         document.getElementById("instanciaUazapiAtivo").checked =
           data.ativo !== false;
-        
+
         // Atualizar status do Instance Token (ao editar, sempre obrigatório)
         atualizarStatusInstanceToken();
       } catch (error) {
@@ -766,7 +774,7 @@
     } else {
       // Nova instância
       title.textContent = "Nova Instância Uazapi";
-      
+
       // Atualizar status do Instance Token (nova instância)
       atualizarStatusInstanceToken();
     }
@@ -800,22 +808,24 @@
       return nome;
     }
 
-    return nome
-      .trim()
-      .toLowerCase()
-      // Remover acentos (normalizar para forma sem acentos)
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      // Substituir espaços por underscores (preservar hífens e underscores existentes)
-      .replace(/\s+/g, "_")
-      // Remover caracteres especiais, mantendo apenas letras, números, hífens e underscores
-      .replace(/[^a-z0-9_-]/g, "")
-      // Remover hífens duplicados (mas não misturar com underscores)
-      .replace(/-+/g, "-")
-      // Remover underscores duplicados (mas não misturar com hífens)
-      .replace(/_+/g, "_")
-      // Remover hífens e underscores no início e fim
-      .replace(/^[-_]+|[-_]+$/g, "");
+    return (
+      nome
+        .trim()
+        .toLowerCase()
+        // Remover acentos (normalizar para forma sem acentos)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        // Substituir espaços por underscores (preservar hífens e underscores existentes)
+        .replace(/\s+/g, "_")
+        // Remover caracteres especiais, mantendo apenas letras, números, hífens e underscores
+        .replace(/[^a-z0-9_-]/g, "")
+        // Remover hífens duplicados (mas não misturar com underscores)
+        .replace(/-+/g, "-")
+        // Remover underscores duplicados (mas não misturar com hífens)
+        .replace(/_+/g, "_")
+        // Remover hífens e underscores no início e fim
+        .replace(/^[-_]+|[-_]+$/g, "")
+    );
   }
 
   /**
@@ -830,7 +840,7 @@
 
     // Remover prefixo existente se houver (formato: Instacar_XXXXXX_ onde XXXX é código de 6 caracteres alfanuméricos)
     const nomeLimpo = nome.replace(/^Instacar_[a-z0-9]{6}_/i, "").trim();
-    
+
     // Se não sobrou nada após remover o prefixo, retornar o nome original
     return nomeLimpo || nome;
   }
@@ -850,7 +860,7 @@
     // Extrair código existente do nome se houver (formato: Instacar_XXXXXX_ onde XXXX é código de 6 caracteres alfanuméricos)
     let uuidCurto = uuidExistente;
     let nomeLimpo = nome.replace(/^Instacar_[a-z0-9]{6}_?/i, "").trim();
-    
+
     // Se não encontrou código no nome e não foi fornecido, tentar extrair do nome original
     if (!uuidCurto) {
       const match = nome.match(/^Instacar_([a-z0-9]{6})_/i);
@@ -858,7 +868,7 @@
         uuidCurto = match[1];
       }
     }
-    
+
     // Se não sobrou nada após remover o prefixo, usar um nome padrão
     if (!nomeLimpo) {
       return nome; // Retornar original se ficou vazio
@@ -866,7 +876,7 @@
 
     // Normalizar nome para minúsculas (preservando hífens e underscores)
     nomeLimpo = normalizarNomeInstancia(nomeLimpo);
-    
+
     // Se após normalização ficou vazio, retornar original
     if (!nomeLimpo) {
       return nome;
@@ -879,7 +889,9 @@
       const caracteres = "abcdefghijklmnopqrstuvwxyz0123456789";
       uuidCurto = "";
       for (let i = 0; i < 6; i++) {
-        uuidCurto += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+        uuidCurto += caracteres.charAt(
+          Math.floor(Math.random() * caracteres.length)
+        );
       }
     }
 
@@ -910,17 +922,18 @@
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.error || `Erro HTTP ${response.status}: ${response.statusText}`
+          errorData.error ||
+            `Erro HTTP ${response.status}: ${response.statusText}`
         );
       }
 
       const data = await response.json();
-      
+
       // A resposta pode ter 'token' diretamente ou dentro de 'instance'
       // Segundo a documentação: token pode estar no nível raiz ou dentro de instance
       const instanceToken = data.token || data.instance?.token;
       const instanceId = data.instance?.id || data.id;
-      
+
       // Retornar o Instance Token gerado
       return {
         success: true,
@@ -941,13 +954,20 @@
    * @param {string} novoNome - Novo nome para a instância (sem prefixo Instacar_UUID_)
    * @returns {Promise<boolean>} - true se atualizado com sucesso
    */
-  async function atualizarNomeInstanciaUazapi(baseUrl, instanceToken, novoNome) {
+  async function atualizarNomeInstanciaUazapi(
+    baseUrl,
+    instanceToken,
+    novoNome
+  ) {
     try {
-      console.log(`Chamando Uazapi para atualizar nome: ${baseUrl}/instance/updateInstanceName`, {
-        token: instanceToken.substring(0, 10) + "...",
-        novoNome: novoNome
-      });
-      
+      console.log(
+        `Chamando Uazapi para atualizar nome: ${baseUrl}/instance/updateInstanceName`,
+        {
+          token: instanceToken.substring(0, 10) + "...",
+          novoNome: novoNome,
+        }
+      );
+
       const response = await fetch(`${baseUrl}/instance/updateInstanceName`, {
         method: "POST",
         headers: {
@@ -961,15 +981,18 @@
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || errorData.message || `Erro HTTP ${response.status}: ${response.statusText}`;
+        const errorMessage =
+          errorData.error ||
+          errorData.message ||
+          `Erro HTTP ${response.status}: ${response.statusText}`;
         console.error("Erro na resposta da Uazapi:", {
           status: response.status,
           statusText: response.statusText,
-          errorData: errorData
+          errorData: errorData,
         });
         throw new Error(errorMessage);
       }
-      
+
       const responseData = await response.json().catch(() => ({}));
       console.log("Resposta da Uazapi ao atualizar nome:", responseData);
       return true;
@@ -1002,7 +1025,8 @@
           return true;
         }
         throw new Error(
-          errorData.error || `Erro HTTP ${response.status}: ${response.statusText}`
+          errorData.error ||
+            `Erro HTTP ${response.status}: ${response.statusText}`
         );
       }
 
@@ -1023,8 +1047,10 @@
     }
 
     const id = document.getElementById("instanciaUazapiId").value;
-    let nomeOriginal = document.getElementById("instanciaUazapiNome").value.trim();
-    
+    let nomeOriginal = document
+      .getElementById("instanciaUazapiNome")
+      .value.trim();
+
     // Se está editando, buscar UUID existente para manter
     let uuidExistente = null;
     let instanciaExistente = null;
@@ -1035,7 +1061,7 @@
           .select("nome, tipo_api, base_url, token")
           .eq("id", id)
           .single();
-        
+
         if (!error && data) {
           instanciaExistente = data;
           // Extrair código do nome existente (formato: Instacar_XXXXXX_ onde XXXX é código de 6 caracteres)
@@ -1048,27 +1074,28 @@
         console.warn("Erro ao buscar instância existente:", error);
       }
     }
-    
+
     // IMPORTANTE: Remover qualquer prefixo que o usuário possa ter digitado manualmente
     // O prefixo deve ser sempre gerado automaticamente pelo sistema
     nomeOriginal = removerPrefixoInstancia(nomeOriginal);
-    
+
     // Aplicar prefixo obrigatório Instacar_codigo_ (mantendo código existente se estiver editando)
     const nome = aplicarPrefixoInstancia(nomeOriginal, uuidExistente);
-    
+
     // Atualizar campo do formulário com nome prefixado (feedback visual)
     // Mas apenas se o usuário não estiver editando (para não confundir durante a edição)
     const nomeInput = document.getElementById("instanciaUazapiNome");
     if (nomeInput && !id && nome !== nomeOriginal) {
       nomeInput.value = nome;
     }
-    
+
     const tipoApi =
       document.getElementById("instanciaUazapiTipoApi")?.value || "uazapi";
     const baseUrl = document
       .getElementById("instanciaUazapiBaseUrl")
       .value.trim();
-    const adminToken = document.getElementById("instanciaUazapiAdminToken")?.value.trim() || "";
+    const adminToken =
+      document.getElementById("instanciaUazapiAdminToken")?.value.trim() || "";
     let token = document.getElementById("instanciaUazapiToken").value.trim();
     const descricao = document
       .getElementById("instanciaUazapiDescricao")
@@ -1102,11 +1129,17 @@
     // Se é edição ou não é Uazapi, precisa do Instance Token
     if (id || tipoApi !== "uazapi") {
       if (!token) {
-        mostrarAlerta("Instance Token é obrigatório para edição ou APIs que não sejam Uazapi!", "error");
+        mostrarAlerta(
+          "Instance Token é obrigatório para edição ou APIs que não sejam Uazapi!",
+          "error"
+        );
         return;
       }
     } else if (tipoApi === "uazapi" && !id && !adminToken && !token) {
-      mostrarAlerta("Para criar uma nova instância Uazapi, forneça o Admin Token ou o Instance Token de uma instância existente!", "error");
+      mostrarAlerta(
+        "Para criar uma nova instância Uazapi, forneça o Admin Token ou o Instance Token de uma instância existente!",
+        "error"
+      );
       return;
     }
 
@@ -1125,10 +1158,10 @@
             adminToken,
             nome
           );
-          
+
           // Usar o Instance Token retornado pela Uazapi
           token = resultadoCriacao.instanceToken;
-          
+
           mostrarAlerta(
             `Instância criada na Uazapi com sucesso! Instance Token gerado automaticamente.`,
             "success"
@@ -1156,13 +1189,21 @@
       if (id) {
         // Atualizar
         // Verificar se o nome realmente mudou (comparar nomes completos com prefixo)
-        const nomeMudou = instanciaExistente && instanciaExistente.nome !== nome;
-        
+        const nomeMudou =
+          instanciaExistente && instanciaExistente.nome !== nome;
+
         // Se é instância Uazapi e o nome mudou, atualizar na Uazapi também
-        if (nomeMudou && instanciaExistente && instanciaExistente.tipo_api === "uazapi" && 
-            instanciaExistente.base_url && instanciaExistente.token) {
+        if (
+          nomeMudou &&
+          instanciaExistente &&
+          instanciaExistente.tipo_api === "uazapi" &&
+          instanciaExistente.base_url &&
+          instanciaExistente.token
+        ) {
           try {
-            console.log(`Atualizando nome na Uazapi: "${instanciaExistente.nome}" → "${nome}"`);
+            console.log(
+              `Atualizando nome na Uazapi: "${instanciaExistente.nome}" → "${nome}"`
+            );
             // Enviar nome completo com prefixo para a Uazapi (para identificar instâncias da Instacar no servidor)
             await atualizarNomeInstanciaUazapi(
               instanciaExistente.base_url,
@@ -1175,16 +1216,20 @@
             console.error("Erro ao atualizar nome na Uazapi:", error);
             mostrarAlerta(
               `Aviso: Nome atualizado no banco de dados, mas houve erro ao atualizar na Uazapi: ${error.message}. ` +
-              `O nome na Uazapi pode estar desatualizado.`,
+                `O nome na Uazapi pode estar desatualizado.`,
               "warning"
             );
           }
         } else if (nomeMudou) {
-          console.log(`Nome mudou mas não é Uazapi ou não tem token: "${instanciaExistente?.nome}" → "${nome}"`);
+          console.log(
+            `Nome mudou mas não é Uazapi ou não tem token: "${instanciaExistente?.nome}" → "${nome}"`
+          );
         } else {
-          console.log(`Nome não mudou: "${instanciaExistente?.nome}" === "${nome}"`);
+          console.log(
+            `Nome não mudou: "${instanciaExistente?.nome}" === "${nome}"`
+          );
         }
-        
+
         const { data, error } = await supabaseClient
           .from("instacar_whatsapp_apis")
           .update(dados)
@@ -1248,12 +1293,20 @@
         .single();
 
       if (errorBuscar || !instancia) {
-        mostrarAlerta("Erro ao buscar instância: " + (errorBuscar?.message || "Não encontrada"), "error");
+        mostrarAlerta(
+          "Erro ao buscar instância: " +
+            (errorBuscar?.message || "Não encontrada"),
+          "error"
+        );
         return;
       }
 
       // Se é instância Uazapi, deletar na Uazapi primeiro usando Instance Token
-      if (instancia.tipo_api === "uazapi" && instancia.token && instancia.base_url) {
+      if (
+        instancia.tipo_api === "uazapi" &&
+        instancia.token &&
+        instancia.base_url
+      ) {
         try {
           await deletarInstanciaUazapi(instancia.base_url, instancia.token);
           console.log("Instância deletada na Uazapi com sucesso");
@@ -1261,13 +1314,13 @@
           // Se der erro ao deletar na Uazapi, perguntar se quer continuar
           const continuar = confirm(
             `Erro ao deletar instância na Uazapi: ${error.message}\n\n` +
-            `Deseja continuar e remover apenas do banco de dados local?`
+              `Deseja continuar e remover apenas do banco de dados local?`
           );
-          
+
           if (!continuar) {
             return;
           }
-          
+
           console.warn("Continuando exclusão apenas do banco de dados local");
         }
       }
@@ -1995,7 +2048,9 @@
     const container = document.getElementById("listaClientesSelecao");
     if (!container) return;
 
-    const busca = document.getElementById("buscaClientesSelecao")?.value.toLowerCase() || "";
+    const busca =
+      document.getElementById("buscaClientesSelecao")?.value.toLowerCase() ||
+      "";
     const clientesFiltrados = clientesElegiveis.filter(
       (c) =>
         !busca ||
@@ -2013,8 +2068,9 @@
     clientesFiltrados.forEach((cliente) => {
       const isSelected = clientesSelecionados.has(cliente.id);
       // Todos os clientes aqui já são 'valid', mas mantemos o badge para consistência
-      const statusBadge = '<span style="color: #4caf50; font-size: 10px;">✅ Válido</span>';
-      
+      const statusBadge =
+        '<span style="color: #4caf50; font-size: 10px;">✅ Válido</span>';
+
       html += `
         <label style="display: flex; align-items: flex-start; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; gap: 8px">
           <input
@@ -2025,8 +2081,12 @@
             style="margin-top: 2px; flex-shrink: 0; width: 18px; height: 18px; cursor: pointer"
           />
           <span style="flex: 1; min-width: 0">
-            <div style="font-weight: 600; margin-bottom: 4px; word-break: break-word">${cliente.nome_cliente || "-"}</div>
-            <div style="color: #666; font-size: 13px; margin-bottom: 2px">${cliente.telefone}</div>
+            <div style="font-weight: 600; margin-bottom: 4px; word-break: break-word">${
+              cliente.nome_cliente || "-"
+            }</div>
+            <div style="color: #666; font-size: 13px; margin-bottom: 2px">${
+              cliente.telefone
+            }</div>
             <div>${statusBadge}</div>
           </span>
         </label>
@@ -2238,30 +2298,38 @@
         data.horario_fim || "18:00";
       document.getElementById("processar_finais_semana").checked =
         data.processar_finais_semana === true;
-      
+
       // Preencher novos campos - Modo Teste e Debug
       document.getElementById("modo_teste").checked = data.modo_teste || false;
       document.getElementById("modo_debug").checked = data.modo_debug || false;
-      
+
       // Preencher textareas de telefones (converter array JSON para texto)
       if (data.telefones_teste && Array.isArray(data.telefones_teste)) {
-        document.getElementById("telefones_teste").value = data.telefones_teste.join('\n');
+        document.getElementById("telefones_teste").value =
+          data.telefones_teste.join("\n");
       }
-      
+
       // Mostrar campo de telefones_teste se modo_teste estiver ativo
       if (data.modo_teste) {
-        document.getElementById("telefones_teste_group").style.display = 'block';
+        document.getElementById("telefones_teste_group").style.display =
+          "block";
       }
-      
+
       // Preencher novos campos - Notificações Admin
-      document.getElementById("notificar_inicio").checked = data.notificar_inicio || false;
-      document.getElementById("notificar_erros").checked = data.notificar_erros !== false; // default TRUE
-      document.getElementById("notificar_conclusao").checked = data.notificar_conclusao !== false; // default TRUE
-      document.getElementById("notificar_limite").checked = data.notificar_limite || false;
-      document.getElementById("whatsapp_api_id_admin").value = data.whatsapp_api_id_admin || '';
-      
+      document.getElementById("notificar_inicio").checked =
+        data.notificar_inicio || false;
+      document.getElementById("notificar_erros").checked =
+        data.notificar_erros !== false; // default TRUE
+      document.getElementById("notificar_conclusao").checked =
+        data.notificar_conclusao !== false; // default TRUE
+      document.getElementById("notificar_limite").checked =
+        data.notificar_limite || false;
+      document.getElementById("whatsapp_api_id_admin").value =
+        data.whatsapp_api_id_admin || "";
+
       if (data.telefones_admin && Array.isArray(data.telefones_admin)) {
-        document.getElementById("telefones_admin").value = data.telefones_admin.join('\n');
+        document.getElementById("telefones_admin").value =
+          data.telefones_admin.join("\n");
       }
 
       // Carregar instâncias e selecionar a correta
@@ -2269,12 +2337,13 @@
       if (data.whatsapp_api_id) {
         document.getElementById("whatsapp_api_id").value = data.whatsapp_api_id;
       }
-      
+
       // Carregar instâncias para select admin também
       if (window.carregarInstanciasAdmin) {
         await window.carregarInstanciasAdmin();
         if (data.whatsapp_api_id_admin) {
-          document.getElementById("whatsapp_api_id_admin").value = data.whatsapp_api_id_admin;
+          document.getElementById("whatsapp_api_id_admin").value =
+            data.whatsapp_api_id_admin;
         }
       }
 
@@ -2287,28 +2356,36 @@
       await carregarDadosDinamicosCampanha();
 
       // Preencher novos campos - Dados Dinâmicos do Agente IA
-      document.getElementById("usar_configuracoes_globais").checked = data.usar_configuracoes_globais !== false;
+      document.getElementById("usar_configuracoes_globais").checked =
+        data.usar_configuracoes_globais !== false;
       if (data.template_prompt_id) {
-        document.getElementById("template_prompt_id").value = data.template_prompt_id;
+        document.getElementById("template_prompt_id").value =
+          data.template_prompt_id;
       }
-      
+
       // Marcar sessões habilitadas
       const sessoesHabilitadas = data.sessoes_contexto_habilitadas || [];
       setTimeout(() => {
-        document.querySelectorAll("#sessoes_contexto_checkboxes input[type='checkbox']").forEach((cb) => {
-          cb.checked = sessoesHabilitadas.includes(cb.value);
-        });
+        document
+          .querySelectorAll(
+            "#sessoes_contexto_checkboxes input[type='checkbox']"
+          )
+          .forEach((cb) => {
+            cb.checked = sessoesHabilitadas.includes(cb.value);
+          });
       }, 500);
 
       // Preencher configurações sobrescritas
       const sobrescritas = data.configuracoes_empresa_sobrescritas || {};
       setTimeout(() => {
-        document.querySelectorAll("#configuracoes_sobrescritas textarea").forEach((textarea) => {
-          const chave = textarea.dataset.chave;
-          if (chave && sobrescritas[chave]) {
-            textarea.value = sobrescritas[chave];
-          }
-        });
+        document
+          .querySelectorAll("#configuracoes_sobrescritas textarea")
+          .forEach((textarea) => {
+            const chave = textarea.dataset.chave;
+            if (chave && sobrescritas[chave]) {
+              textarea.value = sobrescritas[chave];
+            }
+          });
       }, 500);
 
       // Atualizar estimativas após carregar dados
@@ -2334,7 +2411,9 @@
   // Função auxiliar para obter configurações sobrescritas
   function obterConfiguracoesSobrescritas() {
     const sobrescritas = {};
-    const inputs = document.querySelectorAll("#configuracoes_sobrescritas input[type='text'], #configuracoes_sobrescritas textarea");
+    const inputs = document.querySelectorAll(
+      "#configuracoes_sobrescritas input[type='text'], #configuracoes_sobrescritas textarea"
+    );
     inputs.forEach((input) => {
       const chave = input.dataset.chave;
       const valor = input.value.trim();
@@ -2360,7 +2439,8 @@
 
       const selectTemplate = document.getElementById("template_prompt_id");
       if (selectTemplate && templates) {
-        selectTemplate.innerHTML = '<option value="">Nenhum - usar prompt personalizado</option>';
+        selectTemplate.innerHTML =
+          '<option value="">Nenhum - usar prompt personalizado</option>';
         templates.forEach((template) => {
           const option = document.createElement("option");
           option.value = template.id;
@@ -2372,24 +2452,42 @@
       // Carregar sessões
       const { data: sessoes } = await supabaseClient
         .from("instacar_sessoes_contexto_ia")
-        .select("id, nome, slug, descricao, exemplo_preenchido, habilitado_por_padrao")
+        .select(
+          "id, nome, slug, descricao, exemplo_preenchido, habilitado_por_padrao"
+        )
         .eq("ativo", true)
         .order("ordem", { ascending: true });
 
-      const containerSessoes = document.getElementById("sessoes_contexto_checkboxes");
+      const containerSessoes = document.getElementById(
+        "sessoes_contexto_checkboxes"
+      );
       if (containerSessoes && sessoes) {
         if (sessoes.length === 0) {
-          containerSessoes.innerHTML = "<p style='color: #666; font-size: 14px'>Nenhuma sessão disponível.</p>";
+          containerSessoes.innerHTML =
+            "<p style='color: #666; font-size: 14px'>Nenhuma sessão disponível.</p>";
         } else {
           let html = "";
           sessoes.forEach((sessao) => {
             html += `
               <label style="display: flex; align-items: start; margin-bottom: 10px; cursor: pointer">
-                <input type="checkbox" value="${sessao.slug}" style="width: auto; margin-right: 8px; margin-top: 3px" ${sessao.habilitado_por_padrao ? "checked" : ""} />
+                <input type="checkbox" value="${
+                  sessao.slug
+                }" style="width: auto; margin-right: 8px; margin-top: 3px" ${
+              sessao.habilitado_por_padrao ? "checked" : ""
+            } />
                 <div>
                   <strong>${sessao.nome}</strong>
-                  <p style="margin: 2px 0; color: #666; font-size: 13px">${sessao.descricao || ""}</p>
-                  ${sessao.exemplo_preenchido ? `<small style="color: #999; font-size: 12px">Exemplo: ${sessao.exemplo_preenchido.substring(0, 100)}...</small>` : ""}
+                  <p style="margin: 2px 0; color: #666; font-size: 13px">${
+                    sessao.descricao || ""
+                  }</p>
+                  ${
+                    sessao.exemplo_preenchido
+                      ? `<small style="color: #999; font-size: 12px">Exemplo: ${sessao.exemplo_preenchido.substring(
+                          0,
+                          100
+                        )}...</small>`
+                      : ""
+                  }
                 </div>
               </label>
             `;
@@ -2406,10 +2504,13 @@
         .order("categoria", { ascending: true })
         .order("ordem", { ascending: true });
 
-      const containerConfigs = document.getElementById("configuracoes_sobrescritas");
+      const containerConfigs = document.getElementById(
+        "configuracoes_sobrescritas"
+      );
       if (containerConfigs && configuracoes) {
         if (configuracoes.length === 0) {
-          containerConfigs.innerHTML = "<p style='color: #666; font-size: 14px'>Nenhuma configuração disponível.</p>";
+          containerConfigs.innerHTML =
+            "<p style='color: #666; font-size: 14px'>Nenhuma configuração disponível.</p>";
         } else {
           let html = "";
           const porCategoria = {};
@@ -2420,18 +2521,29 @@
             porCategoria[config.categoria].push(config);
           });
 
-          Object.keys(porCategoria).sort().forEach((categoria) => {
-            html += `<h5 style="margin-top: 15px; margin-bottom: 8px; color: #333">${categoria}</h5>`;
-            porCategoria[categoria].forEach((config) => {
-              html += `
+          Object.keys(porCategoria)
+            .sort()
+            .forEach((categoria) => {
+              html += `<h5 style="margin-top: 15px; margin-bottom: 8px; color: #333">${categoria}</h5>`;
+              porCategoria[categoria].forEach((config) => {
+                html += `
                 <div style="margin-bottom: 10px">
-                  <label style="display: block; margin-bottom: 4px; font-weight: 600">${config.titulo} <small style="color: #999">(${config.chave})</small></label>
-                  <textarea data-chave="${config.chave}" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px" placeholder="Deixe vazio para usar configuração global">${config.conteudo}</textarea>
-                  <small style="color: #666; font-size: 12px">Global: ${config.conteudo.substring(0, 100)}...</small>
+                  <label style="display: block; margin-bottom: 4px; font-weight: 600">${
+                    config.titulo
+                  } <small style="color: #999">(${config.chave})</small></label>
+                  <textarea data-chave="${
+                    config.chave
+                  }" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px" placeholder="Deixe vazio para usar configuração global">${
+                  config.conteudo
+                }</textarea>
+                  <small style="color: #666; font-size: 12px">Global: ${config.conteudo.substring(
+                    0,
+                    100
+                  )}...</small>
                 </div>
               `;
+              });
             });
-          });
           containerConfigs.innerHTML = html;
         }
       }
@@ -2443,11 +2555,11 @@
   // Salvar campanha
   function inicializarFormulario() {
     const form = document.getElementById("formCampanha");
-    
+
     // Carregar dados dinâmicos quando abrir modal
     const originalAbrirModal = window.abrirModalNovaCampanha;
     if (originalAbrirModal) {
-      window.abrirModalNovaCampanha = async function() {
+      window.abrirModalNovaCampanha = async function () {
         await originalAbrirModal();
         await carregarDadosDinamicosCampanha();
       };
@@ -2456,7 +2568,9 @@
 
     // Toggle visibilidade de telefones_teste quando modo_teste é marcado
     const modoTesteCheckbox = document.getElementById("modo_teste");
-    const telefonesTesteGroup = document.getElementById("telefones_teste_group");
+    const telefonesTesteGroup = document.getElementById(
+      "telefones_teste_group"
+    );
     if (modoTesteCheckbox && telefonesTesteGroup) {
       modoTesteCheckbox.addEventListener("change", (e) => {
         telefonesTesteGroup.style.display = e.target.checked ? "block" : "none";
@@ -2479,12 +2593,13 @@
             .select("id, nome")
             .eq("ativo", true)
             .order("nome");
-          
+
           if (error) throw error;
-          
+
           // Limpar opções existentes (exceto a primeira)
-          selectAdmin.innerHTML = '<option value="">-- Usar instância da campanha --</option>';
-          
+          selectAdmin.innerHTML =
+            '<option value="">-- Usar instância da campanha --</option>';
+
           // Adicionar instâncias
           if (data && data.length > 0) {
             data.forEach((instancia) => {
@@ -2495,13 +2610,16 @@
             });
           }
         } catch (error) {
-          console.error("Erro ao carregar instâncias para select admin:", error);
+          console.error(
+            "Erro ao carregar instâncias para select admin:",
+            error
+          );
         }
       }
-      
+
       // Carregar instâncias quando o formulário for aberto
       carregarInstanciasAdmin();
-      
+
       // Recarregar quando necessário (pode ser chamado externamente)
       window.carregarInstanciasAdmin = carregarInstanciasAdmin;
     }
@@ -2555,44 +2673,65 @@
         ).checked,
         // NOVOS CAMPOS - Modo Teste e Debug
         modo_teste: document.getElementById("modo_teste").checked,
-        telefones_teste: parseTelefonesTextarea(document.getElementById("telefones_teste").value).telefones,
+        telefones_teste: parseTelefonesTextarea(
+          document.getElementById("telefones_teste").value
+        ).telefones,
         modo_debug: document.getElementById("modo_debug").checked,
         // NOVOS CAMPOS - Notificações Admin
-        telefones_admin: parseTelefonesTextarea(document.getElementById("telefones_admin").value).telefones,
+        telefones_admin: parseTelefonesTextarea(
+          document.getElementById("telefones_admin").value
+        ).telefones,
         notificar_inicio: document.getElementById("notificar_inicio").checked,
         notificar_erros: document.getElementById("notificar_erros").checked,
-        notificar_conclusao: document.getElementById("notificar_conclusao").checked,
+        notificar_conclusao: document.getElementById("notificar_conclusao")
+          .checked,
         notificar_limite: document.getElementById("notificar_limite").checked,
-        whatsapp_api_id_admin: document.getElementById("whatsapp_api_id_admin").value || null,
+        whatsapp_api_id_admin:
+          document.getElementById("whatsapp_api_id_admin").value || null,
         // NOVOS CAMPOS - Dados Dinâmicos do Agente IA
-        usar_configuracoes_globais: document.getElementById("usar_configuracoes_globais").checked,
-        template_prompt_id: document.getElementById("template_prompt_id").value || null,
+        usar_configuracoes_globais: document.getElementById(
+          "usar_configuracoes_globais"
+        ).checked,
+        template_prompt_id:
+          document.getElementById("template_prompt_id").value || null,
         sessoes_contexto_habilitadas: Array.from(
-          document.querySelectorAll("#sessoes_contexto_checkboxes input:checked")
+          document.querySelectorAll(
+            "#sessoes_contexto_checkboxes input:checked"
+          )
         ).map((cb) => cb.value),
         configuracoes_empresa_sobrescritas: obterConfiguracoesSobrescritas(),
         ativo: true,
       };
 
       // Validação adicional antes de enviar
-      const validacaoTeste = parseTelefonesTextarea(document.getElementById("telefones_teste").value);
-      const validacaoAdmin = parseTelefonesTextarea(document.getElementById("telefones_admin").value);
-      
+      const validacaoTeste = parseTelefonesTextarea(
+        document.getElementById("telefones_teste").value
+      );
+      const validacaoAdmin = parseTelefonesTextarea(
+        document.getElementById("telefones_admin").value
+      );
+
       if (!validacaoTeste.valido) {
-        mostrarAlerta('Telefones de teste inválidos: ' + validacaoTeste.erros.join(', '), 'error');
+        mostrarAlerta(
+          "Telefones de teste inválidos: " + validacaoTeste.erros.join(", "),
+          "error"
+        );
         return;
       }
-      
+
       if (!validacaoAdmin.valido) {
-        mostrarAlerta('Telefones admin inválidos: ' + validacaoAdmin.erros.join(', '), 'error');
+        mostrarAlerta(
+          "Telefones admin inválidos: " + validacaoAdmin.erros.join(", "),
+          "error"
+        );
         return;
       }
-      
+
       // Verificar se modo_teste está ativo mas não há telefones
       if (dados.modo_teste && dados.telefones_teste.length === 0) {
         const confirmar = confirm(
-          'Modo Teste está ativo mas nenhum telefone de teste foi configurado.\n\n' +
-          'Será usada a configuração global. Deseja continuar?'
+          "Modo Teste está ativo mas nenhum telefone de teste foi configurado.\n\n" +
+            "Será usada a configuração global. Deseja continuar?"
         );
         if (!confirmar) return;
       }
@@ -2854,18 +2993,21 @@
         totalGeral > 0 ? ((totalEnviados / totalGeral) * 100).toFixed(2) : 0;
 
       // Buscar clientes selecionados
-      const { data: clientesSelecionados, error: errorClientes } = await supabaseClient
-        .from("instacar_campanhas_clientes")
-        .select(`
+      const { data: clientesSelecionados, error: errorClientes } =
+        await supabaseClient
+          .from("instacar_campanhas_clientes")
+          .select(
+            `
           cliente_id,
           instacar_clientes_envios (
             id,
             nome_cliente,
             telefone
           )
-        `)
-        .eq("campanha_id", campanhaId)
-        .limit(100);
+        `
+          )
+          .eq("campanha_id", campanhaId)
+          .limit(100);
 
       const totalClientesSelecionados = clientesSelecionados?.length || 0;
       const usaSelecaoEspecifica = totalClientesSelecionados > 0;
@@ -2906,30 +3048,46 @@
               <div style="background: #f9fafb; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
                 <p style="margin: 0 0 10px 0;">
                   <strong>Modo de Seleção:</strong> 
-                  ${usaSelecaoEspecifica 
-                    ? `<span style="color: #667eea;">Seleção Específica (${totalClientesSelecionados} clientes)</span>` 
-                    : '<span style="color: #4caf50;">Todos os Clientes Elegíveis</span>'}
+                  ${
+                    usaSelecaoEspecifica
+                      ? `<span style="color: #667eea;">Seleção Específica (${totalClientesSelecionados} clientes)</span>`
+                      : '<span style="color: #4caf50;">Todos os Clientes Elegíveis</span>'
+                  }
                 </p>
-                ${usaSelecaoEspecifica ? `
+                ${
+                  usaSelecaoEspecifica
+                    ? `
                   <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">
                     Esta campanha enviará apenas para os clientes selecionados abaixo.
                   </p>
                   <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: white;">
-                    ${clientesSelecionados.slice(0, 50).map((cc) => {
-                      const cliente = cc.instacar_clientes_envios;
-                      return cliente 
-                        ? `<div style="padding: 5px 0; border-bottom: 1px solid #eee;">
+                    ${clientesSelecionados
+                      .slice(0, 50)
+                      .map((cc) => {
+                        const cliente = cc.instacar_clientes_envios;
+                        return cliente
+                          ? `<div style="padding: 5px 0; border-bottom: 1px solid #eee;">
                             <strong>${cliente.nome_cliente || "-"}</strong>
-                            <br><small style="color: #666;">${cliente.telefone}</small>
+                            <br><small style="color: #666;">${
+                              cliente.telefone
+                            }</small>
                           </div>`
-                        : "";
-                    }).join("")}
-                    ${totalClientesSelecionados > 50 ? `<p style="text-align: center; color: #666; margin-top: 10px;">... e mais ${totalClientesSelecionados - 50} clientes</p>` : ""}
+                          : "";
+                      })
+                      .join("")}
+                    ${
+                      totalClientesSelecionados > 50
+                        ? `<p style="text-align: center; color: #666; margin-top: 10px;">... e mais ${
+                            totalClientesSelecionados - 50
+                          } clientes</p>`
+                        : ""
+                    }
                   </div>
                   <button onclick="editarCampanha('${campanhaId}')" class="btn-secondary" style="margin-top: 10px; padding: 8px 16px;">
                     ✏️ Editar Seleção de Clientes
                   </button>
-                ` : `
+                `
+                    : `
                   <p style="margin: 0; color: #666; font-size: 14px;">
                     Esta campanha enviará para todos os clientes elegíveis (ativo, WhatsApp válido, não bloqueado).
                     Para limitar a clientes específicos, edite a campanha e selecione os clientes desejados.
@@ -2937,7 +3095,8 @@
                   <button onclick="editarCampanha('${campanhaId}')" class="btn-secondary" style="margin-top: 10px; padding: 8px 16px;">
                     ✏️ Editar Campanha e Selecionar Clientes
                   </button>
-                `}
+                `
+                }
               </div>
 
               <h3 style="margin-top: 30px; margin-bottom: 15px;">Histórico de Execuções</h3>
@@ -4276,10 +4435,13 @@
    * @returns {Object} { valido: boolean, telefones: string[], erros: string[] }
    */
   function parseTelefonesTextarea(texto) {
-    if (!texto || texto.trim() === '') {
+    if (!texto || texto.trim() === "") {
       return { valido: true, telefones: [], erros: [] };
     }
-    const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const linhas = texto
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
     const telefones = [];
     const erros = [];
     linhas.forEach((linha, index) => {
@@ -4293,7 +4455,7 @@
     return {
       valido: erros.length === 0,
       telefones,
-      erros
+      erros,
     };
   }
 
@@ -4306,19 +4468,19 @@
     const textarea = document.getElementById(textareaId);
     const validacaoDiv = document.getElementById(validacaoId);
     if (!textarea || !validacaoDiv) return;
-    textarea.addEventListener('blur', () => {
+    textarea.addEventListener("blur", () => {
       const resultado = parseTelefonesTextarea(textarea.value);
-      if (textarea.value.trim() === '') {
-        validacaoDiv.innerHTML = '';
-        validacaoDiv.className = 'validation-message';
+      if (textarea.value.trim() === "") {
+        validacaoDiv.innerHTML = "";
+        validacaoDiv.className = "validation-message";
         return;
       }
       if (resultado.valido) {
         validacaoDiv.innerHTML = `✅ ${resultado.telefones.length} telefone(s) válido(s)`;
-        validacaoDiv.className = 'validation-message success';
+        validacaoDiv.className = "validation-message success";
       } else {
-        validacaoDiv.innerHTML = `❌ ${resultado.erros.join('<br>')}`;
-        validacaoDiv.className = 'validation-message error';
+        validacaoDiv.innerHTML = `❌ ${resultado.erros.join("<br>")}`;
+        validacaoDiv.className = "validation-message error";
       }
     });
   }
@@ -5697,8 +5859,12 @@
           ? '<span class="badge badge-invalid" title="Cliente bloqueado - não receberá mensagens">🚫 Bloqueado</span>'
           : '<span class="badge badge-valid" title="Cliente permitido - receberá mensagens">✅ Permitido</span>';
         const toggleBloqueioBtn = bloqueadoEnvios
-          ? '<button onclick="alternarBloqueioCliente(\'' + cliente.id + '\', false)" class="btn-success" style="padding: 4px 8px; font-size: 11px" title="Desbloquear envios">🔓</button>'
-          : '<button onclick="alternarBloqueioCliente(\'' + cliente.id + '\', true)" class="btn-danger" style="padding: 4px 8px; font-size: 11px" title="Bloquear envios">🚫</button>';
+          ? "<button onclick=\"alternarBloqueioCliente('" +
+            cliente.id +
+            '\', false)" class="btn-success" style="padding: 4px 8px; font-size: 11px" title="Desbloquear envios">🔓</button>'
+          : "<button onclick=\"alternarBloqueioCliente('" +
+            cliente.id +
+            '\', true)" class="btn-danger" style="padding: 4px 8px; font-size: 11px" title="Bloquear envios">🚫</button>';
 
         html += `
           <tr data-cliente-id="${cliente.id}">
@@ -5795,8 +5961,10 @@
     // Carregar instâncias WhatsApp ativas
     const instancias = await carregarInstanciasUazapi();
     const instanciasAtivas = instancias.filter((i) => i.ativo !== false);
-    const selectInstancia = document.getElementById("enviarMensagemInstanciaId");
-    
+    const selectInstancia = document.getElementById(
+      "enviarMensagemInstanciaId"
+    );
+
     if (selectInstancia) {
       selectInstancia.innerHTML =
         '<option value="">Selecione uma instância...</option>';
@@ -5900,7 +6068,9 @@
     const clienteId = document.getElementById("enviarMensagemClienteId").value;
     const telefone = document.getElementById("enviarMensagemTelefone").value;
     const tipoEnvio = document.getElementById("tipoEnvio").value;
-    const instanciaId = document.getElementById("enviarMensagemInstanciaId").value;
+    const instanciaId = document.getElementById(
+      "enviarMensagemInstanciaId"
+    ).value;
 
     if (!tipoEnvio) {
       mostrarAlerta("Selecione o tipo de envio!", "error");
@@ -6638,10 +6808,12 @@
 
     // Bloqueado Envios
     const bloqueadoEnvios = cliente.bloqueado_envios === true;
-    document.getElementById("fieldBloqueadoEnviosInput").checked = bloqueadoEnvios;
-    document.getElementById("fieldBloqueadoEnviosValue").textContent = bloqueadoEnvios
-      ? "🚫 Bloqueado - Não receberá mensagens"
-      : "✅ Permitido - Receberá mensagens";
+    document.getElementById("fieldBloqueadoEnviosInput").checked =
+      bloqueadoEnvios;
+    document.getElementById("fieldBloqueadoEnviosValue").textContent =
+      bloqueadoEnvios
+        ? "🚫 Bloqueado - Não receberá mensagens"
+        : "✅ Permitido - Receberá mensagens";
 
     // Status WhatsApp
     const statusTexto = cliente.status_whatsapp || "unknown";
@@ -7387,11 +7559,13 @@
       return;
     }
 
-    if (!confirm(
-      bloquear
-        ? "Tem certeza que deseja bloquear este cliente? Ele não receberá mais mensagens de campanhas."
-        : "Tem certeza que deseja desbloquear este cliente? Ele voltará a receber mensagens de campanhas."
-    )) {
+    if (
+      !confirm(
+        bloquear
+          ? "Tem certeza que deseja bloquear este cliente? Ele não receberá mais mensagens de campanhas."
+          : "Tem certeza que deseja desbloquear este cliente? Ele voltará a receber mensagens de campanhas."
+      )
+    ) {
       return;
     }
 
@@ -7405,7 +7579,11 @@
         .eq("id", clienteId);
 
       if (error) {
-        throw new Error(`Erro ao ${bloquear ? "bloquear" : "desbloquear"} cliente: ${error.message}`);
+        throw new Error(
+          `Erro ao ${bloquear ? "bloquear" : "desbloquear"} cliente: ${
+            error.message
+          }`
+        );
       }
 
       mostrarAlerta(
@@ -7962,6 +8140,12 @@
       resumo: "Instruções específicas para a IA gerar mensagens",
       detalhes: `
         <p>Este campo contém as instruções que serão enviadas para a IA (GPT-4) gerar as mensagens personalizadas.</p>
+        
+        <div style="background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 12px; margin: 15px 0; border-radius: 4px;">
+          <strong>💡 Modo "Apenas Prompt Personalizado":</strong>
+          <p style="margin: 8px 0 0 0;">Se você <strong>desmarcar todas</strong> as configurações de IA (Usar Veículos, Usar Configurações Globais, Sessões de Contexto) e preencher este prompt, o sistema enviará <strong>apenas o prompt</strong> com o mínimo de contexto (nome do cliente). Isso economiza tokens e dá controle total sobre o que a IA recebe.</p>
+        </div>
+        
         <h5>Dicas para escrever bons prompts:</h5>
         <ul>
           <li>Seja específico sobre o tom e estilo da mensagem</li>
@@ -7969,8 +8153,18 @@
           <li>Defina o objetivo da campanha claramente</li>
           <li>Inclua exemplos de mensagens desejadas, se possível</li>
         </ul>
+        
+        <h5>Variáveis disponíveis:</h5>
+        <ul>
+          <li><code>{{nome_cliente}}</code> - Nome do cliente</li>
+          <li><code>{{telefone}}</code> - Telefone do cliente</li>
+          <li><code>{{data_hoje}}</code> - Data atual formatada</li>
+          <li><code>{{periodo_ano}}</code> - Período/ano da campanha</li>
+          <li><code>{{veiculos.length}}</code> - Quantidade de veículos</li>
+        </ul>
+        
         <h5>Exemplo:</h5>
-        <pre><code>Gere uma mensagem calorosa de Natal para o cliente [NOME]. 
+        <pre><code>Gere uma mensagem calorosa de Natal para o cliente {{nome_cliente}}. 
 Mencione que temos oportunidades especiais de fim de ano. 
 Use tom amigável e profissional. 
 Máximo de 3 parágrafos.</code></pre>
@@ -8004,6 +8198,7 @@ Máximo de 3 parágrafos.</code></pre>
         <ul>
           <li>Campanhas genéricas (Natal, Ano Novo)</li>
           <li>Mensagens que não mencionam veículos</li>
+          <li><strong>Modo "Apenas Prompt":</strong> Se desmarcar junto com outras configurações, o sistema enviará apenas o prompt personalizado</li>
         </ul>
       `,
     },
@@ -8070,7 +8265,8 @@ Máximo de 3 parágrafos.</code></pre>
     // Formulário de Instância Uazapi
     instanciaUazapiNome: {
       titulo: "Nome da Instância",
-      resumo: "Nome identificador único (será normalizado para minúsculas com hífens e prefixo Instacar_codigo_ será adicionado)",
+      resumo:
+        "Nome identificador único (será normalizado para minúsculas com hífens e prefixo Instacar_codigo_ será adicionado)",
       detalhes: `
         <p>Escolha um nome descritivo para identificar esta instância de API WhatsApp.</p>
         <p><strong>⚠️ IMPORTANTE:</strong></p>
@@ -8121,7 +8317,8 @@ Máximo de 3 parágrafos.</code></pre>
     },
     instanciaUazapiAdminToken: {
       titulo: "Admin Token",
-      resumo: "Token de administrador (opcional - apenas para criar novas instâncias na Uazapi)",
+      resumo:
+        "Token de administrador (opcional - apenas para criar novas instâncias na Uazapi)",
       detalhes: `
         <p>Token de administrador necessário para <strong>criar</strong> novas instâncias na Uazapi via API.</p>
         <p><strong>⚠️ IMPORTANTE - Quando usar Admin Token:</strong></p>
@@ -8502,16 +8699,18 @@ Máximo de 3 parágrafos.</code></pre>
       e.preventDefault();
       await salvarInstanciaUazapi();
     });
-    
+
     // Adicionar listeners para atualizar status do Instance Token dinamicamente
-    const adminTokenInput = document.getElementById("instanciaUazapiAdminToken");
+    const adminTokenInput = document.getElementById(
+      "instanciaUazapiAdminToken"
+    );
     const tipoApiSelect = document.getElementById("instanciaUazapiTipoApi");
-    
+
     if (adminTokenInput) {
       adminTokenInput.addEventListener("input", atualizarStatusInstanceToken);
       adminTokenInput.addEventListener("change", atualizarStatusInstanceToken);
     }
-    
+
     if (tipoApiSelect) {
       tipoApiSelect.addEventListener("change", atualizarStatusInstanceToken);
     }
@@ -8555,35 +8754,59 @@ Máximo de 3 parágrafos.</code></pre>
       });
 
       let html = "";
-      Object.keys(porCategoria).sort().forEach((categoria) => {
-        html += `<div style="margin-bottom: 20px"><h3 style="color: #333; margin-bottom: 10px">${categoria}</h3>`;
-        porCategoria[categoria].forEach((config) => {
-          html += `
-            <div style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 10px; background: ${config.ativo ? "#fff" : "#f9f9f9"}">
+      Object.keys(porCategoria)
+        .sort()
+        .forEach((categoria) => {
+          html += `<div style="margin-bottom: 20px"><h3 style="color: #333; margin-bottom: 10px">${categoria}</h3>`;
+          porCategoria[categoria].forEach((config) => {
+            html += `
+            <div style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 10px; background: ${
+              config.ativo ? "#fff" : "#f9f9f9"
+            }">
               <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px">
                 <div style="flex: 1">
                   <strong>${config.titulo}</strong>
-                  ${!config.ativo ? '<span style="color: #999; font-size: 12px; margin-left: 10px">(Inativo)</span>' : ''}
+                  ${
+                    !config.ativo
+                      ? '<span style="color: #999; font-size: 12px; margin-left: 10px">(Inativo)</span>'
+                      : ""
+                  }
                 </div>
                 <div style="display: flex; gap: 5px">
-                  <button onclick="editarConfiguracaoEmpresa('${config.id}')" class="btn-small" style="padding: 4px 8px; font-size: 12px">✏️ Editar</button>
-                  <button onclick="toggleAtivoConfiguracao('${config.id}', ${!config.ativo})" class="btn-small" style="padding: 4px 8px; font-size: 12px">
+                  <button onclick="editarConfiguracaoEmpresa('${
+                    config.id
+                  }')" class="btn-small" style="padding: 4px 8px; font-size: 12px">✏️ Editar</button>
+                  <button onclick="toggleAtivoConfiguracao('${
+                    config.id
+                  }', ${!config.ativo})" class="btn-small" style="padding: 4px 8px; font-size: 12px">
                     ${config.ativo ? "⏸️ Desativar" : "▶️ Ativar"}
                   </button>
                 </div>
               </div>
-              <p style="margin: 4px 0; color: #666; font-size: 13px">Chave: <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px">${config.chave}</code></p>
-              ${config.descricao ? `<p style="margin: 4px 0; color: #666; font-size: 13px">${config.descricao}</p>` : ""}
-              <div style="margin-top: 8px; padding: 8px; background: #f9f9f9; border-radius: 4px; font-size: 13px; color: #555">${config.conteudo.substring(0, 200)}${config.conteudo.length > 200 ? "..." : ""}</div>
+              <p style="margin: 4px 0; color: #666; font-size: 13px">Chave: <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px">${
+                config.chave
+              }</code></p>
+              ${
+                config.descricao
+                  ? `<p style="margin: 4px 0; color: #666; font-size: 13px">${config.descricao}</p>`
+                  : ""
+              }
+              <div style="margin-top: 8px; padding: 8px; background: #f9f9f9; border-radius: 4px; font-size: 13px; color: #555">${config.conteudo.substring(
+                0,
+                200
+              )}${config.conteudo.length > 200 ? "..." : ""}</div>
             </div>
           `;
+          });
+          html += `</div>`;
         });
-        html += `</div>`;
-      });
 
       container.innerHTML = html;
     } catch (error) {
-      mostrarAlerta("Erro ao carregar configurações: " + error.message, "error");
+      mostrarAlerta(
+        "Erro ao carregar configurações: " + error.message,
+        "error"
+      );
       console.error(error);
     }
   }
@@ -8629,7 +8852,7 @@ Máximo de 3 parágrafos.</code></pre>
         "success"
       );
       fecharModalFormConfiguracaoEmpresa();
-      
+
       // Se estava no modal de listagem, recarregar
       const modalListagem = document.getElementById("modalConfiguracaoEmpresa");
       if (modalListagem && modalListagem.classList.contains("active")) {
@@ -8662,12 +8885,16 @@ Máximo de 3 parágrafos.</code></pre>
 
       document.getElementById("configEmpresaId").value = data.id;
       document.getElementById("configEmpresaChave").value = data.chave || "";
-      document.getElementById("configEmpresaCategoria").value = data.categoria || "politicas";
+      document.getElementById("configEmpresaCategoria").value =
+        data.categoria || "politicas";
       document.getElementById("configEmpresaTitulo").value = data.titulo || "";
-      document.getElementById("configEmpresaConteudo").value = data.conteudo || "";
-      document.getElementById("configEmpresaDescricao").value = data.descricao || "";
+      document.getElementById("configEmpresaConteudo").value =
+        data.conteudo || "";
+      document.getElementById("configEmpresaDescricao").value =
+        data.descricao || "";
       document.getElementById("configEmpresaOrdem").value = data.ordem || 0;
-      document.getElementById("configEmpresaAtivo").checked = data.ativo !== false;
+      document.getElementById("configEmpresaAtivo").checked =
+        data.ativo !== false;
 
       abrirModalFormConfiguracaoEmpresa();
     } catch (error) {
@@ -8770,22 +8997,42 @@ Máximo de 3 parágrafos.</code></pre>
       let html = "";
       data.forEach((sessao) => {
         html += `
-          <div style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 10px; background: ${sessao.ativo ? "#fff" : "#f9f9f9"}">
+          <div style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 10px; background: ${
+            sessao.ativo ? "#fff" : "#f9f9f9"
+          }">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px">
               <div style="flex: 1">
                 <strong>${sessao.nome}</strong>
-                ${!sessao.ativo ? '<span style="color: #999; font-size: 12px; margin-left: 10px">(Inativo)</span>' : ''}
-                ${sessao.habilitado_por_padrao ? '<span style="color: #28a745; font-size: 12px; margin-left: 10px">(Padrão)</span>' : ''}
+                ${
+                  !sessao.ativo
+                    ? '<span style="color: #999; font-size: 12px; margin-left: 10px">(Inativo)</span>'
+                    : ""
+                }
+                ${
+                  sessao.habilitado_por_padrao
+                    ? '<span style="color: #28a745; font-size: 12px; margin-left: 10px">(Padrão)</span>'
+                    : ""
+                }
               </div>
               <div style="display: flex; gap: 5px">
-                <button onclick="editarSessaoContexto('${sessao.id}')" class="btn-small" style="padding: 4px 8px; font-size: 12px">✏️ Editar</button>
-                <button onclick="toggleAtivoSessao('${sessao.id}', ${!sessao.ativo})" class="btn-small" style="padding: 4px 8px; font-size: 12px">
+                <button onclick="editarSessaoContexto('${
+                  sessao.id
+                }')" class="btn-small" style="padding: 4px 8px; font-size: 12px">✏️ Editar</button>
+                <button onclick="toggleAtivoSessao('${
+                  sessao.id
+                }', ${!sessao.ativo})" class="btn-small" style="padding: 4px 8px; font-size: 12px">
                   ${sessao.ativo ? "⏸️ Desativar" : "▶️ Ativar"}
                 </button>
               </div>
             </div>
-            <p style="margin: 4px 0; color: #666; font-size: 13px">Slug: <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px">${sessao.slug}</code></p>
-            ${sessao.descricao ? `<p style="margin: 4px 0; color: #666; font-size: 13px">${sessao.descricao}</p>` : ""}
+            <p style="margin: 4px 0; color: #666; font-size: 13px">Slug: <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px">${
+              sessao.slug
+            }</code></p>
+            ${
+              sessao.descricao
+                ? `<p style="margin: 4px 0; color: #666; font-size: 13px">${sessao.descricao}</p>`
+                : ""
+            }
           </div>
         `;
       });
@@ -8807,10 +9054,16 @@ Máximo de 3 parágrafos.</code></pre>
       nome: document.getElementById("sessaoNome").value.trim(),
       slug: document.getElementById("sessaoSlug").value.trim(),
       categoria: document.getElementById("sessaoCategoria").value.trim(),
-      conteudo_template: document.getElementById("sessaoConteudoTemplate").value.trim(),
-      exemplo_preenchido: document.getElementById("sessaoExemploPreenchido").value.trim(),
+      conteudo_template: document
+        .getElementById("sessaoConteudoTemplate")
+        .value.trim(),
+      exemplo_preenchido: document
+        .getElementById("sessaoExemploPreenchido")
+        .value.trim(),
       descricao: document.getElementById("sessaoDescricao").value.trim(),
-      habilitado_por_padrao: document.getElementById("sessaoHabilitadoPorPadrao").checked,
+      habilitado_por_padrao: document.getElementById(
+        "sessaoHabilitadoPorPadrao"
+      ).checked,
       ordem: parseInt(document.getElementById("sessaoOrdem").value) || 0,
       ativo: document.getElementById("sessaoAtivo").checked,
     };
@@ -8841,7 +9094,7 @@ Máximo de 3 parágrafos.</code></pre>
       );
       fecharModalSessaoContexto();
       await carregarSessoesContexto();
-      
+
       // Se estava no modal de listagem, recarregar
       const modalListagem = document.getElementById("modalSessaoContexto");
       if (modalListagem && modalListagem.classList.contains("active")) {
@@ -8876,10 +9129,13 @@ Máximo de 3 parágrafos.</code></pre>
       document.getElementById("sessaoNome").value = data.nome || "";
       document.getElementById("sessaoSlug").value = data.slug || "";
       document.getElementById("sessaoCategoria").value = data.categoria || "";
-      document.getElementById("sessaoConteudoTemplate").value = data.conteudo_template || "";
-      document.getElementById("sessaoExemploPreenchido").value = data.exemplo_preenchido || "";
+      document.getElementById("sessaoConteudoTemplate").value =
+        data.conteudo_template || "";
+      document.getElementById("sessaoExemploPreenchido").value =
+        data.exemplo_preenchido || "";
       document.getElementById("sessaoDescricao").value = data.descricao || "";
-      document.getElementById("sessaoHabilitadoPorPadrao").checked = data.habilitado_por_padrao === true;
+      document.getElementById("sessaoHabilitadoPorPadrao").checked =
+        data.habilitado_por_padrao === true;
       document.getElementById("sessaoOrdem").value = data.ordem || 0;
       document.getElementById("sessaoAtivo").checked = data.ativo !== false;
 
@@ -8982,21 +9238,37 @@ Máximo de 3 parágrafos.</code></pre>
       let html = "";
       data.forEach((template) => {
         html += `
-          <div style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 10px; background: ${template.ativo ? "#fff" : "#f9f9f9"}">
+          <div style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 10px; background: ${
+            template.ativo ? "#fff" : "#f9f9f9"
+          }">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px">
               <div style="flex: 1">
                 <strong>${template.nome}</strong>
-                ${!template.ativo ? '<span style="color: #999; font-size: 12px; margin-left: 10px">(Inativo)</span>' : ''}
-                <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px">${template.categoria}</span>
+                ${
+                  !template.ativo
+                    ? '<span style="color: #999; font-size: 12px; margin-left: 10px">(Inativo)</span>'
+                    : ""
+                }
+                <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px">${
+                  template.categoria
+                }</span>
               </div>
               <div style="display: flex; gap: 5px">
-                <button onclick="editarTemplatePrompt('${template.id}')" class="btn-small" style="padding: 4px 8px; font-size: 12px">✏️ Editar</button>
-                <button onclick="toggleAtivoTemplate('${template.id}', ${!template.ativo})" class="btn-small" style="padding: 4px 8px; font-size: 12px">
+                <button onclick="editarTemplatePrompt('${
+                  template.id
+                }')" class="btn-small" style="padding: 4px 8px; font-size: 12px">✏️ Editar</button>
+                <button onclick="toggleAtivoTemplate('${
+                  template.id
+                }', ${!template.ativo})" class="btn-small" style="padding: 4px 8px; font-size: 12px">
                   ${template.ativo ? "⏸️ Desativar" : "▶️ Ativar"}
                 </button>
               </div>
             </div>
-            ${template.descricao ? `<p style="margin: 4px 0; color: #666; font-size: 13px">${template.descricao}</p>` : ""}
+            ${
+              template.descricao
+                ? `<p style="margin: 4px 0; color: #666; font-size: 13px">${template.descricao}</p>`
+                : ""
+            }
           </div>
         `;
       });
@@ -9019,13 +9291,17 @@ Máximo de 3 parágrafos.</code></pre>
     ).map((cb) => cb.value);
 
     const configuracoesHabilitadas = Array.from(
-      document.querySelectorAll("#templateConfiguracoesHabilitadas input:checked")
+      document.querySelectorAll(
+        "#templateConfiguracoesHabilitadas input:checked"
+      )
     ).map((cb) => cb.value);
 
     const dados = {
       nome: document.getElementById("templateNome").value.trim(),
       descricao: document.getElementById("templateDescricao").value.trim(),
-      prompt_completo: document.getElementById("templatePromptCompleto").value.trim(),
+      prompt_completo: document
+        .getElementById("templatePromptCompleto")
+        .value.trim(),
       sessoes_habilitadas: sessoesHabilitadas,
       configuracoes_empresa_habilitadas: configuracoesHabilitadas,
       categoria: document.getElementById("templateCategoria").value,
@@ -9059,7 +9335,7 @@ Máximo de 3 parágrafos.</code></pre>
       );
       fecharModalTemplatePrompt();
       await carregarTemplatesPrompt();
-      
+
       // Se estava no modal de listagem, recarregar
       const modalListagem = document.getElementById("modalTemplatePrompt");
       if (modalListagem && modalListagem.classList.contains("active")) {
@@ -9093,28 +9369,35 @@ Máximo de 3 parágrafos.</code></pre>
       document.getElementById("templateId").value = data.id;
       document.getElementById("templateNome").value = data.nome || "";
       document.getElementById("templateDescricao").value = data.descricao || "";
-      document.getElementById("templatePromptCompleto").value = data.prompt_completo || "";
-      document.getElementById("templateCategoria").value = data.categoria || "custom";
-      document.getElementById("templateExemploUso").value = data.exemplo_uso || "";
+      document.getElementById("templatePromptCompleto").value =
+        data.prompt_completo || "";
+      document.getElementById("templateCategoria").value =
+        data.categoria || "custom";
+      document.getElementById("templateExemploUso").value =
+        data.exemplo_uso || "";
       document.getElementById("templateAtivo").checked = data.ativo !== false;
 
       // Abrir modal e depois marcar checkboxes (aguardar carregamento)
       await abrirModalFormTemplatePrompt();
-      
+
       // Aguardar um pouco para garantir que checkboxes foram carregados
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Marcar sessões habilitadas
       const sessoesHabilitadas = data.sessoes_habilitadas || [];
-      document.querySelectorAll("#templateSessoesHabilitadas input").forEach((cb) => {
-        cb.checked = sessoesHabilitadas.includes(cb.value);
-      });
+      document
+        .querySelectorAll("#templateSessoesHabilitadas input")
+        .forEach((cb) => {
+          cb.checked = sessoesHabilitadas.includes(cb.value);
+        });
 
       // Marcar configurações habilitadas
       const configsHabilitadas = data.configuracoes_empresa_habilitadas || [];
-      document.querySelectorAll("#templateConfiguracoesHabilitadas input").forEach((cb) => {
-        cb.checked = configsHabilitadas.includes(cb.value);
-      });
+      document
+        .querySelectorAll("#templateConfiguracoesHabilitadas input")
+        .forEach((cb) => {
+          cb.checked = configsHabilitadas.includes(cb.value);
+        });
     } catch (error) {
       mostrarAlerta("Erro ao carregar template: " + error.message, "error");
       console.error(error);
@@ -9155,7 +9438,7 @@ Máximo de 3 parágrafos.</code></pre>
         document.getElementById("templateId").value
           ? "Editar Template"
           : "Novo Template";
-      
+
       // Carregar sessões e configurações para checkboxes
       await carregarSessoesParaTemplate();
       await carregarConfiguracoesParaTemplate();
@@ -9174,7 +9457,8 @@ Máximo de 3 parágrafos.</code></pre>
       const container = document.getElementById("templateSessoesHabilitadas");
       if (container && sessoes) {
         if (sessoes.length === 0) {
-          container.innerHTML = "<p style='color: #666; font-size: 14px'>Nenhuma sessão disponível.</p>";
+          container.innerHTML =
+            "<p style='color: #666; font-size: 14px'>Nenhuma sessão disponível.</p>";
         } else {
           let html = "";
           sessoes.forEach((sessao) => {
@@ -9203,10 +9487,13 @@ Máximo de 3 parágrafos.</code></pre>
         .order("categoria", { ascending: true })
         .order("titulo", { ascending: true });
 
-      const container = document.getElementById("templateConfiguracoesHabilitadas");
+      const container = document.getElementById(
+        "templateConfiguracoesHabilitadas"
+      );
       if (container && configuracoes) {
         if (configuracoes.length === 0) {
-          container.innerHTML = "<p style='color: #666; font-size: 14px'>Nenhuma configuração disponível.</p>";
+          container.innerHTML =
+            "<p style='color: #666; font-size: 14px'>Nenhuma configuração disponível.</p>";
         } else {
           let html = "";
           configuracoes.forEach((config) => {
@@ -9257,7 +9544,8 @@ Máximo de 3 parágrafos.</code></pre>
   window.abrirModalConfiguracaoEmpresa = abrirModalConfiguracaoEmpresa;
   window.fecharModalConfiguracaoEmpresa = fecharModalConfiguracaoEmpresa;
   window.abrirModalFormConfiguracaoEmpresa = abrirModalFormConfiguracaoEmpresa;
-  window.fecharModalFormConfiguracaoEmpresa = fecharModalFormConfiguracaoEmpresa;
+  window.fecharModalFormConfiguracaoEmpresa =
+    fecharModalFormConfiguracaoEmpresa;
   window.toggleAtivoConfiguracao = toggleAtivoConfiguracao;
   window.carregarSessoesContexto = carregarSessoesContexto;
   window.salvarSessaoContexto = salvarSessaoContexto;

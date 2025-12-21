@@ -10,6 +10,9 @@ O sistema permite cadastrar e gerenciar dados básicos que serão utilizados din
 - **Sessões de contexto pré-definidas**: Blocos de contexto que podem ser habilitados/desabilitados por campanha
 - **Templates de prompt completos**: Templates prontos que podem ser selecionados ao criar campanha
 - **Sobrescrita de dados globais**: Cada campanha pode sobrescrever configurações globais quando necessário
+- **Modo "Apenas Prompt Personalizado"**: Quando todas as configurações estão desmarcadas, envia apenas o prompt com mínimo de contexto
+
+> 📖 **Documentação completa do modo "Apenas Prompt Personalizado":** [modo-apenas-prompt-personalizado.md](modo-apenas-prompt-personalizado.md)
 
 ## Estrutura do Sistema
 
@@ -97,20 +100,24 @@ Sessões Habilitadas: ["sobre_empresa", "tom_voz"]
 ```
 1. Obter Campanha do Supabase
    ↓
-2. Buscar Configurações Globais (se usar_configuracoes_globais = TRUE)
+2. Verificar Modo "Apenas Prompt Personalizado"
+   (se todas configurações desmarcadas + prompt preenchido)
    ↓
-3. Aplicar Sobrescritas da Campanha
+3a. MODO MÍNIMO: Enviar apenas nome do cliente + prompt
+   OU
+3b. MODO COMPLETO:
+   - Buscar Configurações Globais (se usar_configuracoes_globais = TRUE)
+   - Aplicar Sobrescritas da Campanha
+   - Buscar Sessões Habilitadas
+   - Buscar Template (se template_prompt_id preenchido)
+   - Montar Contexto Dinâmico Completo
    ↓
-4. Buscar Sessões Habilitadas
-   ↓
-5. Buscar Template (se template_prompt_id preenchido)
-   ↓
-6. Montar Contexto Dinâmico
-   ↓
-7. Inserir no Prompt do AI Agent
+4. Inserir no Prompt do AI Agent
 ```
 
 ### Estrutura do Contexto Gerado
+
+#### Modo Completo (com configurações habilitadas)
 
 ```
 === DADOS DO CLIENTE ===
@@ -129,6 +136,16 @@ Cliente: [Nome]
 === INSTRUÇÕES DA CAMPANHA ===
 [Prompt da campanha ou template aplicado]
 ```
+
+#### Modo "Apenas Prompt Personalizado" (todas configurações desmarcadas)
+
+```
+Cliente: [Nome]
+
+[Prompt Personalizado]
+```
+
+> 💡 **Vantagens do modo mínimo:** Economia de tokens, controle total, contexto limpo e direto.
 
 ## Variáveis Disponíveis
 

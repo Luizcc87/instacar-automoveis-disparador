@@ -35,10 +35,13 @@ O sistema de campanhas permite:
    - **Prompt Personalizado**: Instruções específicas para a IA
      - **Como funciona:** Este prompt é inserido no contexto enviado para a IA junto com dados do cliente. A IA usa essas instruções para gerar mensagens personalizadas.
      - **Exemplo:** "Deseje um Feliz Natal de forma calorosa. Mencione oportunidades de fim de ano sem mencionar veículos específicos. Chame o cliente pelo nome."
+     - **Variáveis disponíveis:** `{{nome_cliente}}`, `{{telefone}}`, `{{data_hoje}}`, `{{periodo_ano}}`, `{{veiculos.length}}`
+     - **💡 Modo "Apenas Prompt":** Se você desmarcar todas as configurações de IA (veículos, configurações globais, sessões) e preencher este prompt, o sistema enviará apenas o prompt com mínimo de contexto. Veja: [modo-apenas-prompt-personalizado.md](modo-apenas-prompt-personalizado.md)
      - **Veja:** [GUIA-COMPLETO-CAMPANHAS.md](GUIA-COMPLETO-CAMPANHAS.md) seção 4 para entender como o prompt é usado
    - **Template de Mensagem**: Template base (opcional)
    - **Incluir Informações de Veículos**: Checkbox para incluir dados de veículos no contexto da IA (padrão: marcado)
    - **Incluir Nome do Vendedor**: Checkbox para incluir nome do vendedor no contexto da IA (padrão: desmarcado)
+   - **Usar Configurações Globais**: Checkbox para incluir configurações da empresa (políticas, tom de voz, etc.) no contexto (padrão: marcado)
    - **Tamanho do Lote**: Número de clientes a processar por execução (padrão: 50, mínimo: 10, máximo: 500)
    - **Horário Início**: Horário de início para processamento (padrão: 09:00)
    - **Horário Fim**: Horário de fim para processamento (padrão: 18:00)
@@ -92,12 +95,29 @@ O sistema permite controlar quais dados do cliente são incluídos no contexto d
 
 - **Incluir Informações de Veículos** (`usar_veiculos`): Se marcado, inclui dados de veículos adquiridos. Útil para campanhas promocionais. Para campanhas genéricas (Natal, Ano Novo), desmarque.
 - **Incluir Nome do Vendedor** (`usar_vendedor`): Se marcado, inclui o nome do vendedor do veículo mais recente. Útil para campanhas de relacionamento.
+- **Usar Configurações Globais** (`usar_configuracoes_globais`): Se marcado, inclui configurações da empresa (políticas, tom de voz, informações institucionais) no contexto. Desmarque para usar apenas o prompt personalizado.
 
 **Exemplos:**
 
-- **Natal/Ano Novo**: Desmarque ambos (mensagem genérica)
+- **Natal/Ano Novo**: Desmarque todos (mensagem genérica) → Ativa modo "Apenas Prompt Personalizado"
 - **Black Friday**: Marque apenas "Incluir Informações de Veículos"
-- **Relacionamento**: Marque ambos
+- **Relacionamento**: Marque todos para contexto completo
+
+### 💡 Modo "Apenas Prompt Personalizado"
+
+Quando você **desmarca todas** as configurações de IA (Usar Veículos, Usar Configurações Globais, Sessões de Contexto) e preenche o **Prompt Personalizado**, o sistema entra no modo mínimo:
+
+- ✅ Envia apenas o nome do cliente + prompt personalizado
+- ✅ Economiza tokens na API da OpenAI
+- ✅ Dá controle total sobre o que a IA recebe
+- ✅ Contexto limpo e direto
+
+**Quando usar:**
+- Campanhas simples onde você quer controle total
+- Quando o prompt já contém todas as informações necessárias
+- Para economizar tokens em campanhas grandes
+
+📖 **Documentação completa:** [modo-apenas-prompt-personalizado.md](modo-apenas-prompt-personalizado.md)
 
 Veja [guia-agente-ia-opcoes.md](guia-agente-ia-opcoes.md) para detalhes completos.
 

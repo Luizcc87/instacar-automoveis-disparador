@@ -26,10 +26,10 @@ Processa campanhas através deste pipeline:
 
 ```
 Trigger Manual → Buscar Campanha do Supabase
-    → Buscar Configurações Empresa (dados dinâmicos)
-    → Buscar Sessões Contexto (dados dinâmicos)
-    → Verificar/Buscar Template Prompt (dados dinâmicos)
-    → Preparar Dados IA Campanha (monta contexto dinâmico)
+    → Buscar Configurações Empresa (dados dinâmicos - se habilitado)
+    → Buscar Sessões Contexto (dados dinâmicos - se habilitado)
+    → Verificar/Buscar Template Prompt (dados dinâmicos - se configurado)
+    → Preparar Dados IA Campanha (monta contexto dinâmico ou modo mínimo)
     → Ler Google Sheets (planilhas da campanha)
     → Normalizar Telefones (55XXXXXXXXXXX)
     → Filtrar Inválidos → Split in Batches (tamanho: 1)
@@ -403,14 +403,18 @@ Sistema completo para gerenciar dados dinâmicos que são utilizados no prompt d
    - Modais para gerenciar configurações, sessões e templates
    - CRUD completo com validações
    - Integração com formulário de campanhas
+   - Tooltips e ajudas atualizadas sobre o modo "apenas prompt personalizado"
 
 5. **Workflow N8N Atualizado**:
    - 5 novos nós para buscar dados dinâmicos do Supabase
    - Montagem automática do contexto do agente IA
    - Suporte a templates, sessões e configurações sobrescritas
+   - **Modo "Apenas Prompt Personalizado"**: Quando todas as configurações estão desmarcadas, envia apenas o prompt com mínimo de contexto (economia de tokens)
 
-📖 **Guia completo**: [docs/campanhas/guia-dados-dinamicos-ia.md](docs/campanhas/guia-dados-dinamicos-ia.md)  
-📋 **Exemplos**: [docs/campanhas/exemplos-templates-sessoes.md](docs/campanhas/exemplos-templates-sessoes.md)
+📖 **Guias completos**: 
+- [docs/campanhas/guia-dados-dinamicos-ia.md](docs/campanhas/guia-dados-dinamicos-ia.md)  
+- [docs/campanhas/exemplos-templates-sessoes.md](docs/campanhas/exemplos-templates-sessoes.md)
+- [docs/campanhas/modo-apenas-prompt-personalizado.md](docs/campanhas/modo-apenas-prompt-personalizado.md) ⭐ **NOVO**
 
 ### Versão 2.3 (Dezembro 2025 - Gerenciamento de Instâncias WhatsApp)
 

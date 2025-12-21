@@ -24,7 +24,8 @@
       // Variáveis de ambiente injetadas em build time
       window.ENV = {
         SUPABASE_URL: "https://rirrnhelyutzunwicmkg.supabase.co",
-        SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpcnJuaGVseXV0enVud2ljbWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3OTIyMzAsImV4cCI6MjA2ODM2ODIzMH0.L2nJDqybzrl8sC4g5Oo9B92yfx2xfGAoTnZihCPtwg0"
+        SUPABASE_ANON_KEY:
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpcnJuaGVseXV0enVud2ljbWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3OTIyMzAsImV4cCI6MjA2ODM2ODIzMH0.L2nJDqybzrl8sC4g5Oo9B92yfx2xfGAoTnZihCPtwg0",
       };
     </script>
     <!-- Configuração opcional (apenas para Uazapi e N8N) -->
@@ -1595,31 +1596,78 @@
       <!-- Seção: Dados Dinâmicos do Agente IA -->
       <div class="config-section">
         <h2>🤖 Dados Dinâmicos do Agente IA</h2>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px">
-          <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f9f9f9">
-            <h3 style="margin-top: 0; font-size: 1.1em">⚙️ Configurações da Empresa</h3>
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+          "
+        >
+          <div
+            style="
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 15px;
+              background: #f9f9f9;
+            "
+          >
+            <h3 style="margin-top: 0; font-size: 1.1em">
+              ⚙️ Configurações da Empresa
+            </h3>
             <p style="color: #666; font-size: 14px; margin-bottom: 15px">
-              Gerencie configurações globais (políticas, tom de voz, informações da empresa)
+              Gerencie configurações globais (políticas, tom de voz, informações
+              da empresa)
             </p>
-            <button onclick="abrirModalConfiguracaoEmpresa()" class="btn-primary" style="width: 100%">
+            <button
+              onclick="abrirModalConfiguracaoEmpresa()"
+              class="btn-primary"
+              style="width: 100%"
+            >
               Gerenciar Configurações
             </button>
           </div>
-          <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f9f9f9">
-            <h3 style="margin-top: 0; font-size: 1.1em">📝 Sessões de Contexto</h3>
+          <div
+            style="
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 15px;
+              background: #f9f9f9;
+            "
+          >
+            <h3 style="margin-top: 0; font-size: 1.1em">
+              📝 Sessões de Contexto
+            </h3>
             <p style="color: #666; font-size: 14px; margin-bottom: 15px">
               Gerencie blocos de contexto pré-definidos para o agente IA
             </p>
-            <button onclick="abrirModalSessaoContexto()" class="btn-primary" style="width: 100%">
+            <button
+              onclick="abrirModalSessaoContexto()"
+              class="btn-primary"
+              style="width: 100%"
+            >
               Gerenciar Sessões
             </button>
           </div>
-          <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f9f9f9">
-            <h3 style="margin-top: 0; font-size: 1.1em">📋 Templates de Prompt</h3>
+          <div
+            style="
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 15px;
+              background: #f9f9f9;
+            "
+          >
+            <h3 style="margin-top: 0; font-size: 1.1em">
+              📋 Templates de Prompt
+            </h3>
             <p style="color: #666; font-size: 14px; margin-bottom: 15px">
               Gerencie templates completos de prompt para campanhas
             </p>
-            <button onclick="abrirModalTemplatePrompt()" class="btn-primary" style="width: 100%">
+            <button
+              onclick="abrirModalTemplatePrompt()"
+              class="btn-primary"
+              style="width: 100%"
+            >
               Gerenciar Templates
             </button>
           </div>
@@ -2051,15 +2099,27 @@
               placeholder="Ex: uazapi-principal (será: Instacar_a3k9m2_uazapi-principal)"
             />
             <small style="color: #666">
-              ⚠️ <strong>Digite apenas o nome</strong> (sem o prefixo "Instacar_"). O prefixo será adicionado automaticamente.
-              <br>
-              Nome será normalizado: minúsculas, espaços viram underscores, acentos removidos. Hífens e underscores existentes são preservados.
-              <br>
-              <strong>Exemplos:</strong> 
-              <ul style="margin: 5px 0; padding-left: 20px;">
-                <li>Digite "Número 02" → Será salvo como "Instacar_a3k9m2_numero_02"</li>
-                <li>Digite "numero-01" → Será salvo como "Instacar_a3k9m2_numero-01" (hífen preservado)</li>
-                <li>Digite "numero_02" → Será salvo como "Instacar_a3k9m2_numero_02" (underscore preservado)</li>
+              ⚠️ <strong>Digite apenas o nome</strong> (sem o prefixo
+              "Instacar_"). O prefixo será adicionado automaticamente.
+              <br />
+              Nome será normalizado: minúsculas, espaços viram underscores,
+              acentos removidos. Hífens e underscores existentes são
+              preservados.
+              <br />
+              <strong>Exemplos:</strong>
+              <ul style="margin: 5px 0; padding-left: 20px">
+                <li>
+                  Digite "Número 02" → Será salvo como
+                  "Instacar_a3k9m2_numero_02"
+                </li>
+                <li>
+                  Digite "numero-01" → Será salvo como
+                  "Instacar_a3k9m2_numero-01" (hífen preservado)
+                </li>
+                <li>
+                  Digite "numero_02" → Será salvo como
+                  "Instacar_a3k9m2_numero_02" (underscore preservado)
+                </li>
               </ul>
               Código de 6 caracteres gerado automaticamente.
             </small>
@@ -2094,7 +2154,10 @@
           </div>
 
           <div class="form-group">
-            <label>Admin Token (Opcional - Apenas para criar novas instâncias na Uazapi)</label>
+            <label
+              >Admin Token (Opcional - Apenas para criar novas instâncias na
+              Uazapi)</label
+            >
             <div style="display: flex; gap: 10px">
               <input
                 type="password"
@@ -2112,17 +2175,34 @@
             </div>
             <small style="color: #666">
               ⚠️ <strong>Quando usar Admin Token:</strong>
-              <ul style="margin: 5px 0; padding-left: 20px;">
-                <li>✅ <strong>Criar</strong> nova instância na Uazapi via interface</li>
-                <li>❌ <strong>Não precisa</strong> para editar instâncias existentes</li>
-                <li>❌ <strong>Não precisa</strong> para deletar instâncias (usa Instance Token)</li>
+              <ul style="margin: 5px 0; padding-left: 20px">
+                <li>
+                  ✅ <strong>Criar</strong> nova instância na Uazapi via
+                  interface
+                </li>
+                <li>
+                  ❌ <strong>Não precisa</strong> para editar instâncias
+                  existentes
+                </li>
+                <li>
+                  ❌ <strong>Não precisa</strong> para deletar instâncias (usa
+                  Instance Token)
+                </li>
               </ul>
-              Se você já tem uma instância criada, deixe este campo vazio e use apenas o Instance Token abaixo.
+              Se você já tem uma instância criada, deixe este campo vazio e use
+              apenas o Instance Token abaixo.
             </small>
           </div>
 
           <div class="form-group">
-            <label>Instance Token <span id="instanciaUazapiTokenRequired" style="color: red; display: none;">*</span></label>
+            <label
+              >Instance Token
+              <span
+                id="instanciaUazapiTokenRequired"
+                style="color: red; display: none"
+                >*</span
+              ></label
+            >
             <div style="display: flex; gap: 10px">
               <input
                 type="password"
@@ -2140,13 +2220,25 @@
             </div>
             <small style="color: #666">
               <strong>Quando usar Instance Token:</strong>
-              <ul style="margin: 5px 0; padding-left: 20px;">
-                <li>✅ <strong>Obrigatório</strong> se você já tem uma instância criada na Uazapi (não forneceu Admin Token)</li>
-                <li>✅ <strong>Obrigatório</strong> para editar instâncias existentes</li>
-                <li>✅ <strong>Obrigatório</strong> para APIs que não sejam Uazapi</li>
-                <li>❌ <strong>Não precisa</strong> se você forneceu Admin Token acima (será gerado automaticamente)</li>
+              <ul style="margin: 5px 0; padding-left: 20px">
+                <li>
+                  ✅ <strong>Obrigatório</strong> se você já tem uma instância
+                  criada na Uazapi (não forneceu Admin Token)
+                </li>
+                <li>
+                  ✅ <strong>Obrigatório</strong> para editar instâncias
+                  existentes
+                </li>
+                <li>
+                  ✅ <strong>Obrigatório</strong> para APIs que não sejam Uazapi
+                </li>
+                <li>
+                  ❌ <strong>Não precisa</strong> se você forneceu Admin Token
+                  acima (será gerado automaticamente)
+                </li>
               </ul>
-              O Instance Token é usado para operações regulares (conectar, enviar mensagens, deletar instâncias, etc.).
+              O Instance Token é usado para operações regulares (conectar,
+              enviar mensagens, deletar instâncias, etc.).
             </small>
           </div>
 
@@ -2244,7 +2336,8 @@
               <option value="">Carregando instâncias...</option>
             </select>
             <small style="color: #666; display: block; margin-top: 5px">
-              Selecione a instância WhatsApp que será usada para enviar a mensagem
+              Selecione a instância WhatsApp que será usada para enviar a
+              mensagem
             </small>
           </div>
 
@@ -2518,8 +2611,13 @@
             </div>
 
             <!-- Seção: Dados Dinâmicos do Agente IA -->
-            <div class="form-group" style="margin-top: 20px; margin-bottom: 15px">
-              <label style="display: flex; align-items: center; cursor: pointer">
+            <div
+              class="form-group"
+              style="margin-top: 20px; margin-bottom: 15px"
+            >
+              <label
+                style="display: flex; align-items: center; cursor: pointer"
+              >
                 <input
                   type="checkbox"
                   id="usar_configuracoes_globais"
@@ -2529,7 +2627,8 @@
                 <span>Usar configurações globais da empresa</span>
               </label>
               <small style="color: #666; display: block; margin-top: 5px">
-                Se marcado, usa configurações globais como base. Pode ser sobrescrito abaixo.
+                Se marcado, usa configurações globais como base. Pode ser
+                sobrescrito abaixo.
               </small>
             </div>
 
@@ -2539,29 +2638,55 @@
                 <option value="">Nenhum - usar prompt personalizado</option>
               </select>
               <small style="color: #666; display: block; margin-top: 5px">
-                Selecione um template para usar como base do prompt. O prompt personalizado será ignorado se um template for selecionado.
+                Selecione um template para usar como base do prompt. O prompt
+                personalizado será ignorado se um template for selecionado.
               </small>
             </div>
 
             <div class="form-group" style="margin-bottom: 15px">
               <label>Sessões de Contexto Habilitadas</label>
-              <div id="sessoes_contexto_checkboxes" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
-                <p style="color: #666; font-size: 14px">Carregando sessões...</p>
+              <div
+                id="sessoes_contexto_checkboxes"
+                style="
+                  max-height: 200px;
+                  overflow-y: auto;
+                  border: 1px solid #ddd;
+                  padding: 10px;
+                  border-radius: 4px;
+                "
+              >
+                <p style="color: #666; font-size: 14px">
+                  Carregando sessões...
+                </p>
               </div>
               <small style="color: #666; display: block; margin-top: 5px">
-                Selecione quais sessões de contexto incluir no prompt do agente IA.
+                Selecione quais sessões de contexto incluir no prompt do agente
+                IA.
               </small>
             </div>
 
             <details style="margin-top: 15px; margin-bottom: 15px">
-              <summary style="cursor: pointer; font-weight: 600; color: #667eea">
+              <summary
+                style="cursor: pointer; font-weight: 600; color: #667eea"
+              >
                 Sobrescrever Configurações Globais (opcional)
               </summary>
-              <div id="configuracoes_sobrescritas" style="margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
-                <p style="color: #666; font-size: 14px">Carregando configurações...</p>
+              <div
+                id="configuracoes_sobrescritas"
+                style="
+                  margin-top: 10px;
+                  padding: 10px;
+                  background: #f9f9f9;
+                  border-radius: 4px;
+                "
+              >
+                <p style="color: #666; font-size: 14px">
+                  Carregando configurações...
+                </p>
               </div>
               <small style="color: #666; display: block; margin-top: 5px">
-                Deixe vazio para usar a configuração global. Preencha para sobrescrever.
+                Deixe vazio para usar a configuração global. Preencha para
+                sobrescrever.
               </small>
             </details>
           </div>
@@ -2618,108 +2743,266 @@
             </div>
 
             <!-- Seção: Modo Teste e Debug -->
-            <div class="form-section" style="margin-top: 20px; margin-bottom: 20px;">
-              <h3 style="margin-top: 0; margin-bottom: 1rem; color: #333; font-size: 1.1rem;">🧪 Modo Teste e Debug</h3>
-              
+            <div
+              class="form-section"
+              style="margin-top: 20px; margin-bottom: 20px"
+            >
+              <h3
+                style="
+                  margin-top: 0;
+                  margin-bottom: 1rem;
+                  color: #333;
+                  font-size: 1.1rem;
+                "
+              >
+                🧪 Modo Teste e Debug
+              </h3>
+
               <!-- Modo Teste -->
               <div class="form-group">
-                <label for="modo_teste" style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="checkbox" id="modo_teste" style="width: auto; margin-right: 8px;" />
+                <label
+                  for="modo_teste"
+                  style="display: flex; align-items: center; cursor: pointer"
+                >
+                  <input
+                    type="checkbox"
+                    id="modo_teste"
+                    style="width: auto; margin-right: 8px"
+                  />
                   <span>Modo Teste (substituir telefones dos clientes)</span>
                 </label>
-                <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; margin-bottom: 0;">
-                  Quando ativado, processa clientes normalmente mas envia mensagens para os telefones de teste.
+                <p
+                  class="help-text"
+                  style="
+                    font-size: 0.85rem;
+                    color: #666;
+                    margin-top: 0.25rem;
+                    margin-bottom: 0;
+                  "
+                >
+                  Quando ativado, processa clientes normalmente mas envia
+                  mensagens para os telefones de teste.
                 </p>
               </div>
-              
-              <div class="form-group" id="telefones_teste_group" style="display: none;">
+
+              <div
+                class="form-group"
+                id="telefones_teste_group"
+                style="display: none"
+              >
                 <label for="telefones_teste">
                   Telefones de Teste
-                  <span style="color: #999; font-size: 0.85rem;">(deixe vazio para usar configuração global)</span>
+                  <span style="color: #999; font-size: 0.85rem"
+                    >(deixe vazio para usar configuração global)</span
+                  >
                 </label>
                 <textarea
                   id="telefones_teste"
                   rows="3"
                   placeholder="5511999999999&#10;5511988888888&#10;(um por linha)"
-                  style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"
+                  style="
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-family: monospace;
+                  "
                 ></textarea>
-                <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; margin-bottom: 0;">
-                  Digite um telefone por linha no formato 55XXXXXXXXXXX (código país + DDD + número).
+                <p
+                  class="help-text"
+                  style="
+                    font-size: 0.85rem;
+                    color: #666;
+                    margin-top: 0.25rem;
+                    margin-bottom: 0;
+                  "
+                >
+                  Digite um telefone por linha no formato 55XXXXXXXXXXX (código
+                  país + DDD + número).
                 </p>
-                <div id="telefones_teste_validacao" class="validation-message" style="font-size: 0.85rem; margin-top: 0.5rem; padding: 0.5rem; border-radius: 4px;"></div>
+                <div
+                  id="telefones_teste_validacao"
+                  class="validation-message"
+                  style="
+                    font-size: 0.85rem;
+                    margin-top: 0.5rem;
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                  "
+                ></div>
               </div>
-              
+
               <!-- Modo Debug -->
               <div class="form-group">
-                <label for="modo_debug" style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="checkbox" id="modo_debug" style="width: auto; margin-right: 8px;" />
+                <label
+                  for="modo_debug"
+                  style="display: flex; align-items: center; cursor: pointer"
+                >
+                  <input
+                    type="checkbox"
+                    id="modo_debug"
+                    style="width: auto; margin-right: 8px"
+                  />
                   <span>Modo Debug (logs detalhados)</span>
                 </label>
-                <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; margin-bottom: 0;">
-                  Ativa logs detalhados no N8N para debug do fluxo de processamento.
+                <p
+                  class="help-text"
+                  style="
+                    font-size: 0.85rem;
+                    color: #666;
+                    margin-top: 0.25rem;
+                    margin-bottom: 0;
+                  "
+                >
+                  Ativa logs detalhados no N8N para debug do fluxo de
+                  processamento.
                 </p>
               </div>
             </div>
 
             <!-- Seção: Notificações Admin -->
-            <div class="form-section" style="margin-top: 20px; margin-bottom: 20px;">
-              <h3 style="margin-top: 0; margin-bottom: 1rem; color: #333; font-size: 1.1rem;">🔔 Notificações Admin</h3>
-              
+            <div
+              class="form-section"
+              style="margin-top: 20px; margin-bottom: 20px"
+            >
+              <h3
+                style="
+                  margin-top: 0;
+                  margin-bottom: 1rem;
+                  color: #333;
+                  font-size: 1.1rem;
+                "
+              >
+                🔔 Notificações Admin
+              </h3>
+
               <div class="form-group">
                 <label for="telefones_admin">
                   Telefones Admin
-                  <span style="color: #999; font-size: 0.85rem;">(deixe vazio para usar configuração global)</span>
+                  <span style="color: #999; font-size: 0.85rem"
+                    >(deixe vazio para usar configuração global)</span
+                  >
                 </label>
                 <textarea
                   id="telefones_admin"
                   rows="2"
                   placeholder="5511999999999&#10;5511988888888"
-                  style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"
+                  style="
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-family: monospace;
+                  "
                 ></textarea>
-                <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; margin-bottom: 0;">
-                  Telefones que receberão notificações sobre a campanha (um por linha).
+                <p
+                  class="help-text"
+                  style="
+                    font-size: 0.85rem;
+                    color: #666;
+                    margin-top: 0.25rem;
+                    margin-bottom: 0;
+                  "
+                >
+                  Telefones que receberão notificações sobre a campanha (um por
+                  linha).
                 </p>
-                <div id="telefones_admin_validacao" class="validation-message" style="font-size: 0.85rem; margin-top: 0.5rem; padding: 0.5rem; border-radius: 4px;"></div>
+                <div
+                  id="telefones_admin_validacao"
+                  class="validation-message"
+                  style="
+                    font-size: 0.85rem;
+                    margin-top: 0.5rem;
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                  "
+                ></div>
               </div>
-              
+
               <div class="form-group">
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="checkbox" id="notificar_inicio" style="width: auto; margin-right: 8px;" />
+                <label
+                  style="display: flex; align-items: center; cursor: pointer"
+                >
+                  <input
+                    type="checkbox"
+                    id="notificar_inicio"
+                    style="width: auto; margin-right: 8px"
+                  />
                   <span>Notificar ao iniciar campanha</span>
                 </label>
               </div>
-              
+
               <div class="form-group">
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="checkbox" id="notificar_erros" checked style="width: auto; margin-right: 8px;" />
+                <label
+                  style="display: flex; align-items: center; cursor: pointer"
+                >
+                  <input
+                    type="checkbox"
+                    id="notificar_erros"
+                    checked
+                    style="width: auto; margin-right: 8px"
+                  />
                   <span>Notificar erros críticos</span>
                 </label>
               </div>
-              
+
               <div class="form-group">
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="checkbox" id="notificar_conclusao" checked style="width: auto; margin-right: 8px;" />
+                <label
+                  style="display: flex; align-items: center; cursor: pointer"
+                >
+                  <input
+                    type="checkbox"
+                    id="notificar_conclusao"
+                    checked
+                    style="width: auto; margin-right: 8px"
+                  />
                   <span>Notificar ao concluir campanha</span>
                 </label>
               </div>
-              
+
               <div class="form-group">
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="checkbox" id="notificar_limite" style="width: auto; margin-right: 8px;" />
+                <label
+                  style="display: flex; align-items: center; cursor: pointer"
+                >
+                  <input
+                    type="checkbox"
+                    id="notificar_limite"
+                    style="width: auto; margin-right: 8px"
+                  />
                   <span>Notificar ao atingir limite diário</span>
                 </label>
               </div>
-              
+
               <div class="form-group">
                 <label for="whatsapp_api_id_admin">
                   Instância WhatsApp para Notificações
-                  <span style="color: #999; font-size: 0.85rem;">(deixe vazio para usar a mesma da campanha)</span>
+                  <span style="color: #999; font-size: 0.85rem"
+                    >(deixe vazio para usar a mesma da campanha)</span
+                  >
                 </label>
-                <select id="whatsapp_api_id_admin" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <select
+                  id="whatsapp_api_id_admin"
+                  style="
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                  "
+                >
                   <option value="">-- Usar instância da campanha --</option>
                 </select>
-                <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; margin-bottom: 0;">
-                  Escolha uma instância diferente para evitar sobrecarga na instância principal da campanha. Recomendado: usar instância dedicada para notificações admin.
+                <p
+                  class="help-text"
+                  style="
+                    font-size: 0.85rem;
+                    color: #666;
+                    margin-top: 0.25rem;
+                    margin-bottom: 0;
+                  "
+                >
+                  Escolha uma instância diferente para evitar sobrecarga na
+                  instância principal da campanha. Recomendado: usar instância
+                  dedicada para notificações admin.
                 </p>
               </div>
             </div>
@@ -2757,11 +3040,19 @@
                 👥 Selecionar Clientes para Campanha
               </h4>
               <p style="color: #666; font-size: 14px; margin-bottom: 15px">
-                Por padrão, a campanha enviará para todos os clientes elegíveis. 
-                Selecione clientes específicos abaixo para limitar o envio apenas a eles.
+                Por padrão, a campanha enviará para todos os clientes elegíveis.
+                Selecione clientes específicos abaixo para limitar o envio
+                apenas a eles.
               </p>
-              
-              <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap">
+
+              <div
+                style="
+                  display: flex;
+                  gap: 10px;
+                  margin-bottom: 15px;
+                  flex-wrap: wrap;
+                "
+              >
                 <button
                   type="button"
                   onclick="selecionarTodosClientes()"
@@ -2793,13 +3084,20 @@
                   type="text"
                   id="buscaClientesSelecao"
                   placeholder="Buscar cliente por nome ou telefone..."
-                  style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px"
+                  style="
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                  "
                   onkeyup="filtrarClientesSelecao()"
                 />
               </div>
 
               <div style="margin-bottom: 10px">
-                <strong id="contadorClientesSelecionados">0 clientes selecionados</strong>
+                <strong id="contadorClientesSelecionados"
+                  >0 clientes selecionados</strong
+                >
               </div>
 
               <div
@@ -2819,9 +3117,11 @@
               </div>
 
               <small style="color: #666; display: block; margin-top: 10px">
-                Apenas clientes com WhatsApp validado são exibidos (ativo, não bloqueado, status_whatsapp = 'valid').
-                Para verificar o WhatsApp de um cliente, use o botão "✅ Verificar WhatsApp" na lista de clientes.
-                Se nenhum cliente for selecionado, a campanha enviará para todos os elegíveis.
+                Apenas clientes com WhatsApp validado são exibidos (ativo, não
+                bloqueado, status_whatsapp = 'valid'). Para verificar o WhatsApp
+                de um cliente, use o botão "✅ Verificar WhatsApp" na lista de
+                clientes. Se nenhum cliente for selecionado, a campanha enviará
+                para todos os elegíveis.
               </small>
             </div>
 
@@ -3052,7 +3352,8 @@ Registra no histórico (Supabase)
             <ul>
               <li>
                 <strong>Prompt Personalizado:</strong> Instruções para a IA
-                gerar mensagens
+                gerar mensagens. Use variáveis como
+                <code>{{nome_cliente}}</code>, <code>{{data_hoje}}</code>, etc.
               </li>
               <li>
                 <strong>Template de Mensagem:</strong> Base opcional para as
@@ -3066,7 +3367,36 @@ Registra no histórico (Supabase)
                 <strong>Usar Vendedor:</strong> Incluir nome do vendedor nas
                 mensagens
               </li>
+              <li>
+                <strong>Usar Configurações Globais:</strong> Incluir
+                configurações da empresa (políticas, tom de voz, etc.) no
+                contexto
+              </li>
             </ul>
+
+            <div
+              style="
+                background: #f0f9ff;
+                border-left: 4px solid #3b82f6;
+                padding: 12px;
+                margin: 15px 0;
+                border-radius: 4px;
+              "
+            >
+              <strong>💡 Modo "Apenas Prompt Personalizado":</strong>
+              <p style="margin: 8px 0 0 0">
+                Se você <strong>desmarcar todas</strong> as configurações de IA
+                (Usar Veículos, Usar Configurações Globais, Sessões de Contexto)
+                e preencher o Prompt Personalizado, o sistema enviará
+                <strong>apenas o prompt</strong> com o mínimo de contexto (nome
+                do cliente). Isso economiza tokens e dá controle total sobre o
+                que a IA recebe.
+              </p>
+              <p style="margin: 8px 0 0 0">
+                <strong>Quando usar:</strong> Campanhas simples onde você quer
+                controle total, sem contexto adicional da empresa ou veículos.
+              </p>
+            </div>
 
             <h4>Processamento</h4>
             <ul>
@@ -3553,7 +3883,14 @@ Registra no histórico (Supabase)
             </div>
 
             <div class="cliente-field">
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer">
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  cursor: pointer;
+                "
+              >
                 <input
                   type="checkbox"
                   id="fieldBloqueadoEnviosInput"
@@ -3564,7 +3901,8 @@ Registra no histórico (Supabase)
               </label>
               <div class="field-value" id="fieldBloqueadoEnviosValue"></div>
               <small style="color: #666; display: block; margin-top: 5px">
-                Se marcado, este cliente não receberá mensagens de campanhas, mesmo que esteja selecionado.
+                Se marcado, este cliente não receberá mensagens de campanhas,
+                mesmo que esteja selecionado.
               </small>
             </div>
 
@@ -3759,12 +4097,20 @@ Registra no histórico (Supabase)
     <div id="modalConfiguracaoEmpresa" class="modal">
       <div class="modal-content" style="max-width: 900px; max-height: 90vh">
         <div class="modal-header">
-          <h2 id="modalConfiguracaoEmpresaTitle">⚙️ Gerenciar Configurações da Empresa</h2>
-          <button class="close" onclick="fecharModalConfiguracaoEmpresa()">&times;</button>
+          <h2 id="modalConfiguracaoEmpresaTitle">
+            ⚙️ Gerenciar Configurações da Empresa
+          </h2>
+          <button class="close" onclick="fecharModalConfiguracaoEmpresa()">
+            &times;
+          </button>
         </div>
         <div style="overflow-y: auto; max-height: calc(90vh - 100px)">
           <div style="margin-bottom: 20px">
-            <button onclick="abrirModalFormConfiguracaoEmpresa()" class="btn-success" style="margin-bottom: 15px">
+            <button
+              onclick="abrirModalFormConfiguracaoEmpresa()"
+              class="btn-success"
+              style="margin-bottom: 15px"
+            >
               ➕ Nova Configuração
             </button>
             <div id="listaConfiguracoesEmpresa">
@@ -3780,14 +4126,27 @@ Registra no histórico (Supabase)
       <div class="modal-content" style="max-width: 700px">
         <div class="modal-header">
           <h2 id="modalFormConfiguracaoEmpresaTitle">Nova Configuração</h2>
-          <button class="close" onclick="fecharModalFormConfiguracaoEmpresa()">&times;</button>
+          <button class="close" onclick="fecharModalFormConfiguracaoEmpresa()">
+            &times;
+          </button>
         </div>
-        <form id="formConfiguracaoEmpresa" onsubmit="event.preventDefault(); salvarConfiguracaoEmpresa(document.getElementById('configEmpresaId').value)">
+        <form
+          id="formConfiguracaoEmpresa"
+          onsubmit="event.preventDefault(); salvarConfiguracaoEmpresa(document.getElementById('configEmpresaId').value)"
+        >
           <input type="hidden" id="configEmpresaId" />
           <div class="form-group">
             <label>Chave *</label>
-            <input type="text" id="configEmpresaChave" required placeholder="ex: politicas.tom_voz" />
-            <small style="color: #666">Identificador único (ex: politicas.tom_voz, sobre_empresa.missao)</small>
+            <input
+              type="text"
+              id="configEmpresaChave"
+              required
+              placeholder="ex: politicas.tom_voz"
+            />
+            <small style="color: #666"
+              >Identificador único (ex: politicas.tom_voz,
+              sobre_empresa.missao)</small
+            >
           </div>
           <div class="form-group">
             <label>Categoria *</label>
@@ -3807,7 +4166,10 @@ Registra no histórico (Supabase)
           <div class="form-group">
             <label>Conteúdo *</label>
             <textarea id="configEmpresaConteudo" rows="6" required></textarea>
-            <small style="color: #666">Pode usar variáveis: {{nome_cliente}}, {{data_hoje}}, {{periodo_ano}}, etc.</small>
+            <small style="color: #666"
+              >Pode usar variáveis: {{nome_cliente}}, {{data_hoje}},
+              {{periodo_ano}}, etc.</small
+            >
           </div>
           <div class="form-group">
             <label>Descrição</label>
@@ -3819,15 +4181,28 @@ Registra no histórico (Supabase)
               <input type="number" id="configEmpresaOrdem" value="0" min="0" />
             </div>
             <div class="form-group">
-              <label style="display: flex; align-items: center; cursor: pointer">
-                <input type="checkbox" id="configEmpresaAtivo" checked style="width: auto; margin-right: 8px" />
+              <label
+                style="display: flex; align-items: center; cursor: pointer"
+              >
+                <input
+                  type="checkbox"
+                  id="configEmpresaAtivo"
+                  checked
+                  style="width: auto; margin-right: 8px"
+                />
                 <span>Ativo</span>
               </label>
             </div>
           </div>
           <div style="display: flex; gap: 10px; margin-top: 20px">
             <button type="submit" class="btn-success">Salvar</button>
-            <button type="button" class="btn-secondary" onclick="fecharModalFormConfiguracaoEmpresa()">Cancelar</button>
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="fecharModalFormConfiguracaoEmpresa()"
+            >
+              Cancelar
+            </button>
           </div>
         </form>
       </div>
@@ -3837,12 +4212,20 @@ Registra no histórico (Supabase)
     <div id="modalSessaoContexto" class="modal">
       <div class="modal-content" style="max-width: 900px; max-height: 90vh">
         <div class="modal-header">
-          <h2 id="modalSessaoContextoTitle">📝 Gerenciar Sessões de Contexto</h2>
-          <button class="close" onclick="fecharModalSessaoContexto()">&times;</button>
+          <h2 id="modalSessaoContextoTitle">
+            📝 Gerenciar Sessões de Contexto
+          </h2>
+          <button class="close" onclick="fecharModalSessaoContexto()">
+            &times;
+          </button>
         </div>
         <div style="overflow-y: auto; max-height: calc(90vh - 100px)">
           <div style="margin-bottom: 20px">
-            <button onclick="abrirModalFormSessaoContexto()" class="btn-success" style="margin-bottom: 15px">
+            <button
+              onclick="abrirModalFormSessaoContexto()"
+              class="btn-success"
+              style="margin-bottom: 15px"
+            >
               ➕ Nova Sessão
             </button>
             <div id="listaSessoesContexto">
@@ -3858,9 +4241,14 @@ Registra no histórico (Supabase)
       <div class="modal-content" style="max-width: 800px">
         <div class="modal-header">
           <h2 id="modalFormSessaoContextoTitle">Nova Sessão</h2>
-          <button class="close" onclick="fecharModalSessaoContexto()">&times;</button>
+          <button class="close" onclick="fecharModalSessaoContexto()">
+            &times;
+          </button>
         </div>
-        <form id="formSessaoContexto" onsubmit="event.preventDefault(); salvarSessaoContexto(document.getElementById('sessaoId').value)">
+        <form
+          id="formSessaoContexto"
+          onsubmit="event.preventDefault(); salvarSessaoContexto(document.getElementById('sessaoId').value)"
+        >
           <input type="hidden" id="sessaoId" />
           <div class="form-group">
             <label>Nome *</label>
@@ -3868,22 +4256,38 @@ Registra no histórico (Supabase)
           </div>
           <div class="form-group">
             <label>Slug *</label>
-            <input type="text" id="sessaoSlug" required placeholder="ex: sobre_empresa" />
-            <small style="color: #666">Identificador único (ex: sobre_empresa, ofertas_especiais)</small>
+            <input
+              type="text"
+              id="sessaoSlug"
+              required
+              placeholder="ex: sobre_empresa"
+            />
+            <small style="color: #666"
+              >Identificador único (ex: sobre_empresa, ofertas_especiais)</small
+            >
           </div>
           <div class="form-group">
             <label>Categoria</label>
-            <input type="text" id="sessaoCategoria" placeholder="ex: institucional, promocional" />
+            <input
+              type="text"
+              id="sessaoCategoria"
+              placeholder="ex: institucional, promocional"
+            />
           </div>
           <div class="form-group">
             <label>Template de Conteúdo *</label>
             <textarea id="sessaoConteudoTemplate" rows="8" required></textarea>
-            <small style="color: #666">Pode usar variáveis: {{nome_cliente}}, {{data_hoje}}, {{veiculos.length}}, etc.</small>
+            <small style="color: #666"
+              >Pode usar variáveis: {{nome_cliente}}, {{data_hoje}},
+              {{veiculos.length}}, etc.</small
+            >
           </div>
           <div class="form-group">
             <label>Exemplo Preenchido</label>
             <textarea id="sessaoExemploPreenchido" rows="4"></textarea>
-            <small style="color: #666">Exemplo já preenchido para referência</small>
+            <small style="color: #666"
+              >Exemplo já preenchido para referência</small
+            >
           </div>
           <div class="form-group">
             <label>Descrição</label>
@@ -3895,21 +4299,40 @@ Registra no histórico (Supabase)
               <input type="number" id="sessaoOrdem" value="0" min="0" />
             </div>
             <div class="form-group">
-              <label style="display: flex; align-items: center; cursor: pointer">
-                <input type="checkbox" id="sessaoHabilitadoPorPadrao" style="width: auto; margin-right: 8px" />
+              <label
+                style="display: flex; align-items: center; cursor: pointer"
+              >
+                <input
+                  type="checkbox"
+                  id="sessaoHabilitadoPorPadrao"
+                  style="width: auto; margin-right: 8px"
+                />
                 <span>Habilitado por Padrão</span>
               </label>
             </div>
             <div class="form-group">
-              <label style="display: flex; align-items: center; cursor: pointer">
-                <input type="checkbox" id="sessaoAtivo" checked style="width: auto; margin-right: 8px" />
+              <label
+                style="display: flex; align-items: center; cursor: pointer"
+              >
+                <input
+                  type="checkbox"
+                  id="sessaoAtivo"
+                  checked
+                  style="width: auto; margin-right: 8px"
+                />
                 <span>Ativo</span>
               </label>
             </div>
           </div>
           <div style="display: flex; gap: 10px; margin-top: 20px">
             <button type="submit" class="btn-success">Salvar</button>
-            <button type="button" class="btn-secondary" onclick="fecharModalSessaoContexto()">Cancelar</button>
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="fecharModalSessaoContexto()"
+            >
+              Cancelar
+            </button>
           </div>
         </form>
       </div>
@@ -3919,12 +4342,20 @@ Registra no histórico (Supabase)
     <div id="modalTemplatePrompt" class="modal">
       <div class="modal-content" style="max-width: 900px; max-height: 90vh">
         <div class="modal-header">
-          <h2 id="modalTemplatePromptTitle">📋 Gerenciar Templates de Prompt</h2>
-          <button class="close" onclick="fecharModalTemplatePrompt()">&times;</button>
+          <h2 id="modalTemplatePromptTitle">
+            📋 Gerenciar Templates de Prompt
+          </h2>
+          <button class="close" onclick="fecharModalTemplatePrompt()">
+            &times;
+          </button>
         </div>
         <div style="overflow-y: auto; max-height: calc(90vh - 100px)">
           <div style="margin-bottom: 20px">
-            <button onclick="abrirModalFormTemplatePrompt()" class="btn-success" style="margin-bottom: 15px">
+            <button
+              onclick="abrirModalFormTemplatePrompt()"
+              class="btn-success"
+              style="margin-bottom: 15px"
+            >
               ➕ Novo Template
             </button>
             <div id="listaTemplatesPrompt">
@@ -3940,9 +4371,15 @@ Registra no histórico (Supabase)
       <div class="modal-content" style="max-width: 900px; max-height: 90vh">
         <div class="modal-header">
           <h2 id="modalFormTemplatePromptTitle">Novo Template</h2>
-          <button class="close" onclick="fecharModalTemplatePrompt()">&times;</button>
+          <button class="close" onclick="fecharModalTemplatePrompt()">
+            &times;
+          </button>
         </div>
-        <form id="formTemplatePrompt" onsubmit="event.preventDefault(); salvarTemplatePrompt(document.getElementById('templateId').value)" style="overflow-y: auto; max-height: calc(90vh - 150px)">
+        <form
+          id="formTemplatePrompt"
+          onsubmit="event.preventDefault(); salvarTemplatePrompt(document.getElementById('templateId').value)"
+          style="overflow-y: auto; max-height: calc(90vh - 150px)"
+        >
           <input type="hidden" id="templateId" />
           <div class="form-group">
             <label>Nome *</label>
@@ -3955,7 +4392,10 @@ Registra no histórico (Supabase)
           <div class="form-group">
             <label>Prompt Completo *</label>
             <textarea id="templatePromptCompleto" rows="10" required></textarea>
-            <small style="color: #666">Template completo do prompt. Pode usar variáveis: {{nome_cliente}}, {{data_hoje}}, etc.</small>
+            <small style="color: #666"
+              >Template completo do prompt. Pode usar variáveis:
+              {{nome_cliente}}, {{data_hoje}}, etc.</small
+            >
           </div>
           <div class="form-group">
             <label>Categoria *</label>
@@ -3973,25 +4413,56 @@ Registra no histórico (Supabase)
           </div>
           <div class="form-group">
             <label>Sessões Habilitadas por Padrão</label>
-            <div id="templateSessoesHabilitadas" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px">
+            <div
+              id="templateSessoesHabilitadas"
+              style="
+                max-height: 150px;
+                overflow-y: auto;
+                border: 1px solid #ddd;
+                padding: 10px;
+                border-radius: 4px;
+              "
+            >
               <p style="color: #666; font-size: 14px">Carregando sessões...</p>
             </div>
           </div>
           <div class="form-group">
             <label>Configurações Habilitadas por Padrão</label>
-            <div id="templateConfiguracoesHabilitadas" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px">
-              <p style="color: #666; font-size: 14px">Carregando configurações...</p>
+            <div
+              id="templateConfiguracoesHabilitadas"
+              style="
+                max-height: 150px;
+                overflow-y: auto;
+                border: 1px solid #ddd;
+                padding: 10px;
+                border-radius: 4px;
+              "
+            >
+              <p style="color: #666; font-size: 14px">
+                Carregando configurações...
+              </p>
             </div>
           </div>
           <div class="form-group">
             <label style="display: flex; align-items: center; cursor: pointer">
-              <input type="checkbox" id="templateAtivo" checked style="width: auto; margin-right: 8px" />
+              <input
+                type="checkbox"
+                id="templateAtivo"
+                checked
+                style="width: auto; margin-right: 8px"
+              />
               <span>Ativo</span>
             </label>
           </div>
           <div style="display: flex; gap: 10px; margin-top: 20px">
             <button type="submit" class="btn-success">Salvar</button>
-            <button type="button" class="btn-secondary" onclick="fecharModalTemplatePrompt()">Cancelar</button>
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="fecharModalTemplatePrompt()"
+            >
+              Cancelar
+            </button>
           </div>
         </form>
       </div>

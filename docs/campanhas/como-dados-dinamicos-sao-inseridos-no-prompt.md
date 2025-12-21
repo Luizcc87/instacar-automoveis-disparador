@@ -13,14 +13,16 @@ Ambos os fluxos seguem a mesma lógica para montar o contexto, garantindo consis
 
 ## Estrutura do Contexto Montado
 
-O contexto final (`contextoIA`) é montado na seguinte ordem:
+O contexto final (`contextoIA`) varia dependendo das configurações da campanha:
+
+### Modo Completo (com configurações habilitadas)
 
 ```
 === DADOS DO CLIENTE ===
 Cliente: [Nome do Cliente]
 
-[Veículos adquiridos (se configurado)]
-[Vendedor responsável (se configurado)]
+[Veículos adquiridos (se usar_veiculos=true)]
+[Vendedor responsável (se usar_vendedor=true)]
 
 === CONFIGURAÇÕES DA EMPRESA ===
 [Configurações globais + sobrescritas por categoria]
@@ -31,6 +33,19 @@ Cliente: [Nome do Cliente]
 === INSTRUÇÕES DA CAMPANHA ===
 [Prompt da campanha ou template completo]
 ```
+
+### Modo "Apenas Prompt Personalizado" (todas configurações desmarcadas)
+
+Quando todas as configurações estão desmarcadas (`usar_veiculos=false`, `usar_configuracoes_globais=false`, `sessoes_contexto_habilitadas=[]`) e há um `prompt_ia` preenchido:
+
+```
+Cliente: [Nome do Cliente]
+
+[Prompt Personalizado]
+```
+
+> 💡 **Vantagens:** Economia de tokens, controle total, contexto limpo.  
+> 📖 **Documentação completa:** [modo-apenas-prompt-personalizado.md](modo-apenas-prompt-personalizado.md)
 
 ## Fluxo de Campanhas
 
@@ -79,6 +94,7 @@ Similar ao fluxo de campanhas, mas adaptado para envio individual:
 
 - Se **não houver campanha**: Monta contexto básico apenas com dados do cliente
 - Se **houver campanha**: Monta contexto completo usando dados dinâmicos
+- **Suporta modo "apenas prompt personalizado"**: Quando todas as configurações estão desmarcadas e há um prompt preenchido, usa contexto mínimo (igual ao fluxo de campanhas)
 
 ## Variáveis Dinâmicas Suportadas
 
