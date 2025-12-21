@@ -2238,6 +2238,13 @@
 
     // Carregar clientes para seleção
     await carregarClientesParaSelecao();
+    
+    // Atualizar validação do prompt (inicializar como obrigatório)
+    setTimeout(() => {
+      if (typeof window.atualizarValidacaoPrompt === 'function') {
+        window.atualizarValidacaoPrompt();
+      }
+    }, 100);
 
     document.getElementById("modalCampanha").classList.add("active");
 
@@ -2362,6 +2369,13 @@
         document.getElementById("template_prompt_id").value =
           data.template_prompt_id;
       }
+      
+      // Atualizar validação do prompt baseado no template selecionado
+      setTimeout(() => {
+        if (typeof window.atualizarValidacaoPrompt === 'function') {
+          window.atualizarValidacaoPrompt();
+        }
+      }, 100);
 
       // Marcar sessões habilitadas
       const sessoesHabilitadas = data.sessoes_contexto_habilitadas || [];
@@ -2447,6 +2461,18 @@
           option.textContent = `${template.nome} (${template.categoria})`;
           selectTemplate.appendChild(option);
         });
+        
+        // Adicionar listener para atualizar validação do prompt quando template mudar
+        selectTemplate.addEventListener("change", function() {
+          if (typeof window.atualizarValidacaoPrompt === 'function') {
+            window.atualizarValidacaoPrompt();
+          }
+        });
+      }
+      
+      // Chamar uma vez para inicializar
+      if (typeof window.atualizarValidacaoPrompt === 'function') {
+        window.atualizarValidacaoPrompt();
       }
 
       // Carregar sessões
@@ -2562,6 +2588,12 @@
       window.abrirModalNovaCampanha = async function () {
         await originalAbrirModal();
         await carregarDadosDinamicosCampanha();
+        // Atualizar validação do prompt após carregar dados dinâmicos
+        setTimeout(() => {
+          if (typeof window.atualizarValidacaoPrompt === 'function') {
+            window.atualizarValidacaoPrompt();
+          }
+        }, 200);
       };
     }
     if (!form) return;
@@ -2724,6 +2756,19 @@
           "Telefones admin inválidos: " + validacaoAdmin.erros.join(", "),
           "error"
         );
+        return;
+      }
+
+      // Validar prompt_ia: obrigatório apenas se não houver template selecionado
+      const templatePromptId = document.getElementById("template_prompt_id").value;
+      const promptIa = document.getElementById("prompt_ia").value.trim();
+      
+      if (!templatePromptId && !promptIa) {
+        mostrarAlerta(
+          "É necessário preencher o 'Prompt Personalizado para IA' ou selecionar um 'Template de Prompt'.",
+          "error"
+        );
+        document.getElementById("prompt_ia").focus();
         return;
       }
 
@@ -4078,6 +4123,34 @@
   window.abrirDashboardCampanha = abrirDashboardCampanha;
   window.fecharModalDashboard = fecharModalDashboard;
   window.alternarVisualizacaoCampanhas = alternarVisualizacaoCampanhas;
+  
+  // Função global para atualizar validação do prompt baseado no template selecionado
+  window.atualizarValidacaoPrompt = function() {
+    const templatePromptId = document.getElementById("template_prompt_id")?.value;
+    const promptIaField = document.getElementById("prompt_ia");
+    const promptIaRequired = document.getElementById("prompt_ia_required");
+    const promptIaHelp = document.getElementById("prompt_ia_help");
+    
+    if (!promptIaField) return; // Campo não existe ainda
+    
+    if (templatePromptId) {
+      // Template selecionado: prompt não é obrigatório
+      promptIaField.removeAttribute("required");
+      if (promptIaRequired) promptIaRequired.style.display = "none";
+      if (promptIaHelp) {
+        promptIaHelp.textContent = "Opcional quando um template está selecionado. O prompt do template será usado.";
+        promptIaHelp.style.color = "#666";
+      }
+    } else {
+      // Sem template: prompt é obrigatório
+      promptIaField.setAttribute("required", "required");
+      if (promptIaRequired) promptIaRequired.style.display = "inline";
+      if (promptIaHelp) {
+        promptIaHelp.textContent = "Obrigatório apenas se nenhum template de prompt for selecionado.";
+        promptIaHelp.style.color = "#666";
+      }
+    }
+  };
 
   // Funções de configurações
   window.abrirModalConfiguracoes = abrirModalConfiguracoes;

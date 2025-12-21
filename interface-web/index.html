@@ -24,8 +24,7 @@
       // Variáveis de ambiente injetadas em build time
       window.ENV = {
         SUPABASE_URL: "https://rirrnhelyutzunwicmkg.supabase.co",
-        SUPABASE_ANON_KEY:
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpcnJuaGVseXV0enVud2ljbWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3OTIyMzAsImV4cCI6MjA2ODM2ODIzMH0.L2nJDqybzrl8sC4g5Oo9B92yfx2xfGAoTnZihCPtwg0",
+        SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpcnJuaGVseXV0enVud2ljbWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3OTIyMzAsImV4cCI6MjA2ODM2ODIzMH0.L2nJDqybzrl8sC4g5Oo9B92yfx2xfGAoTnZihCPtwg0"
       };
     </script>
     <!-- Configuração opcional (apenas para Uazapi e N8N) -->
@@ -2544,12 +2543,14 @@
           </div>
 
           <div class="form-group">
-            <label>Prompt Personalizado para IA *</label>
+            <label id="label_prompt_ia">Prompt Personalizado para IA <span id="prompt_ia_required" style="color: red">*</span></label>
             <textarea
               id="prompt_ia"
-              required
               placeholder="Instruções específicas para a IA gerar mensagens desta campanha..."
             ></textarea>
+            <small style="color: #666; display: block; margin-top: 5px" id="prompt_ia_help">
+              Obrigatório apenas se nenhum template de prompt for selecionado.
+            </small>
           </div>
 
           <div class="form-group">
