@@ -1726,8 +1726,28 @@
           ? "campanhas-grid"
           : "campanhas-list";
 
+      // Buscar execuções pendentes para todas as campanhas
+      const hojeStr = new Date().toISOString().split("T")[0];
+      const { data: execucoesPendentes } = await supabaseClient
+        .from("instacar_campanhas_execucoes")
+        .select("id, campanha_id, status_execucao, pausa_manual, total_enviado")
+        .eq("data_execucao", hojeStr)
+        .in("status_execucao", ["pausada", "em_andamento"]);
+
+      // Criar mapa de execuções pendentes por campanha
+      const execucoesPorCampanha = {};
+      if (execucoesPendentes) {
+        execucoesPendentes.forEach((exec) => {
+          if (!execucoesPorCampanha[exec.campanha_id]) {
+            execucoesPorCampanha[exec.campanha_id] = [];
+          }
+          execucoesPorCampanha[exec.campanha_id].push(exec);
+        });
+      }
+
       data.forEach((campanha) => {
-        const card = criarCardCampanha(campanha, modoVisualizacaoCampanhas);
+        const execucoes = execucoesPorCampanha[campanha.id] || [];
+        const card = criarCardCampanha(campanha, modoVisualizacaoCampanhas, execucoes);
         wrapper.appendChild(card);
       });
 
@@ -1753,7 +1773,7 @@
   }
 
   // Criar card de campanha
-  function criarCardCampanha(campanha, modo = "grid") {
+  function criarCardCampanha(campanha, modo = "grid", execucoesPendentes = []) {
     const card = document.createElement("div");
     card.className = "campanha-card";
 
@@ -1776,6 +1796,17 @@
       ? new Date(campanha.data_fim).toLocaleDateString("pt-BR")
       : null;
     const podeDisparar = campanha.ativo && campanha.status === "ativa";
+    
+    // Verificar se há execução pausada (não manual) para mostrar botão "Continuar"
+    const execucaoPausada = execucoesPendentes.find(
+      (e) => e.status_execucao === "pausada" && !e.pausa_manual
+    );
+    const temExecucaoPausada = execucaoPausada !== undefined;
+    const botaoLabel = temExecucaoPausada ? "▶️ Continuar" : "🚀 Disparar";
+    const botaoClass = temExecucaoPausada ? "btn-warning" : "btn-success";
+    const botaoStyle = temExecucaoPausada
+      ? "padding: 6px 12px; font-size: 12px; background: #ffc107; color: #000; border-color: #ffc107"
+      : "padding: 6px 12px; font-size: 12px; background: #28a745; color: white; border-color: #28a745";
 
     if (modo === "list") {
       // Visualização em lista (seguindo padrão das instâncias Uazapi)
@@ -1840,10 +1871,10 @@
           </button>
           <button onclick="dispararCampanha('${
             campanha.id
-          }')" class="btn-success" style="padding: 6px 12px; font-size: 12px; background: #28a745; color: white; border-color: #28a745" ${
+          }')" class="${botaoClass}" style="${botaoStyle}" ${
         !podeDisparar ? "disabled" : ""
       }>
-            🚀 Disparar
+            ${botaoLabel}
           </button>
           <button onclick="verExecucoes('${
             campanha.id
@@ -1883,8 +1914,8 @@
           </button>
           <button onclick="dispararCampanha('${
             campanha.id
-          }')" class="btn-success" ${!podeDisparar ? "disabled" : ""}>
-            Disparar
+          }')" class="${botaoClass}" style="${botaoStyle}" ${!podeDisparar ? "disabled" : ""}>
+            ${botaoLabel}
           </button>
           <button onclick="verExecucoes('${
             campanha.id
@@ -1941,7 +1972,6 @@
       intervalo_envios_segundos: "intervalo_envios_segundos",
       prioridade: "prioridade",
       whatsapp_api_id: "whatsapp_api_id",
-      agendamento_cron: "agendamento_cron",
       prompt_ia: "prompt_ia",
       template_mensagem: "template_mensagem",
       usar_veiculos: "usar_veiculos",
@@ -2117,6 +2147,11 @@
       const total = clientesSelecionados.size;
       const totalElegiveis = clientesElegiveis.length;
       contador.textContent = `${total} de ${totalElegiveis} clientes selecionados`;
+      
+      // Atualizar estimativas quando a seleção mudar
+      if (typeof atualizarEstimativas === 'function') {
+        setTimeout(atualizarEstimativas, 100);
+      }
     }
   }
 
@@ -2285,8 +2320,6 @@
       document.getElementById("intervalo_envios_segundos").value =
         data.intervalo_envios_segundos || "";
       document.getElementById("prioridade").value = data.prioridade || 5;
-      document.getElementById("agendamento_cron").value =
-        data.agendamento_cron || "";
       document.getElementById("prompt_ia").value = data.prompt_ia || "";
       document.getElementById("template_mensagem").value =
         data.template_mensagem || "";
@@ -2305,6 +2338,36 @@
         data.horario_fim || "18:00";
       document.getElementById("processar_finais_semana").checked =
         data.processar_finais_semana === true;
+
+      // Preencher novos campos - Intervalo de Almoço
+      const pausarAlmocoCheck = document.getElementById("pausar_almoco");
+      if (pausarAlmocoCheck) {
+        pausarAlmocoCheck.checked = data.pausar_almoco || false;
+        toggleCamposAlmoco();
+        if (data.horario_almoco_inicio) {
+          document.getElementById("horario_almoco_inicio").value = data.horario_almoco_inicio;
+        }
+        if (data.horario_almoco_fim) {
+          document.getElementById("horario_almoco_fim").value = data.horario_almoco_fim;
+        }
+      }
+
+      // Preencher novos campos - Configuração por Dia da Semana
+      if (data.configuracao_dias_semana) {
+        carregarConfiguracaoDiasSemana(
+          data.configuracao_dias_semana,
+          data.horario_inicio || "09:00",
+          data.horario_fim || "18:00",
+          data.processar_finais_semana || false
+        );
+      } else {
+        // Usar configuração padrão
+        const modoPadrao = document.getElementById("modo_configuracao_padrao");
+        if (modoPadrao) {
+          modoPadrao.checked = true;
+          toggleConfiguracaoDiasSemana();
+        }
+      }
 
       // Preencher novos campos - Modo Teste e Debug
       document.getElementById("modo_teste").checked = data.modo_teste || false;
@@ -2686,8 +2749,6 @@
           ? parseInt(intervaloEnviosInput)
           : null,
         prioridade: prioridadeInput ? parseInt(prioridadeInput) : 5,
-        agendamento_cron:
-          document.getElementById("agendamento_cron").value || null,
         prompt_ia: document.getElementById("prompt_ia").value,
         template_mensagem:
           document.getElementById("template_mensagem").value || null,
@@ -2703,6 +2764,16 @@
         processar_finais_semana: document.getElementById(
           "processar_finais_semana"
         ).checked,
+        // NOVOS CAMPOS - Intervalo de Almoço
+        pausar_almoco: document.getElementById("pausar_almoco")?.checked || false,
+        horario_almoco_inicio: document.getElementById("pausar_almoco")?.checked
+          ? (document.getElementById("horario_almoco_inicio")?.value || "12:00:00")
+          : null,
+        horario_almoco_fim: document.getElementById("pausar_almoco")?.checked
+          ? (document.getElementById("horario_almoco_fim")?.value || "13:00:00")
+          : null,
+        // NOVO CAMPO - Configuração por Dia da Semana
+        configuracao_dias_semana: salvarConfiguracaoDiasSemana(),
         // NOVOS CAMPOS - Modo Teste e Debug
         modo_teste: document.getElementById("modo_teste").checked,
         telefones_teste: parseTelefonesTextarea(
@@ -2927,27 +2998,76 @@
         return;
       }
 
-      // 4. VERIFICAR EXECUÇÃO DUPLICADA HOJE
+      // 4. VERIFICAR EXECUÇÕES PENDENTES (pausadas ou em_andamento)
       const hojeStr = hoje.toISOString().split("T")[0];
       const { data: execucoes } = await supabaseClient
         .from("instacar_campanhas_execucoes")
-        .select("id")
+        .select("id, status_execucao, pausa_manual, total_enviado, created_at")
         .eq("campanha_id", id)
-        .eq("data_execucao", hojeStr);
+        .eq("data_execucao", hojeStr)
+        .in("status_execucao", ["pausada", "em_andamento"])
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      let execucaoPausada = null;
+      let continuarExecucao = false;
 
       if (execucoes && execucoes.length > 0) {
-        if (!confirm("Campanha já executada hoje. Executar novamente?")) {
+        const execucao = execucoes[0];
+        
+        // Se está pausada e não foi pausada manualmente, oferecer continuar
+        if (execucao.status_execucao === "pausada" && !execucao.pausa_manual) {
+          const resposta = confirm(
+            `Campanha "${campanha.nome}" tem uma execução pausada automaticamente.\n\n` +
+            `Total enviado: ${execucao.total_enviado || 0}\n\n` +
+            `Deseja CONTINUAR a execução pausada ou criar uma NOVA execução?`
+          );
+          
+          if (resposta) {
+            // Continuar execução pausada
+            execucaoPausada = execucao;
+            continuarExecucao = true;
+          } else {
+            // Criar nova execução
+            if (!confirm(`Criar nova execução para "${campanha.nome}"?`)) {
+              return;
+            }
+          }
+        } else if (execucao.status_execucao === "em_andamento") {
+          // Se está em andamento, perguntar se quer criar nova
+          if (!confirm(
+            `Campanha "${campanha.nome}" já está em execução.\n\n` +
+            `Total enviado: ${execucao.total_enviado || 0}\n\n` +
+            `Deseja criar uma nova execução mesmo assim?`
+          )) {
+            return;
+          }
+        } else if (execucao.status_execucao === "pausada" && execucao.pausa_manual) {
+          // Se foi pausada manualmente, perguntar se quer continuar
+          const resposta = confirm(
+            `Campanha "${campanha.nome}" foi pausada manualmente.\n\n` +
+            `Total enviado: ${execucao.total_enviado || 0}\n\n` +
+            `Deseja CONTINUAR a execução pausada ou criar uma NOVA execução?`
+          );
+          
+          if (resposta) {
+            execucaoPausada = execucao;
+            continuarExecucao = true;
+          } else {
+            if (!confirm(`Criar nova execução para "${campanha.nome}"?`)) {
+              return;
+            }
+          }
+        }
+      } else {
+        // 5. CONFIRMAR DISPARO (se não há execução pendente)
+        if (
+          !confirm(
+            `Disparar "${campanha.nome}"?\n\nLimite: ${campanha.limite_envios_dia}/dia`
+          )
+        ) {
           return;
         }
-      }
-
-      // 5. CONFIRMAR DISPARO
-      if (
-        !confirm(
-          `Disparar "${campanha.nome}"?\n\nLimite: ${campanha.limite_envios_dia}/dia`
-        )
-      ) {
-        return;
       }
 
       // 6. OBTER WEBHOOK URL
@@ -2965,22 +3085,38 @@
       }
 
       // 7. CHAMAR WEBHOOK
-      mostrarAlerta("Disparando campanha...", "success");
+      if (continuarExecucao) {
+        mostrarAlerta("Continuando execução pausada...", "success");
+      } else {
+        mostrarAlerta("Disparando campanha...", "success");
+      }
+
+      const payload = continuarExecucao
+        ? {
+            execucao_id: execucaoPausada.id,
+            continuar: true,
+            trigger_tipo: "manual",
+          }
+        : {
+            campanha_id: id,
+            trigger_tipo: "manual",
+          };
 
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          campanha_id: id,
-          trigger_tipo: "manual",
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
 
-      mostrarAlerta(`Campanha "${campanha.nome}" disparada!`, "success");
+      if (continuarExecucao) {
+        mostrarAlerta(`Execução da campanha "${campanha.nome}" continuada!`, "success");
+      } else {
+        mostrarAlerta(`Campanha "${campanha.nome}" disparada!`, "success");
+      }
       setTimeout(() => carregarCampanhas(), 2000);
     } catch (error) {
       mostrarAlerta("Erro ao disparar: " + error.message, "error");
@@ -3155,6 +3291,7 @@
                       <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Erros</th>
                       <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Trigger</th>
                       <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Início</th>
+                      <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3162,7 +3299,28 @@
                       execucoes && execucoes.length > 0
                         ? execucoes
                             .map(
-                              (exec) => `
+                              (exec) => {
+                                const podePausar = exec.status_execucao === "em_andamento";
+                                const podeContinuar = exec.status_execucao === "pausada";
+                                const podeCancelar = exec.status_execucao === "em_andamento" || exec.status_execucao === "pausada";
+                                const hojeStr = new Date().toISOString().split("T")[0];
+                                const execucaoHoje = exec.data_execucao === hojeStr;
+                                
+                                let botoesAcoes = "";
+                                if (execucaoHoje && podePausar) {
+                                  botoesAcoes += `<button onclick="pausarExecucao('${exec.id}')" class="btn-warning" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">⏸️ Pausar</button>`;
+                                }
+                                if (execucaoHoje && podeContinuar) {
+                                  botoesAcoes += `<button onclick="continuarExecucao('${exec.id}')" class="btn-success" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">▶️ Continuar</button>`;
+                                }
+                                if (execucaoHoje && podeCancelar) {
+                                  botoesAcoes += `<button onclick="cancelarExecucao('${exec.id}')" class="btn-danger" style="padding: 4px 8px; font-size: 11px;">❌ Cancelar</button>`;
+                                }
+                                if (!botoesAcoes) {
+                                  botoesAcoes = "<span style='color: #999; font-size: 11px;'>-</span>";
+                                }
+                                
+                                return `
                       <tr>
                         <td style="padding: 10px; border-bottom: 1px solid #eee;">${new Date(
                           exec.data_execucao
@@ -3186,11 +3344,13 @@
                               )
                             : "N/A"
                         }</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #eee;">${botoesAcoes}</td>
                       </tr>
-                    `
+                    `;
+                              }
                             )
                             .join("")
-                        : '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #666;">Nenhuma execução encontrada</td></tr>'
+                        : '<tr><td colspan="7" style="padding: 20px; text-align: center; color: #666;">Nenhuma execução encontrada</td></tr>'
                     }
                   </tbody>
                 </table>
@@ -3209,6 +3369,178 @@
         existingModal.remove();
       }
       document.body.insertAdjacentHTML("beforeend", modalHtml);
+      
+      // Armazenar campanha_id no modal para recarregar após ações
+      const modal = document.getElementById("modalDashboard");
+      if (modal) {
+        modal.dataset.campanhaId = campanhaId;
+      }
+      
+      // Iniciar polling automático para atualização em tempo real
+      let pollingInterval = null;
+      const iniciarPolling = () => {
+        // Limpar intervalo anterior se existir
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+        }
+        
+        // Atualizar a cada 12 segundos
+        pollingInterval = setInterval(async () => {
+          const modalAtual = document.getElementById("modalDashboard");
+          if (!modalAtual) {
+            // Modal foi fechado, parar polling
+            clearInterval(pollingInterval);
+            return;
+          }
+          
+          try {
+            // Buscar execuções atualizadas
+            const { data: execucoesAtualizadas, error: errorExecucoes } = await supabaseClient
+              .from("instacar_campanhas_execucoes")
+              .select("*")
+              .eq("campanha_id", campanhaId)
+              .order("data_execucao", { ascending: false })
+              .limit(20);
+            
+            if (errorExecucoes) {
+              console.error("Erro ao atualizar execuções:", errorExecucoes);
+              return;
+            }
+            
+            // Recalcular métricas
+            const totalEnviados = execucoesAtualizadas.reduce(
+              (sum, e) => sum + (e.total_enviado || 0),
+              0
+            );
+            const totalErros = execucoesAtualizadas.reduce(
+              (sum, e) => sum + (e.total_erros || 0),
+              0
+            );
+            const totalDuplicados = execucoesAtualizadas.reduce(
+              (sum, e) => sum + (e.total_duplicados || 0),
+              0
+            );
+            const totalSemWhatsapp = execucoesAtualizadas.reduce(
+              (sum, e) => sum + (e.total_sem_whatsapp || 0),
+              0
+            );
+            const totalGeral = totalEnviados + totalErros + totalDuplicados + totalSemWhatsapp;
+            const taxaSucesso = totalGeral > 0 ? ((totalEnviados / totalGeral) * 100).toFixed(2) : 0;
+            
+            // Atualizar métricas no DOM
+            const metricasContainer = modalAtual.querySelector(".modal-body");
+            if (metricasContainer) {
+              const metricasGrid = metricasContainer.querySelector("div[style*='grid-template-columns']");
+              if (metricasGrid) {
+                metricasGrid.innerHTML = `
+                  <div style="background: #e3f2fd; padding: 15px; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #2196F3;">${totalEnviados}</div>
+                    <div style="color: #666;">Total Enviados</div>
+                  </div>
+                  <div style="background: #ffebee; padding: 15px; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #f44336;">${totalErros}</div>
+                    <div style="color: #666;">Total Erros</div>
+                  </div>
+                  <div style="background: #fff3e0; padding: 15px; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #ff9800;">${totalDuplicados}</div>
+                    <div style="color: #666;">Duplicados</div>
+                  </div>
+                  <div style="background: #f3e5f5; padding: 15px; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #9c27b0;">${totalSemWhatsapp}</div>
+                    <div style="color: #666;">Sem WhatsApp</div>
+                  </div>
+                  <div style="background: #e8f5e9; padding: 15px; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #4caf50;">${taxaSucesso}%</div>
+                    <div style="color: #666;">Taxa de Sucesso</div>
+                  </div>
+                  <div style="background: #f9fafb; padding: 15px; border-radius: 5px;">
+                    <div style="font-size: 14px; font-weight: bold; color: #666;">🔄 Atualizado</div>
+                    <div style="color: #999; font-size: 12px;">${new Date().toLocaleTimeString("pt-BR")}</div>
+                  </div>
+                `;
+              }
+              
+              // Atualizar tabela de execuções
+              const tabela = metricasContainer.querySelector("table");
+              if (tabela) {
+                const tbody = tabela.querySelector("tbody");
+                if (tbody) {
+                  const hojeStr = new Date().toISOString().split("T")[0];
+                  tbody.innerHTML = execucoesAtualizadas && execucoesAtualizadas.length > 0
+                    ? execucoesAtualizadas
+                        .map((exec) => {
+                          const podePausar = exec.status_execucao === "em_andamento";
+                          const podeContinuar = exec.status_execucao === "pausada";
+                          const podeCancelar = exec.status_execucao === "em_andamento" || exec.status_execucao === "pausada";
+                          const execucaoHoje = exec.data_execucao === hojeStr;
+                          
+                          let botoesAcoes = "";
+                          if (execucaoHoje && podePausar) {
+                            botoesAcoes += `<button onclick="pausarExecucao('${exec.id}')" class="btn-warning" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">⏸️ Pausar</button>`;
+                          }
+                          if (execucaoHoje && podeContinuar) {
+                            botoesAcoes += `<button onclick="continuarExecucao('${exec.id}')" class="btn-success" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">▶️ Continuar</button>`;
+                          }
+                          if (execucaoHoje && podeCancelar) {
+                            botoesAcoes += `<button onclick="cancelarExecucao('${exec.id}')" class="btn-danger" style="padding: 4px 8px; font-size: 11px;">❌ Cancelar</button>`;
+                          }
+                          if (!botoesAcoes) {
+                            botoesAcoes = "<span style='color: #999; font-size: 11px;'>-</span>";
+                          }
+                          
+                          return `
+                            <tr>
+                              <td style="padding: 10px; border-bottom: 1px solid #eee;">${new Date(
+                                exec.data_execucao
+                              ).toLocaleDateString("pt-BR")}</td>
+                              <td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="status ${
+                                exec.status_execucao
+                              }">${exec.status_execucao}</span></td>
+                              <td style="padding: 10px; border-bottom: 1px solid #eee;">${
+                                exec.total_enviado || 0
+                              }</td>
+                              <td style="padding: 10px; border-bottom: 1px solid #eee;">${
+                                exec.total_erros || 0
+                              }</td>
+                              <td style="padding: 10px; border-bottom: 1px solid #eee;">${
+                                exec.trigger_tipo || "N/A"
+                              }</td>
+                              <td style="padding: 10px; border-bottom: 1px solid #eee;">${
+                                exec.horario_inicio
+                                  ? new Date(exec.horario_inicio).toLocaleString("pt-BR")
+                                  : "N/A"
+                              }</td>
+                              <td style="padding: 10px; border-bottom: 1px solid #eee;">${botoesAcoes}</td>
+                            </tr>
+                          `;
+                        })
+                        .join("")
+                    : '<tr><td colspan="7" style="padding: 20px; text-align: center; color: #666;">Nenhuma execução encontrada</td></tr>';
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Erro ao atualizar dashboard:", error);
+          }
+        }, 12000); // 12 segundos
+      };
+      
+      // Iniciar polling
+      iniciarPolling();
+      
+      // Parar polling quando modal for fechado
+      const observer = new MutationObserver((mutations) => {
+        const modalAtual = document.getElementById("modalDashboard");
+        if (!modalAtual) {
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+          }
+          observer.disconnect();
+        }
+      });
+      
+      observer.observe(document.body, { childList: true, subtree: true });
     } catch (error) {
       mostrarAlerta("Erro ao carregar dashboard: " + error.message, "error");
       console.error(error);
@@ -3220,6 +3552,181 @@
     const modal = document.getElementById("modalDashboard");
     if (modal) {
       modal.remove();
+    }
+    // Polling será parado automaticamente pelo observer
+  }
+
+  // Pausar execução
+  async function pausarExecucao(execucaoId) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    if (!confirm("Deseja pausar esta execução?")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabaseClient
+        .from("instacar_campanhas_execucoes")
+        .update({
+          status_execucao: "pausada",
+          pausa_manual: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", execucaoId);
+
+      if (error) throw error;
+
+      mostrarAlerta("Execução pausada com sucesso!", "success");
+      
+      // Recarregar dashboard se estiver aberto
+      const modal = document.getElementById("modalDashboard");
+      if (modal) {
+        const campanhaId = modal.dataset.campanhaId;
+        if (campanhaId) {
+          setTimeout(() => abrirDashboardCampanha(campanhaId), 1000);
+        }
+      }
+      
+      // Recarregar lista de campanhas
+      setTimeout(() => carregarCampanhas(), 1000);
+    } catch (error) {
+      mostrarAlerta("Erro ao pausar execução: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  // Continuar execução
+  async function continuarExecucao(execucaoId) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      // Obter dados da execução
+      const { data: execucao, error: errorExecucao } = await supabaseClient
+        .from("instacar_campanhas_execucoes")
+        .select("campanha_id")
+        .eq("id", execucaoId)
+        .single();
+
+      if (errorExecucao || !execucao) {
+        throw new Error("Execução não encontrada");
+      }
+
+      // Obter webhook URL
+      let webhookUrl =
+        localStorage.getItem("n8nWebhookUrl") ||
+        window.INSTACAR_CONFIG?.n8nWebhookUrl ||
+        null;
+
+      if (!webhookUrl) {
+        mostrarAlerta(
+          "Webhook N8N não configurado. Configure em Configurações.",
+          "error"
+        );
+        return;
+      }
+
+      // Atualizar status no banco
+      const { error: updateError } = await supabaseClient
+        .from("instacar_campanhas_execucoes")
+        .update({
+          status_execucao: "em_andamento",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", execucaoId);
+
+      if (updateError) throw updateError;
+
+      // Chamar webhook para continuar execução
+      mostrarAlerta("Continuando execução...", "success");
+
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          execucao_id: execucaoId,
+          continuar: true,
+          trigger_tipo: "manual",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+
+      mostrarAlerta("Execução continuada com sucesso!", "success");
+      
+      // Recarregar dashboard se estiver aberto
+      const modal = document.getElementById("modalDashboard");
+      if (modal) {
+        const campanhaId = modal.dataset.campanhaId || execucao.campanha_id;
+        if (campanhaId) {
+          setTimeout(() => abrirDashboardCampanha(campanhaId), 1000);
+        }
+      }
+      
+      // Recarregar lista de campanhas
+      setTimeout(() => carregarCampanhas(), 1000);
+    } catch (error) {
+      mostrarAlerta("Erro ao continuar execução: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  // Cancelar execução
+  async function cancelarExecucao(execucaoId) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    if (!confirm("Deseja cancelar esta execução? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+
+    try {
+      // Obter campanha_id antes de cancelar
+      const { data: execucao, error: errorExecucao } = await supabaseClient
+        .from("instacar_campanhas_execucoes")
+        .select("campanha_id")
+        .eq("id", execucaoId)
+        .single();
+
+      if (errorExecucao || !execucao) {
+        throw new Error("Execução não encontrada");
+      }
+
+      const { error } = await supabaseClient
+        .from("instacar_campanhas_execucoes")
+        .update({
+          status_execucao: "cancelada",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", execucaoId);
+
+      if (error) throw error;
+
+      mostrarAlerta("Execução cancelada com sucesso!", "success");
+      
+      // Recarregar dashboard se estiver aberto
+      const modal = document.getElementById("modalDashboard");
+      if (modal) {
+        const campanhaId = modal.dataset.campanhaId || execucao.campanha_id;
+        if (campanhaId) {
+          setTimeout(() => abrirDashboardCampanha(campanhaId), 1000);
+        }
+      }
+      
+      // Recarregar lista de campanhas
+      setTimeout(() => carregarCampanhas(), 1000);
+    } catch (error) {
+      mostrarAlerta("Erro ao cancelar execução: " + error.message, "error");
+      console.error(error);
     }
   }
 
@@ -4117,11 +4624,19 @@
   window.inverterSelecaoClientes = inverterSelecaoClientes;
   window.filtrarClientesSelecao = filtrarClientesSelecao;
   window.toggleClienteSelecao = toggleClienteSelecao;
+  window.atualizarContadorSelecao = atualizarContadorSelecao;
+  window.desmarcarTodosClientes = desmarcarTodosClientes;
+  window.inverterSelecaoClientes = inverterSelecaoClientes;
+  window.filtrarClientesSelecao = filtrarClientesSelecao;
+  window.toggleClienteSelecao = toggleClienteSelecao;
   window.toggleAtivo = toggleAtivo;
   window.dispararCampanha = dispararCampanha;
   window.verExecucoes = verExecucoes;
   window.abrirDashboardCampanha = abrirDashboardCampanha;
   window.fecharModalDashboard = fecharModalDashboard;
+  window.pausarExecucao = pausarExecucao;
+  window.continuarExecucao = continuarExecucao;
+  window.cancelarExecucao = cancelarExecucao;
   window.alternarVisualizacaoCampanhas = alternarVisualizacaoCampanhas;
   
   // Função global para atualizar validação do prompt baseado no template selecionado
@@ -4261,6 +4776,35 @@
       horarioFimInput.addEventListener("change", atualizarEstimativas);
     }
 
+    // Event listeners para campos de almoço
+    const pausarAlmocoCheck = document.getElementById("pausar_almoco");
+    const horarioAlmocoInicioInput = document.getElementById("horario_almoco_inicio");
+    const horarioAlmocoFimInput = document.getElementById("horario_almoco_fim");
+    const quantidadeClientesInput = document.getElementById("quantidade_clientes");
+
+    if (pausarAlmocoCheck) {
+      pausarAlmocoCheck.addEventListener("change", atualizarEstimativas);
+    }
+    if (horarioAlmocoInicioInput) {
+      horarioAlmocoInicioInput.addEventListener("change", atualizarEstimativas);
+    }
+    if (horarioAlmocoFimInput) {
+      horarioAlmocoFimInput.addEventListener("change", atualizarEstimativas);
+    }
+    if (quantidadeClientesInput) {
+      quantidadeClientesInput.addEventListener("input", atualizarEstimativas);
+    }
+
+    // Event listeners para configuração de dias da semana
+    const modoConfiguracaoPadrao = document.getElementById("modo_configuracao_padrao");
+    const modoConfiguracaoIndividual = document.getElementById("modo_configuracao_individual");
+    if (modoConfiguracaoPadrao) {
+      modoConfiguracaoPadrao.addEventListener("change", atualizarEstimativas);
+    }
+    if (modoConfiguracaoIndividual) {
+      modoConfiguracaoIndividual.addEventListener("change", atualizarEstimativas);
+    }
+
     // Event listener para validação inteligente ao mudar prompt ou flags
     const promptInput = document.getElementById("prompt_ia");
     const usarVeiculosCheck = document.getElementById("usar_veiculos");
@@ -4288,7 +4832,202 @@
     setTimeout(atualizarEstimativas, 500);
   }
 
-  // Calcular e exibir estimativas de tempo
+  /**
+   * Calcula estimativas completas da campanha
+   * @param {Object} parametros - Parâmetros da campanha
+   * @returns {Object} Objeto com todas as estimativas calculadas
+   */
+  function calcularEstimativasCompleta(parametros) {
+    const {
+      quantidadeClientes,
+      tamanhoLote,
+      limiteEnviosDia,
+      intervaloEnviosSegundos,
+      horarioInicio,
+      horarioFim,
+      pausarAlmoco,
+      horarioAlmocoInicio,
+      horarioAlmocoFim,
+      processarFinaisSemana,
+      configuracaoDiasSemana,
+    } = parametros;
+
+    // Calcular total de lotes
+    const totalLotes = Math.ceil(quantidadeClientes / tamanhoLote);
+
+    // Calcular lotes por dia
+    const lotesPorDia = Math.floor(limiteEnviosDia / tamanhoLote);
+
+    // Calcular tempo necessário por dia
+    const tempoNecessarioPorDiaHoras =
+      (limiteEnviosDia * intervaloEnviosSegundos) / 3600;
+
+    // Converter horários para horas decimais
+    const [hInicio, mInicio] = horarioInicio.split(":").map(Number);
+    const horaInicioDecimal = hInicio + mInicio / 60;
+
+    const [hFim, mFim] = horarioFim.split(":").map(Number);
+    const horaFimDecimal = hFim + mFim / 60;
+
+    // Calcular duração do almoço
+    let duracaoAlmocoHoras = 0;
+    if (pausarAlmoco && horarioAlmocoInicio && horarioAlmocoFim) {
+      const [hAlmocoInicio, mAlmocoInicio] = horarioAlmocoInicio
+        .split(":")
+        .map(Number);
+      const [hAlmocoFim, mAlmocoFim] = horarioAlmocoFim.split(":").map(Number);
+      const horaAlmocoInicioDecimal = hAlmocoInicio + mAlmocoInicio / 60;
+      const horaAlmocoFimDecimal = hAlmocoFim + mAlmocoFim / 60;
+      duracaoAlmocoHoras = horaAlmocoFimDecimal - horaAlmocoInicioDecimal;
+    }
+
+    // Calcular horas disponíveis
+    let horasDisponiveis = horaFimDecimal - horaInicioDecimal;
+    if (pausarAlmoco) {
+      horasDisponiveis -= duracaoAlmocoHoras;
+    }
+
+    // Calcular lotes antes e depois do almoço (se configurado)
+    let lotesAntesAlmoco = 0;
+    let lotesDepoisAlmoco = 0;
+
+    if (pausarAlmoco && horarioAlmocoInicio && horarioAlmocoFim) {
+      const [hAlmocoInicio, mAlmocoInicio] = horarioAlmocoInicio
+        .split(":")
+        .map(Number);
+      const [hAlmocoFim, mAlmocoFim] = horarioAlmocoFim.split(":").map(Number);
+      const horaAlmocoInicioDecimal = hAlmocoInicio + mAlmocoInicio / 60;
+      const horaAlmocoFimDecimal = hAlmocoFim + mAlmocoFim / 60;
+
+      // Horas antes do almoço
+      const horasAntesAlmoco = horaAlmocoInicioDecimal - horaInicioDecimal;
+      const clientesPossiveisAntes =
+        (horasAntesAlmoco * 3600) / intervaloEnviosSegundos;
+      lotesAntesAlmoco = Math.floor(clientesPossiveisAntes / tamanhoLote);
+
+      // Horas depois do almoço
+      const horasDepoisAlmoco = horaFimDecimal - horaAlmocoFimDecimal;
+      const clientesPossiveisDepois =
+        (horasDepoisAlmoco * 3600) / intervaloEnviosSegundos;
+      lotesDepoisAlmoco = Math.floor(clientesPossiveisDepois / tamanhoLote);
+    }
+
+    // Calcular dias necessários
+    // Considerar configuração de dias da semana se disponível
+    let diasUteisPorSemana = 5; // Padrão: segunda a sexta
+    if (configuracaoDiasSemana) {
+      const diasHabilitados = Object.values(configuracaoDiasSemana).filter(
+        (d) => d.habilitado
+      ).length;
+      diasUteisPorSemana = diasHabilitados;
+    } else if (processarFinaisSemana) {
+      diasUteisPorSemana = 7;
+    }
+
+    const diasNecessarios = Math.ceil(totalLotes / lotesPorDia);
+
+    // Verificar compatibilidade
+    const compativel = horasDisponiveis >= tempoNecessarioPorDiaHoras;
+    const margem = horasDisponiveis - tempoNecessarioPorDiaHoras;
+    const margemPequena = margem < 1 && margem >= 0; // Menos de 1 hora de margem
+
+    return {
+      totalClientes: quantidadeClientes,
+      totalLotes: totalLotes,
+      lotesPorDia: lotesPorDia,
+      lotesAntesAlmoco: lotesAntesAlmoco,
+      lotesDepoisAlmoco: lotesDepoisAlmoco,
+      diasNecessarios: diasNecessarios,
+      tempoNecessarioPorDiaHoras: tempoNecessarioPorDiaHoras,
+      horasDisponiveis: horasDisponiveis,
+      duracaoAlmocoHoras: duracaoAlmocoHoras,
+      compativel: compativel,
+      margemPequena: margemPequena,
+      intervaloEnviosSegundos: intervaloEnviosSegundos,
+      horarioInicio: horarioInicio,
+      horarioFim: horarioFim,
+      pausarAlmoco: pausarAlmoco,
+      horarioAlmocoInicio: horarioAlmocoInicio,
+      horarioAlmocoFim: horarioAlmocoFim,
+    };
+  }
+
+  /**
+   * Gera sugestões automáticas de ajustes
+   * @param {Object} estimativas - Resultado de calcularEstimativasCompleta
+   * @returns {Array} Array de sugestões
+   */
+  function gerarSugestoesAutomaticas(estimativas) {
+    const sugestoes = [];
+
+    if (!estimativas.compativel) {
+      // Não cabe no horário
+      sugestoes.push({
+        tipo: "erro",
+        titulo: "Horário insuficiente",
+        mensagem: `O horário disponível (${estimativas.horasDisponiveis.toFixed(
+          1
+        )}h) é menor que o tempo necessário (${estimativas.tempoNecessarioPorDiaHoras.toFixed(
+          1
+        )}h).`,
+        sugestoes: [
+          {
+            campo: "horario_fim",
+            valor: estimativas.horarioFim,
+            acao: "Aumentar horário fim",
+            motivo:
+              "Permite processar todos os clientes no horário disponível",
+          },
+          {
+            campo: "tamanho_lote",
+            valor: Math.floor(estimativas.totalLotes * 0.8),
+            acao: "Diminuir tamanho do lote",
+            motivo: "Reduz lotes e tempo necessário por dia",
+          },
+          {
+            campo: "limite_envios_dia",
+            valor: Math.floor(estimativas.limiteEnviosDia * 0.8),
+            acao: "Diminuir limite diário",
+            motivo: "Reduz tempo necessário por dia",
+          },
+        ],
+      });
+    } else if (estimativas.margemPequena) {
+      // Margem pequena
+      sugestoes.push({
+        tipo: "aviso",
+        titulo: "Margem pequena",
+        mensagem: `Há apenas ${(
+          estimativas.horasDisponiveis - estimativas.tempoNecessarioPorDiaHoras
+        ).toFixed(1)}h de margem. Considere ajustar os parâmetros.`,
+        sugestoes: [],
+      });
+    } else if (
+      estimativas.horasDisponiveis - estimativas.tempoNecessarioPorDiaHoras >
+      3
+    ) {
+      // Sobra muito tempo
+      sugestoes.push({
+        tipo: "info",
+        titulo: "Tempo disponível",
+        mensagem: `Há ${(
+          estimativas.horasDisponiveis - estimativas.tempoNecessarioPorDiaHoras
+        ).toFixed(1)}h disponíveis além do necessário.`,
+        sugestoes: [
+          {
+            campo: "tamanho_lote",
+            valor: Math.floor(estimativas.totalLotes * 1.2),
+            acao: "Aumentar tamanho do lote",
+            motivo: "Processa mais clientes por execução",
+          },
+        ],
+      });
+    }
+
+    return sugestoes;
+  }
+
+  // Calcular e exibir estimativas de tempo (mantida para compatibilidade)
   function calcularTempoEstimado(
     limiteDiario,
     intervaloMedio,
@@ -4431,38 +5170,162 @@
     const lotesPorDia = Math.floor(limiteDiario / tamanhoLote);
     const diasNecessariosLotes = Math.ceil(totalLotes / lotesPorDia);
 
-    estimativasDiv.innerHTML = `
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+    // Obter valores adicionais para cálculo completo
+    const horarioInicioInput = document.getElementById("horario_inicio");
+    const horarioFimInput = document.getElementById("horario_fim");
+    const pausarAlmocoCheck = document.getElementById("pausar_almoco");
+    const horarioAlmocoInicioInput = document.getElementById("horario_almoco_inicio");
+    const horarioAlmocoFimInput = document.getElementById("horario_almoco_fim");
+    const processarFinaisSemanaCheck = document.getElementById("processar_finais_semana");
+    const quantidadeClientesInput = document.getElementById("quantidade_clientes");
+    const contadorClientesSelecionados = document.getElementById("contadorClientesSelecionados");
+    const painelEstimativas = document.getElementById("painel_estimativas");
+    const sugestoesDiv = document.getElementById("sugestoes-automaticas");
+
+    const horarioInicio = horarioInicioInput?.value || "09:00";
+    const horarioFim = horarioFimInput?.value || "18:00";
+    const pausarAlmoco = pausarAlmocoCheck?.checked || false;
+    const horarioAlmocoInicio = horarioAlmocoInicioInput?.value || "12:00";
+    const horarioAlmocoFim = horarioAlmocoFimInput?.value || "13:00";
+    const processarFinaisSemana = processarFinaisSemanaCheck?.checked || false;
+
+    // Obter quantidade de clientes
+    let quantidadeClientes = 0;
+    if (quantidadeClientesInput && quantidadeClientesInput.value) {
+      quantidadeClientes = parseInt(quantidadeClientesInput.value);
+    } else if (contadorClientesSelecionados) {
+      const textoContador = contadorClientesSelecionados.textContent || "";
+      const match = textoContador.match(/(\d+)\s+clientes?/i);
+      if (match) {
+        quantidadeClientes = parseInt(match[1]);
+      }
+    }
+    if (quantidadeClientes === 0) {
+      quantidadeClientes = totalContatosEstimado;
+    }
+
+    // Obter configuração de dias da semana
+    let configuracaoDiasSemana = null;
+    const modoIndividual = document.getElementById("modo_configuracao_individual")?.checked;
+    if (modoIndividual) {
+      configuracaoDiasSemana = salvarConfiguracaoDiasSemana();
+    }
+
+    // Calcular estimativas completas
+    const estimativasCompletas = calcularEstimativasCompleta({
+      quantidadeClientes,
+      tamanhoLote,
+      limiteEnviosDia: limiteDiario,
+      intervaloEnviosSegundos: intervaloMedio,
+      horarioInicio,
+      horarioFim,
+      pausarAlmoco,
+      horarioAlmocoInicio: pausarAlmoco ? horarioAlmocoInicio : null,
+      horarioAlmocoFim: pausarAlmoco ? horarioAlmocoFim : null,
+      processarFinaisSemana,
+      configuracaoDiasSemana,
+    });
+
+    // Gerar sugestões
+    const sugestoes = gerarSugestoesAutomaticas(estimativasCompletas);
+
+    // Determinar cor de status
+    let corStatus = "#10b981";
+    let textoStatus = "✅ Compatível com horário configurado";
+    if (!estimativasCompletas.compativel) {
+      corStatus = "#ef4444";
+      textoStatus = "❌ Não cabe no horário configurado";
+    } else if (estimativasCompletas.margemPequena) {
+      corStatus = "#f59e0b";
+      textoStatus = "⚠️ Margem pequena de tempo";
+    }
+
+    // Montar HTML do painel de estimativas
+    let htmlEstimativas = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
         <div>
-          <strong style="color: #111827; font-weight: 600;">⏱️ Tempo Entre Envios:</strong><br>
-          <span style="color: #2196F3;">${estimativas.tempoEntreEnvios}</span>
+          <strong style="color: #111827; font-weight: 600;">👥 Total de Clientes:</strong><br>
+          <span style="color: #2196F3; font-size: 18px;">${estimativasCompletas.totalClientes.toLocaleString()}</span>
         </div>
         <div>
-          <strong style="color: #111827; font-weight: 600;">📅 Dias Necessários:</strong><br>
-          <span style="color: #2196F3;">${estimativas.diasNecessarios} dias úteis</span>
+          <strong style="color: #111827; font-weight: 600;">📦 Total de Lotes:</strong><br>
+          <span style="color: #2196F3; font-size: 18px;">${estimativasCompletas.totalLotes}</span>
+        </div>
+    `;
+
+    if (pausarAlmoco && estimativasCompletas.lotesAntesAlmoco > 0 && estimativasCompletas.lotesDepoisAlmoco > 0) {
+      htmlEstimativas += `
+        <div>
+          <strong style="color: #111827; font-weight: 600;">🍽️ Intervalo de Almoço:</strong><br>
+          <span style="color: #2196F3;">${horarioAlmocoInicio} - ${horarioAlmocoFim}</span>
         </div>
         <div>
-          <strong style="color: #111827; font-weight: 600;">⏰ Tempo por Dia:</strong><br>
-          <span style="color: #2196F3;">${estimativas.tempoPorDia}</span>
+          <strong style="color: #111827; font-weight: 600;">📦 Lotes Antes do Almoço:</strong><br>
+          <span style="color: #2196F3;">${estimativasCompletas.lotesAntesAlmoco}</span>
         </div>
         <div>
-          <strong style="color: #111827; font-weight: 600;">🕐 Horário Estimado:</strong><br>
-          <span style="color: #2196F3;">${estimativas.horarioInicio} - ${estimativas.horarioFimEstimado}</span>
+          <strong style="color: #111827; font-weight: 600;">📦 Lotes Depois do Almoço:</strong><br>
+          <span style="color: #2196F3;">${estimativasCompletas.lotesDepoisAlmoco}</span>
+        </div>
+      `;
+    }
+
+    htmlEstimativas += `
+        <div>
+          <strong style="color: #111827; font-weight: 600;">📅 Lotes por Dia:</strong><br>
+          <span style="color: #2196F3;">${estimativasCompletas.lotesPorDia}</span>
+        </div>
+        <div>
+          <strong style="color: #111827; font-weight: 600;">⏱️ Dias Necessários:</strong><br>
+          <span style="color: #2196F3;">${estimativasCompletas.diasNecessarios} dias úteis</span>
+        </div>
+        <div>
+          <strong style="color: #111827; font-weight: 600;">⏰ Tempo Necessário por Dia:</strong><br>
+          <span style="color: #2196F3;">${estimativasCompletas.tempoNecessarioPorDiaHoras.toFixed(1)}h</span>
+        </div>
+        <div>
+          <strong style="color: #111827; font-weight: 600;">🕐 Horário Disponível:</strong><br>
+          <span style="color: #2196F3;">${estimativasCompletas.horasDisponiveis.toFixed(1)}h (${horarioInicio} - ${horarioFim}${pausarAlmoco ? `, menos ${estimativasCompletas.duracaoAlmocoHoras.toFixed(1)}h de almoço` : ""})</span>
         </div>
       </div>
-      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-        <strong style="color: #111827; font-weight: 600;">⏳ Tempo Total Estimado:</strong><br>
-        <span style="color: #4CAF50; font-size: 16px; font-weight: 600;">${estimativas.totalTempo}</span>
-      </div>
-      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb; background: #f0f7ff; padding: 10px; border-radius: 8px;">
-        <strong style="color: #111827; font-weight: 600;">📦 Processamento em Lotes:</strong><br>
-        <span style="color: #667eea; font-weight: 500;">${totalLotes} lotes de ${tamanhoLote} clientes = ${diasNecessariosLotes} dias úteis</span>
+      <div style="margin-top: 15px; padding: 10px; background: ${corStatus}20; border-left: 4px solid ${corStatus}; border-radius: 4px;">
+        <strong style="color: ${corStatus};">${textoStatus}</strong>
       </div>
     `;
 
-    // Atualizar estimativa de lotes
+    estimativasDiv.innerHTML = htmlEstimativas;
+
+    // Exibir sugestões
+    if (sugestoesDiv) {
+      if (sugestoes.length > 0) {
+        let htmlSugestoes = `<div style="margin-top: 15px;"><strong>💡 Sugestões:</strong><ul style="margin-top: 10px; padding-left: 20px;">`;
+        sugestoes.forEach((sugestao) => {
+          htmlSugestoes += `<li style="margin-bottom: 8px; color: ${sugestao.tipo === "erro" ? "#ef4444" : sugestao.tipo === "aviso" ? "#f59e0b" : "#3b82f6"};">`;
+          htmlSugestoes += `<strong>${sugestao.titulo}:</strong> ${sugestao.mensagem}`;
+          if (sugestao.sugestoes && sugestao.sugestoes.length > 0) {
+            htmlSugestoes += `<ul style="margin-top: 5px; padding-left: 20px;">`;
+            sugestao.sugestoes.forEach((s) => {
+              htmlSugestoes += `<li style="margin-bottom: 4px;">${s.acao}: ${s.motivo}</li>`;
+            });
+            htmlSugestoes += `</ul>`;
+          }
+          htmlSugestoes += `</li>`;
+        });
+        htmlSugestoes += `</ul></div>`;
+        sugestoesDiv.innerHTML = htmlSugestoes;
+      } else {
+        sugestoesDiv.innerHTML = `<div style="margin-top: 15px; color: #666;"><strong>💡 Sugestões:</strong> Nenhuma sugestão no momento</div>`;
+      }
+    }
+
+    // Mostrar painel
+    if (painelEstimativas) {
+      painelEstimativas.style.display = "block";
+    }
+
+    // Atualizar estimativa de lotes (compatibilidade)
     if (estimativasLoteDiv) {
-      estimativasLoteDiv.textContent = `Com ${totalContatosEstimado} clientes: ${totalLotes} lotes de ${tamanhoLote} = ${diasNecessariosLotes} dias úteis (${lotesPorDia} lotes/dia)`;
+      estimativasLoteDiv.textContent = `Com ${quantidadeClientes.toLocaleString()} clientes: ${estimativasCompletas.totalLotes} lotes de ${tamanhoLote} = ${estimativasCompletas.diasNecessarios} dias úteis (${estimativasCompletas.lotesPorDia} lotes/dia)`;
     }
   }
 
@@ -8156,58 +9019,6 @@
         <p><strong>Importante:</strong> A instância selecionada deve estar ativa e configurada corretamente.</p>
       `,
     },
-    agendamento_cron: {
-      titulo: "Agendamento Cron",
-      resumo: "Formato: minuto hora dia mês dia-semana",
-      detalhes: `
-        <h4>Formato Cron</h4>
-        <p>Use expressões cron para agendar execuções automáticas da campanha.</p>
-        <p><strong>Formato:</strong> <code>minuto hora dia mês dia-semana</code></p>
-        
-        <h5>Campos:</h5>
-        <ol>
-          <li><strong>Minuto</strong> (0-59) - Minuto da hora</li>
-          <li><strong>Hora</strong> (0-23) - Hora do dia</li>
-          <li><strong>Dia do mês</strong> (1-31) - Dia do mês</li>
-          <li><strong>Mês</strong> (1-12) - Mês do ano</li>
-          <li><strong>Dia da semana</strong> (0-7, onde 0 e 7 = domingo) - Dia da semana</li>
-        </ol>
-
-        <h5>Caracteres especiais:</h5>
-        <ul>
-          <li><code>*</code> - Qualquer valor</li>
-          <li><code>,</code> - Lista de valores (ex: 1,3,5)</li>
-          <li><code>-</code> - Intervalo (ex: 1-5)</li>
-          <li><code>/</code> - Incremento (ex: */2 = a cada 2)</li>
-        </ul>
-
-        <div class="tooltip-exemplos">
-          <h5>Exemplos práticos:</h5>
-          <div class="tooltip-exemplo-item">
-            <code>0 9 * * 1-5</code>
-            <div class="descricao">9h da manhã, apenas dias úteis (segunda a sexta)</div>
-          </div>
-          <div class="tooltip-exemplo-item">
-            <code>0 9 1 1 *</code>
-            <div class="descricao">1º de janeiro às 9h</div>
-          </div>
-          <div class="tooltip-exemplo-item">
-            <code>0 */2 * * *</code>
-            <div class="descricao">A cada 2 horas (0h, 2h, 4h, 6h...)</div>
-          </div>
-          <div class="tooltip-exemplo-item">
-            <code>30 14 * * 0</code>
-            <div class="descricao">Domingos às 14:30</div>
-          </div>
-          <div class="tooltip-exemplo-item">
-            <code>0 9,14 * * 1-5</code>
-            <div class="descricao">9h e 14h, dias úteis</div>
-          </div>
-        </div>
-
-        <p><strong>Dica:</strong> Deixe vazio se não quiser agendamento automático (disparo apenas manual).</p>
-      `,
-    },
     prompt_ia: {
       titulo: "Prompt Personalizado para IA",
       resumo: "Instruções específicas para a IA gerar mensagens",
@@ -8684,7 +9495,6 @@ Máximo de 3 parágrafos.</code></pre>
     const mapeamento = {
       "visao-geral": { content: "ajudaVisaoGeral", tab: "tabVisaoGeral" },
       campos: { content: "ajudaCampos", tab: "tabCampos" },
-      cron: { content: "ajudaCron", tab: "tabCron" },
       funcionalidades: {
         content: "ajudaFuncionalidades",
         tab: "tabFuncionalidades",
@@ -9609,6 +10419,231 @@ Máximo de 3 parágrafos.</code></pre>
       console.error(error);
     }
   }
+
+  // ============================================================================
+  // Funções para Configuração de Dias da Semana e Intervalo de Almoço
+  // ============================================================================
+
+  /**
+   * Alterna visibilidade dos campos de intervalo de almoço
+   */
+  function toggleCamposAlmoco() {
+    const checkbox = document.getElementById("pausar_almoco");
+    const camposDiv = document.getElementById("campos_almoco");
+    if (checkbox && camposDiv) {
+      camposDiv.style.display = checkbox.checked ? "block" : "none";
+      atualizarEstimativas();
+    }
+  }
+
+  /**
+   * Alterna entre configuração padrão e individual de dias da semana
+   */
+  function toggleConfiguracaoDiasSemana() {
+    const modoPadrao = document.getElementById("modo_configuracao_padrao");
+    const modoIndividual = document.getElementById("modo_configuracao_individual");
+    const divPadrao = document.getElementById("configuracao_padrao_dias");
+    const divIndividual = document.getElementById("configuracao_individual_dias");
+
+    if (modoPadrao && modoIndividual && divPadrao && divIndividual) {
+      if (modoPadrao.checked) {
+        divPadrao.style.display = "block";
+        divIndividual.style.display = "none";
+      } else {
+        divPadrao.style.display = "none";
+        divIndividual.style.display = "block";
+        if (!document.getElementById("tabela_dias_semana").innerHTML.trim()) {
+          inicializarTabelaDiasSemana();
+        }
+      }
+      atualizarEstimativas();
+    }
+  }
+
+  /**
+   * Inicializa a tabela de configuração de dias da semana
+   */
+  function inicializarTabelaDiasSemana() {
+    const tbody = document.getElementById("tabela_dias_semana");
+    if (!tbody) return;
+
+    const dias = [
+      { nome: "Segunda", chave: "segunda" },
+      { nome: "Terça", chave: "terca" },
+      { nome: "Quarta", chave: "quarta" },
+      { nome: "Quinta", chave: "quinta" },
+      { nome: "Sexta", chave: "sexta" },
+      { nome: "Sábado", chave: "sabado" },
+      { nome: "Domingo", chave: "domingo" },
+    ];
+
+    const horarioInicio = document.getElementById("horario_inicio")?.value || "09:00";
+    const horarioFim = document.getElementById("horario_fim")?.value || "18:00";
+    const processarFinaisSemana = document.getElementById("processar_finais_semana")?.checked || false;
+
+    tbody.innerHTML = dias
+      .map((dia) => {
+        const ehFimSemana = dia.chave === "sabado" || dia.chave === "domingo";
+        const habilitado = !ehFimSemana || processarFinaisSemana;
+        const horarioInicioDia = habilitado ? horarioInicio : "";
+        const horarioFimDia = habilitado ? horarioFim : "";
+
+        return `
+          <tr>
+            <td style="padding: 8px; font-weight: 600">${dia.nome}</td>
+            <td style="padding: 8px; text-align: center">
+              <input
+                type="checkbox"
+                id="dia_${dia.chave}_habilitado"
+                ${habilitado ? "checked" : ""}
+                onchange="atualizarEstimativas()"
+                style="width: auto"
+              />
+            </td>
+            <td style="padding: 8px">
+              <input
+                type="time"
+                id="dia_${dia.chave}_inicio"
+                value="${horarioInicioDia}"
+                ${!habilitado ? "disabled" : ""}
+                onchange="atualizarEstimativas()"
+                style="width: 100%"
+              />
+            </td>
+            <td style="padding: 8px">
+              <input
+                type="time"
+                id="dia_${dia.chave}_fim"
+                value="${horarioFimDia}"
+                ${!habilitado ? "disabled" : ""}
+                onchange="atualizarEstimativas()"
+                style="width: 100%"
+              />
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    // Adicionar listeners para habilitar/desabilitar campos de horário
+    dias.forEach((dia) => {
+      const checkbox = document.getElementById(`dia_${dia.chave}_habilitado`);
+      const inputInicio = document.getElementById(`dia_${dia.chave}_inicio`);
+      const inputFim = document.getElementById(`dia_${dia.chave}_fim`);
+
+      if (checkbox && inputInicio && inputFim) {
+        checkbox.addEventListener("change", function () {
+          inputInicio.disabled = !this.checked;
+          inputFim.disabled = !this.checked;
+          if (!this.checked) {
+            inputInicio.value = "";
+            inputFim.value = "";
+          } else {
+            // Aplicar horário padrão se estiver vazio
+            if (!inputInicio.value) {
+              inputInicio.value = horarioInicio;
+            }
+            if (!inputFim.value) {
+              inputFim.value = horarioFim;
+            }
+          }
+          atualizarEstimativas();
+        });
+      }
+    });
+  }
+
+  /**
+   * Aplica horário padrão a todos os dias habilitados
+   */
+  function aplicarHorarioPadrao() {
+    const horarioInicio = document.getElementById("horario_inicio")?.value || "09:00";
+    const horarioFim = document.getElementById("horario_fim")?.value || "18:00";
+
+    const dias = ["segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo"];
+
+    dias.forEach((dia) => {
+      const checkbox = document.getElementById(`dia_${dia}_habilitado`);
+      const inputInicio = document.getElementById(`dia_${dia}_inicio`);
+      const inputFim = document.getElementById(`dia_${dia}_fim`);
+
+      if (checkbox && checkbox.checked && inputInicio && inputFim) {
+        inputInicio.value = horarioInicio;
+        inputFim.value = horarioFim;
+      }
+    });
+
+    atualizarEstimativas();
+    mostrarAlerta("Horário padrão aplicado a todos os dias habilitados", "success");
+  }
+
+  /**
+   * Salva configuração de dias da semana em formato JSONB
+   */
+  function salvarConfiguracaoDiasSemana() {
+    const modoIndividual = document.getElementById("modo_configuracao_individual")?.checked;
+    
+    if (!modoIndividual) {
+      return null; // Usar configuração padrão
+    }
+
+    const dias = ["segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo"];
+    const configuracao = {};
+
+    dias.forEach((dia) => {
+      const checkbox = document.getElementById(`dia_${dia}_habilitado`);
+      const inputInicio = document.getElementById(`dia_${dia}_inicio`);
+      const inputFim = document.getElementById(`dia_${dia}_fim`);
+
+      if (checkbox && inputInicio && inputFim) {
+        const habilitado = checkbox.checked;
+        configuracao[dia] = {
+          habilitado: habilitado,
+          horario_inicio: habilitado && inputInicio.value ? inputInicio.value : null,
+          horario_fim: habilitado && inputFim.value ? inputFim.value : null,
+        };
+      }
+    });
+
+    return configuracao;
+  }
+
+  /**
+   * Carrega configuração de dias da semana do banco de dados
+   */
+  function carregarConfiguracaoDiasSemana(configuracaoDiasSemana, horarioInicio, horarioFim, processarFinaisSemana) {
+    if (!configuracaoDiasSemana) {
+      // Usar configuração padrão
+      document.getElementById("modo_configuracao_padrao").checked = true;
+      toggleConfiguracaoDiasSemana();
+      return;
+    }
+
+    // Usar configuração individual
+    document.getElementById("modo_configuracao_individual").checked = true;
+    toggleConfiguracaoDiasSemana();
+
+    // Preencher tabela com valores do banco
+    Object.keys(configuracaoDiasSemana).forEach((dia) => {
+      const config = configuracaoDiasSemana[dia];
+      const checkbox = document.getElementById(`dia_${dia}_habilitado`);
+      const inputInicio = document.getElementById(`dia_${dia}_inicio`);
+      const inputFim = document.getElementById(`dia_${dia}_fim`);
+
+      if (checkbox && inputInicio && inputFim) {
+        checkbox.checked = config.habilitado || false;
+        inputInicio.value = config.horario_inicio || "";
+        inputFim.value = config.horario_fim || "";
+        inputInicio.disabled = !checkbox.checked;
+        inputFim.disabled = !checkbox.checked;
+      }
+    });
+  }
+
+  // Expor funções globalmente
+  window.toggleCamposAlmoco = toggleCamposAlmoco;
+  window.toggleConfiguracaoDiasSemana = toggleConfiguracaoDiasSemana;
+  window.aplicarHorarioPadrao = aplicarHorarioPadrao;
 
   // Expor funções globalmente
   window.carregarConfiguracoesEmpresa = carregarConfiguracoesEmpresa;

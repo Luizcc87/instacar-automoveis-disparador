@@ -140,25 +140,54 @@ O sistema processa campanhas em lotes menores para evitar execuções muito long
 
 ### Horário de Processamento
 
-Configure a faixa de horário para processamento:
+Configure a faixa de horário para processamento de duas formas:
+
+#### Modo Padrão (Recomendado para Iniciantes)
 
 - **Horário Início** (`horario_inicio`): Horário de início (formato HH:MM, padrão: 09:00)
 - **Horário Fim** (`horario_fim`): Horário de fim (formato HH:MM, padrão: 18:00)
 - **Processar Finais de Semana** (`processar_finais_semana`): Se marcado, processa também sábados e domingos
 
+#### Modo Avançado: Configuração por Dia da Semana
+
+Permite configurar horários específicos para cada dia da semana:
+
+- **Segunda a Sexta**: Configure horários individuais para cada dia
+- **Sábado**: Pode ser habilitado com horário específico (ex: só manhã 09:00-12:00)
+- **Domingo**: Pode ser desabilitado ou ter horário específico
+
+**Exemplos de Uso:**
+
+- Sábado só pela manhã: Habilitar sábado com horário 09:00-12:00
+- Domingo desabilitado: Desmarcar checkbox de domingo
+- Sábado e domingo o dia todo: Habilitar ambos com horário 09:00-18:00
+
+#### Intervalo de Almoço (Opcional)
+
+- **Pausar durante horário de almoço**: Checkbox para habilitar pausa automática
+- **Horário Início Almoço**: Horário em que o intervalo começa (padrão: 12:00)
+- **Horário Fim Almoço**: Horário em que o intervalo termina (padrão: 13:00)
+
 **Comportamento:**
 
 - O sistema pausa automaticamente ao sair do horário configurado
+- Se intervalo de almoço configurado, pausa durante o almoço e separa lotes antes/depois
 - Retoma no próximo dia útil (ou no próximo dia se finais de semana permitidos)
 - Divide automaticamente campanhas grandes ao longo de múltiplos dias
+- O painel de estimativas mostra em tempo real quantos lotes cabem no horário disponível
 
 **Exemplo de Cálculo:**
 
 - 2000 clientes elegíveis
 - Tamanho lote: 50
 - Limite diário: 200
+- Horário: 09:00-18:00 (9 horas)
+- Intervalo almoço: 12:00-13:00 (1 hora)
+- **Horas disponíveis**: 8 horas (9h - 1h almoço)
 - **Total de lotes**: 40 (2000 / 50)
 - **Lotes por dia**: 4 (200 / 50)
+- **Lotes antes almoço**: ~2 (3h disponíveis)
+- **Lotes depois almoço**: ~2 (5h disponíveis)
 - **Dias necessários**: 10 dias úteis (40 / 4)
 
 ## Configurando o Prompt da IA

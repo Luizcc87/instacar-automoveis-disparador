@@ -2531,18 +2531,6 @@
           </div>
 
           <div class="form-group">
-            <label>Agendamento Cron (opcional)</label>
-            <input
-              type="text"
-              id="agendamento_cron"
-              placeholder="0 9 * * 1-5 (9h, dias úteis)"
-            />
-            <small style="color: #666"
-              >Formato: minuto hora dia mês dia-semana</small
-            >
-          </div>
-
-          <div class="form-group">
             <label id="label_prompt_ia">Prompt Personalizado para IA <span id="prompt_ia_required" style="color: red">*</span></label>
             <textarea
               id="prompt_ia"
@@ -3008,21 +2996,168 @@
               </div>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label>Horário Início</label>
-                <input type="time" id="horario_inicio" value="09:00" />
-                <small style="color: #666">
-                  Horário de início para processamento (formato HH:MM)
+            <!-- Seção: Configuração por Dia da Semana -->
+            <div
+              style="
+                background: #fff5f0;
+                padding: 15px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #ff6b35;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                📅 Configuração por Dia da Semana
+              </h4>
+              
+              <div class="form-group" style="margin-bottom: 15px">
+                <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 10px">
+                  <input
+                    type="radio"
+                    name="modo_configuracao_dias"
+                    id="modo_configuracao_padrao"
+                    value="padrao"
+                    checked
+                    onchange="toggleConfiguracaoDiasSemana()"
+                    style="width: auto; margin-right: 8px"
+                  />
+                  <span>Usar configuração padrão (horário início/fim e processar finais de semana)</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer">
+                  <input
+                    type="radio"
+                    name="modo_configuracao_dias"
+                    id="modo_configuracao_individual"
+                    value="individual"
+                    onchange="toggleConfiguracaoDiasSemana()"
+                    style="width: auto; margin-right: 8px"
+                  />
+                  <span>Configurar cada dia individualmente</span>
+                </label>
+              </div>
+
+              <!-- Campos padrão (sempre visíveis) -->
+              <div id="configuracao_padrao_dias">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="with-help">Horário Início <span class="help-icon" title="Horário em que a campanha começa a processar automaticamente. O Schedule Trigger verifica este horário para iniciar a campanha.">?</span></label>
+                    <input type="time" id="horario_inicio" value="09:00" />
+                    <small style="color: #666">
+                      Horário de início para processamento automático (formato HH:MM). Define quando a campanha começa a executar automaticamente.
+                    </small>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="with-help">Horário Fim <span class="help-icon" title="Horário em que a campanha para de processar. Se definido, o sistema calcula automaticamente quantos clientes cabem neste horário.">?</span></label>
+                    <input type="time" id="horario_fim" value="18:00" />
+                    <small style="color: #666">
+                      Horário de fim para processamento (formato HH:MM, opcional). Se definido, limita o processamento e calcula lotes automaticamente para caber no horário disponível.
+                    </small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tabela de configuração individual (inicialmente oculta) -->
+              <div id="configuracao_individual_dias" style="display: none">
+                <div style="margin-bottom: 10px">
+                  <button
+                    type="button"
+                    onclick="aplicarHorarioPadrao()"
+                    class="btn-secondary"
+                    style="padding: 6px 12px; font-size: 13px"
+                  >
+                    🔄 Aplicar horário padrão a todos os dias habilitados
+                  </button>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px">
+                  <thead>
+                    <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd">
+                      <th style="padding: 10px; text-align: left; width: 120px">Dia</th>
+                      <th style="padding: 10px; text-align: center; width: 100px">Habilitado</th>
+                      <th style="padding: 10px; text-align: left; width: 150px">Horário Início</th>
+                      <th style="padding: 10px; text-align: left; width: 150px">Horário Fim</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tabela_dias_semana">
+                    <!-- Preenchido via JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Seção: Intervalo de Almoço -->
+            <div
+              style="
+                background: #fff5f0;
+                padding: 15px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #ff6b35;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                🍽️ Intervalo de Almoço
+              </h4>
+              
+              <div class="form-group" style="margin-bottom: 15px">
+                <label style="display: flex; align-items: center; cursor: pointer">
+                  <input
+                    type="checkbox"
+                    id="pausar_almoco"
+                    onchange="toggleCamposAlmoco()"
+                    style="width: auto; margin-right: 8px"
+                  />
+                  <span>Pausar durante horário de almoço</span>
+                </label>
+                <small style="color: #666; display: block; margin-top: 5px">
+                  Quando marcado, o sistema pausa automaticamente durante o intervalo de almoço e separa os lotes antes e depois do almoço.
                 </small>
               </div>
 
-              <div class="form-group">
-                <label>Horário Fim</label>
-                <input type="time" id="horario_fim" value="18:00" />
-                <small style="color: #666">
-                  Horário de fim para processamento (formato HH:MM)
-                </small>
+              <div id="campos_almoco" style="display: none">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Horário Início Almoço</label>
+                    <input type="time" id="horario_almoco_inicio" value="12:00" />
+                    <small style="color: #666">
+                      Horário em que o intervalo de almoço começa (formato HH:MM)
+                    </small>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Horário Fim Almoço</label>
+                    <input type="time" id="horario_almoco_fim" value="13:00" />
+                    <small style="color: #666">
+                      Horário em que o intervalo de almoço termina (formato HH:MM)
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Painel de Estimativas -->
+            <div
+              id="painel_estimativas"
+              style="
+                background: #f0f9ff;
+                padding: 20px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #3b82f6;
+                display: none;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                📊 Estimativas da Campanha
+              </h4>
+              <div id="estimativas-conteudo">
+                <!-- Preenchido via JavaScript -->
+              </div>
+              <div id="sugestoes-automaticas" style="margin-top: 15px">
+                <!-- Preenchido via JavaScript -->
               </div>
             </div>
 
@@ -3126,6 +3261,34 @@
               </small>
             </div>
 
+            <!-- Seção: Quantidade de Clientes (Opcional) -->
+            <div
+              style="
+                background: #f0f7ff;
+                padding: 15px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #667eea;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                📊 Quantidade de Clientes (Opcional)
+              </h4>
+              <div class="form-group">
+                <label>Quantidade Fixa de Clientes</label>
+                <input
+                  type="number"
+                  id="quantidade_clientes"
+                  min="1"
+                  placeholder="Deixe vazio para usar clientes selecionados ou todos elegíveis"
+                />
+                <small style="color: #666">
+                  Se preenchido, será usado para cálculos de estimativas. Se vazio, usa quantidade de clientes selecionados ou todos elegíveis do banco.
+                </small>
+              </div>
+            </div>
+
             <div
               id="estimativas-lote"
               style="
@@ -3187,13 +3350,6 @@
               id="tabCampos"
             >
               📝 Campos do Formulário
-            </button>
-            <button
-              class="modal-tab"
-              onclick="trocarTabAjuda('cron')"
-              id="tabCron"
-            >
-              ⏰ Agendamento Cron
             </button>
             <button
               class="modal-tab"
@@ -3416,7 +3572,8 @@ Registra no histórico (Supabase)
             </ul>
           </div>
 
-          <div id="ajudaCron" class="modal-tab-content">
+          <!-- Seção de ajuda sobre Agendamento Cron removida - agora usa Horário Início/Fim -->
+          <div id="ajudaCron" class="modal-tab-content" style="display: none;">
             <h3>Agendamento Cron - Guia Completo</h3>
             <p>
               O agendamento cron permite executar campanhas automaticamente em

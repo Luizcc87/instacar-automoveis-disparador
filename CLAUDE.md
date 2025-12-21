@@ -14,7 +14,7 @@ Este é um sistema automatizado de disparo de mensagens via WhatsApp para a Inst
 - **OpenAI GPT-4**: Geração de mensagens personalizadas
 - **Google Sheets**: Fonte de dados dos clientes (9 planilhas)
 
-**Versão Atual:** 2.4 (Dezembro 2025 - sistema de dados dinâmicos para agente IA com configurações globais, sessões de contexto e templates de prompt)
+**Versão Atual:** 2.5 (Dezembro 2025 - painel de estimativas, intervalo de almoço e configuração granular por dia da semana)
 
 ## Arquitetura
 
@@ -457,6 +457,42 @@ Melhorias de interface e experiência do usuário:
 5. **Consistência Visual**: Paleta de cores, espaçamento e transições padronizados
 
 📖 **Changelog completo**: [docs/interface-web/CHANGELOG-UI-UX-2025-12.md](docs/interface-web/CHANGELOG-UI-UX-2025-12.md)
+
+### Versão 2.5 (Dezembro 2025 - Painel de Estimativas e Configuração Avançada de Horários)
+
+Sistema completo de estimativas e configuração flexível de horários:
+
+1. **Painel de Estimativas em Tempo Real**:
+   - Calcula automaticamente total de lotes, lotes por dia e dias necessários
+   - Mostra lotes antes e depois do almoço (se configurado)
+   - Validação visual: verde (compatível), amarelo (margem pequena), vermelho (incompatível)
+   - Sugestões automáticas de ajustes quando necessário
+
+2. **Intervalo de Almoço Configurável**:
+   - Checkbox para habilitar/desabilitar pausa durante almoço
+   - Campos de horário início/fim do almoço
+   - Separação automática de lotes antes e depois do almoço
+   - Pausa automática durante intervalo configurado
+
+3. **Configuração Granular por Dia da Semana**:
+   - Opção "Usar configuração padrão" (compatível com sistema anterior)
+   - Opção "Configurar cada dia individualmente"
+   - Tabela com 7 dias (Segunda a Domingo)
+   - Para cada dia: checkbox "Habilitado" + campos de horário início/fim
+   - Permite configurar sábado só pela manhã, domingo desabilitado, etc.
+   - Botão "Aplicar horário padrão a todos" para facilitar
+
+4. **Campo Quantidade de Clientes (Opcional)**:
+   - Permite informar quantidade fixa para cálculos de estimativas
+   - Se vazio, usa quantidade de clientes selecionados ou todos elegíveis
+
+5. **Workflow N8N Atualizado**:
+   - Função `obterHorarioDiaAtual()` para usar configuração por dia
+   - Verificação e pausa automática durante intervalo de almoço
+   - Cálculo adaptativo de lotes considerando almoço e horários específicos do dia
+   - Compatibilidade retroativa com configuração antiga
+
+**Migração SQL**: Execute `docs/supabase/migracao-intervalo-almoco-dias-semana.sql` para adicionar os novos campos.
 
 ### Versão 2.1 (2025-12-14 - Correções Críticas)
 
