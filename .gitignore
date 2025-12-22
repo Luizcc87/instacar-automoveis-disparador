@@ -139,6 +139,9 @@ coverage/
 # IMPORTANTE: Os fluxos N8N podem conter tokens, chaves e credenciais
 # Mantenha apenas versões limpas (sem credenciais) se necessário versionar
 fluxos-n8n/*.json
+# Exceção: permitir versionar exemplos sanitizados (sem credenciais)
+!fluxos-n8n/examples/*.json
+!fluxos-n8n/examples/*.md
 
 # Arquivos de dump do banco
 *.sql.dump

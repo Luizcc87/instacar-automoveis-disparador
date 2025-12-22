@@ -1,0 +1,4062 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campanha",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -5152,
+        96
+      ],
+      "id": "9e86934f-66fd-433e-974d-d6a8c5fc5fc1",
+      "name": "Webhook Trigger - Campanha",
+      "webhookId": "campanha-webhook-id"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -5152,
+        496
+      ],
+      "id": "99570b10-3b7b-42e5-bf98-78de5d3c1c71",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar payload e obter campanha_id ou telefone (envio individual)\nconst inputData = $input.first()?.json || {};\nconst webhookData = inputData.body || inputData || {};\n\n// Detectar tipo de trigger baseado nos dados recebidos\n// Schedule Trigger envia: { timestamp, readable date, etc } - sem body\n// Webhook envia: { body: { campanha_id, ... } }\n// Manual Trigger envia: objeto vazio ou sem propriedades\nconst isScheduleTrigger = inputData.timestamp && inputData['Readable date'] && !inputData.body;\nconst isWebhook = inputData.body || (webhookData.campanha_id || webhookData.execucao_id || webhookData.telefone);\nconst isManualExecution = !isScheduleTrigger && !isWebhook && Object.keys(webhookData).length === 0;\n\nconst campanhaId = webhookData.campanha_id || $json.campanha_id || null;\nconst triggerTipo = isScheduleTrigger ? 'cron' : (webhookData.trigger_tipo || 'manual');\nconst execucaoId = webhookData.execucao_id || null;\nconst continuar = webhookData.continuar || false;\nconst telefone = webhookData.telefone || null;\nconst mensagemCustomizada = webhookData.mensagem_customizada || null;\nconst instanceId = webhookData.instance_id || webhookData.whatsapp_api_id || null;\n\n// Se for envio individual, telefone é obrigatório\nif (triggerTipo === 'manual_individual') {\n  if (!telefone) {\n    throw new Error('telefone é obrigatório para envio individual');\n  }\n  return [{\n    json: {\n      trigger_tipo: triggerTipo,\n      telefone: telefone,\n      campanha_id: campanhaId, // Opcional: pode usar campanha para IA\n      mensagem_customizada: mensagemCustomizada, // Opcional: mensagem direta\n      instance_id: instanceId // Opcional: instância WhatsApp específica\n    }\n  }];\n}\n\n// Se for Schedule Trigger, buscar campanhas agendadas automaticamente\nif (isScheduleTrigger) {\n  return [{\n    json: {\n      campanha_id: null,\n      execucao_id: null,\n      trigger_tipo: 'cron',\n      continuar: false,\n      buscarCampanhasAgendadas: true // Flag para buscar campanhas com cron\n    }\n  }];\n}\n\n// Para campanhas normais, campanha_id ou execucao_id é obrigatório\n// EXCETO em execução manual, onde vamos buscar automaticamente uma campanha ativa\nif (!campanhaId && !execucaoId) {\n  if (isManualExecution) {\n    // Em execução manual, permitir continuar sem campanha_id\n    // O próximo nó buscará automaticamente uma campanha ativa\n    return [{\n      json: {\n        campanha_id: null,\n        execucao_id: null,\n        trigger_tipo: 'manual',\n        continuar: continuar,\n        buscarCampanhaAutomatica: true // Flag para buscar campanha automaticamente\n      }\n    }];\n  }\n  throw new Error('campanha_id ou execucao_id não fornecido');\n}\n\nreturn [{\n  json: {\n    campanha_id: campanhaId,\n    execucao_id: execucaoId,\n    trigger_tipo: triggerTipo,\n    continuar: continuar,\n    buscarCampanhaAutomatica: false,\n    buscarCampanhasAgendadas: false\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4976,
+        304
+      ],
+      "id": "479604c7-d664-454f-ada0-af5091bc78e9",
+      "name": "Validar Payload"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "var-001",
+              "name": "SUPABASE_URL",
+              "value": "https://YOUR_PROJECT_ID.supabase.co",
+              "type": "string"
+            },
+            {
+              "id": "var-002",
+              "name": "SUPABASE_SERVICE_KEY",
+              "value": "=YOUR_SUPABASE_SERVICE_KEY",
+              "type": "string"
+            },
+            {
+              "id": "var-003",
+              "name": "UAZAPI_BASE_URL",
+              "value": "https://YOUR_SUBDOMAIN.uazapi.com",
+              "type": "string"
+            },
+            {
+              "id": "var-004",
+              "name": "UAZAPI_TOKEN",
+              "value": "=YOUR_UAZAPI_TOKEN",
+              "type": "string"
+            },
+            {
+              "id": "var-005",
+              "name": "OPENAI_MODEL",
+              "value": "=gpt-4.1",
+              "type": "string"
+            },
+            {
+              "id": "var-010",
+              "name": "SHEET_PAGE_NAME",
+              "value": "=Listagem de Clientes por Vended",
+              "type": "string"
+            },
+            {
+              "id": "var-011",
+              "name": "SHEET_IDS",
+              "value": "=[\"YOUR_GOOGLE_SHEET_ID_1\",\"YOUR_GOOGLE_SHEET_ID_2\",\"YOUR_GOOGLE_SHEET_ID_3\",\"YOUR_GOOGLE_SHEET_ID_4\",\"YOUR_GOOGLE_SHEET_ID_5\",\"YOUR_GOOGLE_SHEET_ID_6\",\"YOUR_GOOGLE_SHEET_ID_7\",\"YOUR_GOOGLE_SHEET_ID_8\",\"YOUR_GOOGLE_SHEET_ID_9\"]",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4816,
+        304
+      ],
+      "id": "9f66985f-23c7-498d-b600-df89852b8229",
+      "name": "Set Variables - CONFIGURAR AQUI"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Buscar campanhas agendadas se for Schedule Trigger\nconst payload = $('Validar Payload').first().json;\n\n// Se não for para buscar campanhas agendadas, passar adiante\nif (!payload.buscarCampanhasAgendadas) {\n  return [{ json: payload }];\n}\n\n// Preparar data/hora atual para verificar cron\nconst agora = new Date();\nconst hoje = agora.toISOString().split('T')[0];\nconst hora = agora.getHours();\nconst minuto = agora.getMinutes();\nconst diaSemana = agora.getDay(); // 0 = domingo, 6 = sábado\n\nreturn [{\n  json: {\n    ...payload,\n    hoje: hoje,\n    hora: hora,\n    minuto: minuto,\n    diaSemana: diaSemana\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4640,
+        304
+      ],
+      "id": "d9f99420-cda8-4710-9126-bacc74a85753",
+      "name": "Preparar Data para Cron"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-buscar-cron",
+              "leftValue": "={{ $json.buscarCampanhasAgendadas }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -4448,
+        304
+      ],
+      "id": "5f956652-2dac-4f8c-97b4-2cb921c1b943",
+      "name": "IF Buscar Campanhas Agendadas"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_campanhas",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "YOUR_KEYVALUE"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -4256,
+        288
+      ],
+      "id": "738856a6-710e-4b74-8b2f-56dcbc98b5b7",
+      "name": "Buscar Campanhas Agendadas",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtrar campanhas que devem executar agora baseado no cron\nconst campanhas = $input.all();\nconst dadosCron = $('Preparar Data para Cron').first().json;\nconst hoje = dadosCron.hoje;\nconst hora = dadosCron.hora;\nconst minuto = dadosCron.minuto;\nconst diaSemana = dadosCron.diaSemana;\n\n// Função para verificar se cron corresponde ao horário atual\nfunction verificarCron(cronExpr, horaAtual, minutoAtual, diaSemanaAtual) {\n  const partes = cronExpr.trim().split(' ');\n  if (partes.length !== 5) return false;\n  \n  const [min, hr, diaMes, mes, diaSem] = partes;\n  \n  // Verificar minuto\n  if (min !== '*' && parseInt(min) !== minutoAtual) return false;\n  \n  // Verificar hora\n  if (hr !== '*' && parseInt(hr) !== horaAtual) return false;\n  \n  // Verificar dia da semana (0 = domingo, 6 = sábado)\n  if (diaSem.includes('-')) {\n    const [inicio, fim] = diaSem.split('-').map(Number);\n    if (diaSemanaAtual < inicio || diaSemanaAtual > fim) return false;\n  } else if (diaSem !== '*') {\n    const dias = diaSem.split(',').map(Number);\n    if (!dias.includes(diaSemanaAtual)) return false;\n  }\n  \n  return true;\n}\n\nconst campanhasParaExecutar = [];\n\n// Filtrar apenas campanhas ativas com agendamento_cron configurado (não null)\nfor (const campanha of campanhas) {\n  // Validar que a campanha está ativa (camada extra de segurança)\n  if (campanha.json.status !== 'ativa' || !campanha.json.ativo) {\n    continue; // Pular campanhas pausadas ou inativas\n  }\n  \n  const cron = campanha.json.agendamento_cron;\n  // Pular campanhas sem cron configurado\n  if (!cron || cron === null || cron === '') continue;\n  \n  // Verificar se está no período da campanha\n  const hojeDate = new Date(hoje);\n  if (campanha.json.data_inicio && new Date(campanha.json.data_inicio) > hojeDate) continue;\n  if (campanha.json.data_fim && new Date(campanha.json.data_fim) < hojeDate) continue;\n  \n  // Verificar se cron corresponde ao horário atual\n  if (verificarCron(cron, hora, minuto, diaSemana)) {\n    campanhasParaExecutar.push({\n      json: {\n        ...campanha.json,\n        campanha_id: campanha.json.id,\n        trigger_tipo: 'cron',\n        buscarCampanhasAgendadas: false,\n        dentroHorarioComercial: true, // Permitir execução em qualquer horário se cron configurado\n        ehDiaUtil: true,\n        campanhaAgendada: true // Flag para indicar que é campanha agendada\n      }\n    });\n  }\n}\n\n// Se encontrou campanhas agendadas, retornar para execução\nif (campanhasParaExecutar.length > 0) {\n  return campanhasParaExecutar;\n}\n\n// Se não encontrou campanhas agendadas, passar adiante para verificar horário comercial (fluxo normal)\nreturn [{\n  json: {\n    ...dadosCron,\n    buscarCampanhasAgendadas: false,\n    nenhumaCampanhaAgendada: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4096,
+        304
+      ],
+      "id": "809c8381-50cd-4f93-8749-94e38ead08fe",
+      "name": "Filtrar Campanhas para Executar"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-tem-campanha-agendada",
+              "leftValue": "={{ $json.campanha_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3920,
+        304
+      ],
+      "id": "147126c7-7270-4671-b8cf-32288884e50f",
+      "name": "IF Tem Campanha Agendada"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verificar horário comercial e dia útil (pular para envio individual e campanhas agendadas)\n// Pode vir de Validar Payload ou de Filtrar Campanhas para Executar\nconst inputData = $input.first().json;\nconst payload = inputData.campanha_id ? inputData : $('Validar Payload').first().json;\nconst triggerTipo = payload.trigger_tipo || inputData.trigger_tipo || 'manual';\n\n// Se for envio individual, pular verificação de horário\nif (triggerTipo === 'manual_individual') {\n  return [{\n    json: {\n      ...payload,\n      envioIndividual: true,\n      dentroHorarioComercial: true,\n      ehDiaUtil: true\n    }\n  }];\n}\n\n// Se for campanha agendada (com cron configurado), permitir execução em qualquer horário\nif (payload.campanhaAgendada || payload.trigger_tipo === 'cron' && payload.campanha_id) {\n  return [{\n    json: {\n      ...payload,\n      dentroHorarioComercial: true,\n      ehDiaUtil: true,\n      campanhaAgendada: true\n    }\n  }];\n}\n\n// Para campanhas normais (sem cron), verificar horário comercial\nconst agora = new Date();\nconst diaSemana = agora.getDay(); // 0 = domingo, 6 = sábado\nconst ehDiaUtil = diaSemana >= 1 && diaSemana <= 5;\n\nif (!ehDiaUtil) {\n  throw new Error('Campanhas só executam em dias úteis (segunda a sexta)');\n}\n\n// Verificar horário comercial (9h-18h) apenas para campanhas sem cron\nconst hora = agora.getHours();\nconst minuto = agora.getMinutes();\nconst horaDecimal = hora + (minuto / 60);\n\nconst horarioComercialInicio = 9;\nconst horarioComercialFim = 18;\n\nif (horaDecimal < horarioComercialInicio || horaDecimal >= horarioComercialFim) {\n  // Se for manual, pode continuar amanhã\n  return [{\n    json: {\n      ...payload,\n      foraHorarioComercial: true,\n      podeContinuarAmanha: true\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ...payload,\n    dentroHorarioComercial: true,\n    ehDiaUtil: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4400,
+        576
+      ],
+      "id": "fd1d2cac-dd2b-4147-bb60-fd8daa239b6c",
+      "name": "Verificar Horário e Dia Útil"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-horario",
+              "leftValue": "={{ $json.pularExecucao }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3968,
+        592
+      ],
+      "id": "3c57bbef-ea9a-4177-9c6d-f1d27aed24ef",
+      "name": "IF Pular Execução"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-envio-individual",
+              "leftValue": "={{ $json.envioIndividual }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -4144,
+        576
+      ],
+      "id": "d823f3bf-11e4-43de-bfb7-6d2fee172861",
+      "name": "IF Envio Individual"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "instacar_clientes_envios",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $('Verificar Horário e Dia Útil').first().json.telefone }}"
+            },
+            {
+              "keyName": "id",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3504,
+        208
+      ],
+      "id": "b7c42b3b-139d-4987-a0a6-8a1bcf60f6d3",
+      "name": "Buscar Cliente Individual",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar cliente encontrado e preparar dados\nconst payload = $('Verificar Horário e Dia Útil').first().json;\nconst clienteResult = $input.first().json;\n\nif (!clienteResult || clienteResult.length === 0) {\n  throw new Error(`Cliente com telefone ${payload.telefone} não encontrado ou inativo`);\n}\n\nconst cliente = clienteResult[0] || clienteResult;\n\n// Buscar campanha se campanha_id fornecido\nlet campanha = null;\nif (payload.campanha_id) {\n  // A campanha será buscada no próximo nó\n  campanha = { id: payload.campanha_id };\n}\n\nreturn [{\n  json: {\n    ...cliente,\n    ...payload,\n    campanha: campanha\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3312,
+        208
+      ],
+      "id": "98085914-5340-4973-b6eb-119e45d8fcfe",
+      "name": "Preparar Cliente Individual"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-tem-campanha",
+              "leftValue": "={{ $json.campanha_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3136,
+        208
+      ],
+      "id": "e2b9942d-e502-4d0b-aef6-31b70948e83c",
+      "name": "IF Tem Campanha Individual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar campanha_id antes de buscar\nconst dados = $json;\nlet campanhaId = dados.campanha_id;\n\n// Converter para string se necessário\nif (campanhaId !== null && campanhaId !== undefined) {\n  campanhaId = String(campanhaId).trim();\n}\n\n// Se campanha_id for null, undefined, ou string 'null', retornar vazio\nif (!campanhaId || campanhaId === 'null' || campanhaId === 'undefined' || campanhaId === '') {\n  // Retornar array vazio para indicar que não há campanha\n  return [{\n    json: []\n  }];\n}\n\n// Validar formato UUID básico\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(campanhaId)) {\n  // Retornar array vazio se não for UUID válido\n  return [{\n    json: []\n  }];\n}\n\n// Se válido, passar para o próximo nó que fará a busca\nreturn [{\n  json: {\n    ...dados,\n    campanha_id: campanhaId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2928,
+        64
+      ],
+      "id": "9d2c9349-7bfb-474c-9daa-5d67e716ba0b",
+      "name": "Validar Campanha ID Individual"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_campanhas",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.campanha_id }}"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "YOUR_KEYVALUE"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2752,
+        64
+      ],
+      "id": "3b07d28d-9784-4cfb-8a15-64d375a06963",
+      "name": "Obter Campanha Individual",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combinar dados do cliente e campanha (se houver)\nconst cliente = $('Preparar Cliente Individual').first().json;\nlet campanha = null;\n\n// Verificar se veio do caminho com campanha ou sem campanha\nconst inputData = $input.first().json;\n\n// Se veio do nó \"Obter Campanha Individual\", pode ter dados da campanha\nif (inputData && Array.isArray(inputData) && inputData.length > 0) {\n  // Se for array com dados, pegar a primeira campanha\n  campanha = inputData[0];\n} else if (inputData && !Array.isArray(inputData) && inputData.id) {\n  // Se for objeto direto (caso raro)\n  campanha = inputData;\n} else if (inputData && Array.isArray(inputData) && inputData.length === 0) {\n  // Array vazio = sem campanha (vindo do validador)\n  campanha = null;\n} else if (!inputData || (Array.isArray(inputData) && inputData.length === 0)) {\n  // Sem dados = sem campanha (vindo do caminho FALSE do IF)\n  campanha = null;\n}\n\n// Determinar instância WhatsApp (prioridade: instance_id do payload > campanha > padrão)\nlet whatsappApiId = null;\nif (cliente.instance_id) {\n  // Prioridade 1: instance_id do payload (envio individual)\n  whatsappApiId = cliente.instance_id;\n} else if (campanha && campanha.whatsapp_api_id) {\n  // Prioridade 2: instância da campanha\n  whatsappApiId = campanha.whatsapp_api_id;\n} else {\n  // Prioridade 3: buscar instância padrão ativa no próximo nó\n  whatsappApiId = null;\n}\n\nreturn [{\n  json: {\n    ...cliente,\n    campanha: campanha,\n    whatsapp_api_id: whatsappApiId || campanha?.whatsapp_api_id,\n    instance_id: cliente.instance_id || null // Preservar instance_id original\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        224
+      ],
+      "id": "744999cd-8fa5-406f-8ccc-2d475aa0efeb",
+      "name": "Combinar Cliente Campanha Individual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar mensagem: customizada ou via IA da campanha\nconst dados = $json;\nconst mensagemCustomizada = dados.mensagem_customizada;\nconst campanha = dados.campanha;\n\nlet mensagemFinal = null;\nlet usarIA = false;\n\nif (mensagemCustomizada && mensagemCustomizada.trim().length > 0) {\n  // Usar mensagem customizada diretamente\n  mensagemFinal = mensagemCustomizada.trim();\n  usarIA = false;\n} else if (campanha && campanha.prompt_ia) {\n  // Usar IA da campanha\n  usarIA = true;\n  // A mensagem será gerada no próximo nó\n} else {\n  throw new Error('É necessário fornecer mensagem_customizada ou campanha_id com prompt_ia');\n}\n\nreturn [{\n  json: {\n    ...dados,\n    mensagemCustomizada: mensagemFinal,\n    usarIA: usarIA\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2448,
+        -16
+      ],
+      "id": "40e92b0b-fd0b-480f-acdf-2f98ba7aacae",
+      "name": "Preparar Mensagem Individual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar URL e filtros para busca de instância WhatsApp\nconst dados = $('Preparar Mensagem Individual').first().json;\nconst supabaseUrl = $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_URL || 'https://YOUR_PROJECT_ID.supabase.co';\nconst supabaseKey = $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY || '';\n\nconst instanceId = dados.instance_id || dados.whatsapp_api_id || dados.campanha?.whatsapp_api_id;\n\n// Construir URL com query parameters\nlet url = `${supabaseUrl}/rest/v1/instacar_whatsapp_apis`;\nconst queryParams = [];\n\nif (instanceId) {\n  // Buscar instância específica por ID\n  queryParams.push(`id=eq.${instanceId}`);\n}\n\nqueryParams.push('ativo=eq.true');\nqueryParams.push('limit=1');\n\nif (!instanceId) {\n  // Ordenar por nome apenas se não houver ID específico\n  queryParams.push('order=nome');\n}\n\nurl += '?' + queryParams.join('&');\n\nreturn [{\n  json: {\n    ...dados,\n    buscaApiUrl: url,\n    buscaApiHeaders: {\n      'apikey': supabaseKey,\n      'Authorization': `Bearer ${supabaseKey}`,\n      'Content-Type': 'application/json',\n      'Prefer': 'return=representation'\n    },\n    instanceIdEsperado: instanceId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2256,
+        -16
+      ],
+      "id": "ccec4aaf-9f99-49b7-b82f-b0d5e3c3dd21",
+      "name": "Preparar Busca API Individual"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.buscaApiUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.buscaApiHeaders.apikey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.buscaApiHeaders.Authorization }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $json.buscaApiHeaders['Content-Type'] }}"
+            },
+            {
+              "name": "Prefer",
+              "value": "={{ $json.buscaApiHeaders.Prefer }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2080,
+        -16
+      ],
+      "id": "ee00b46c-a122-480b-9c50-d6a4e838c81d",
+      "name": "Buscar API Individual HTTP"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar resultado da busca de instância WhatsApp\nconst dados = $('Preparar Mensagem Individual').first().json;\nconst apiResult = $input.first().json;\nconst instanceIdEsperado = dados.instance_id || dados.whatsapp_api_id || dados.campanha?.whatsapp_api_id;\n\nif (!apiResult || (Array.isArray(apiResult) && apiResult.length === 0)) {\n  if (instanceIdEsperado) {\n    throw new Error(`Instância WhatsApp com ID ${instanceIdEsperado} não encontrada ou inativa. Verifique se a instância está cadastrada e ativa.`);\n  } else {\n    throw new Error('Nenhuma instância WhatsApp ativa encontrada. Verifique se há pelo menos uma instância ativa cadastrada.');\n  }\n}\n\nconst api = Array.isArray(apiResult) ? apiResult[0] : apiResult;\n\n// Validar se a API retornada corresponde ao ID esperado (se houver)\nif (instanceIdEsperado && api.id !== instanceIdEsperado) {\n  throw new Error(`Instância WhatsApp com ID ${instanceIdEsperado} não encontrada ou inativa. Verifique se a instância está cadastrada e ativa.`);\n}\n\nreturn [{\n  json: api\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1904,
+        -16
+      ],
+      "id": "fe26676e-13c5-4770-bbf5-cfe1c0b2b93e",
+      "name": "Validar API Individual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combinar dados finais para envio individual\nconst dados = $('Preparar Mensagem Individual').first().json;\nconst api = $input.first().json; // Já validado no nó \"Validar API Individual\"\n\nreturn [{\n  json: {\n    ...dados,\n    apiWhatsapp: {\n      id: api.id,\n      nome: api.nome,\n      tipo: api.tipo_api,\n      baseUrl: api.base_url,\n      token: api.token,\n      configExtra: api.configuracao_extra || {}\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1712,
+        -16
+      ],
+      "id": "0f8089bd-79a2-4a62-a436-cd2e064f7708",
+      "name": "Combinar Dados Individual"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_configuracoes_empresa",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1536,
+        -16
+      ],
+      "id": "6953ec33-211d-4772-a18a-fa3273681dec",
+      "name": "Buscar Configurações Empresa Individual",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_sessoes_contexto_ia",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        -16
+      ],
+      "id": "d798dc79-14b6-4bd6-a066-db36ff33c52a",
+      "name": "Buscar Sessões Contexto Individual",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Buscar template se template_prompt_id estiver preenchido (envio individual)\nconst dados = $('Combinar Dados Individual').first().json;\nconst campanha = dados.campanha;\nconst templatePromptId = campanha?.template_prompt_id;\n\nif (!templatePromptId) {\n  return [{\n    json: {\n      temTemplate: false,\n      template: null\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    temTemplate: true,\n    template_prompt_id: templatePromptId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1536,
+        208
+      ],
+      "id": "77d91301-8af7-4a4a-9e1b-9b1cee99d5b0",
+      "name": "Verificar Template Prompt Individual"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-template-individual",
+              "leftValue": "={{ $json.temTemplate }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1344,
+        208
+      ],
+      "id": "6b1a797c-4891-4eac-81d7-db654b6763dc",
+      "name": "IF Tem Template Individual"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "instacar_templates_prompt",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $('Verificar Template Prompt Individual').first().json.template_prompt_id }}"
+            },
+            {
+              "keyName": "id",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        192
+      ],
+      "id": "c57a40a7-3cba-4aed-b7b0-934d575ff5f0",
+      "name": "Buscar Template Prompt Individual",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-usar-ia",
+              "leftValue": "={{ $('Combinar Dados Individual').first().json.usarIA }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -976,
+        48
+      ],
+      "id": "ad5a0be4-0436-4fdd-9ae7-610c03de3ed2",
+      "name": "IF Usar IA Individual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Montar contexto dinâmico para IA (envio individual) - similar ao fluxo de campanhas\nconst dados = $json;\nlet campanha = dados.campanha;\n\n// Se campanha não estiver em dados, tentar buscar do nó anterior\nif (!campanha) {\n  try {\n    const dadosAnteriores = $('Combinar Dados Individual').first().json;\n    if (dadosAnteriores && dadosAnteriores.campanha) {\n      campanha = dadosAnteriores.campanha;\n    }\n  } catch (e) {\n    // Ignorar erro se nó não existir\n  }\n}\n\n// Se ainda não encontrou, tentar buscar de \"Preparar Mensagem Individual\"\nif (!campanha) {\n  try {\n    const prepararMensagem = $('Preparar Mensagem Individual').first().json;\n    if (prepararMensagem && prepararMensagem.campanha) {\n      campanha = prepararMensagem.campanha;\n    }\n  } catch (e) {\n    // Ignorar erro se nó não existir\n  }\n}\n\n// Se ainda não encontrou, tentar buscar de \"Combinar Cliente Campanha Individual\"\nif (!campanha) {\n  try {\n    const combinarCliente = $('Combinar Cliente Campanha Individual').first().json;\n    if (combinarCliente && combinarCliente.campanha) {\n      campanha = combinarCliente.campanha;\n    }\n  } catch (e) {\n    // Ignorar erro se nó não existir\n  }\n}\n\n// Obter dados do cliente - buscar de múltiplas fontes\n// Prioridade: 1) dados.nome_cliente, 2) buscar do nó anterior, 3) fallback\n// NÃO usar dados.nome pois pode ser o nome do template, não do cliente\nlet nomeCliente = dados.nome_cliente || null;\n\n// Se ainda não encontrou, tentar buscar do nó que preparou o cliente\nif (!nomeCliente) {\n  try {\n    const clienteData = $('Preparar Cliente Individual').first().json;\n    if (clienteData && clienteData.nome_cliente) {\n      nomeCliente = clienteData.nome_cliente;\n    }\n  } catch (e) {\n    // Ignorar erro se nó não existir\n  }\n}\n\n// Se ainda não encontrou, tentar buscar do nó \"Buscar Cliente Individual\"\nif (!nomeCliente) {\n  try {\n    const clienteBusca = $('Buscar Cliente Individual').first().json;\n    if (clienteBusca && Array.isArray(clienteBusca) && clienteBusca.length > 0) {\n      nomeCliente = clienteBusca[0].nome_cliente || null;\n    } else if (clienteBusca && clienteBusca.nome_cliente) {\n      nomeCliente = clienteBusca.nome_cliente;\n    }\n  } catch (e) {\n    // Ignorar erro se nó não existir\n  }\n}\n\n// Se ainda não encontrou, tentar buscar do payload original\nif (!nomeCliente) {\n  try {\n    const payloadOriginal = $('Verificar Horário e Dia Útil').first().json;\n    if (payloadOriginal && payloadOriginal.nome_cliente) {\n      nomeCliente = payloadOriginal.nome_cliente;\n    }\n  } catch (e) {\n    // Ignorar erro se nó não existir\n  }\n}\n\n// Garantir que sempre tenha um valor (fallback apenas se realmente não encontrar)\nnomeCliente = (nomeCliente || 'Cliente').trim();\nconst telefone = dados.telefone || '';\nconst veiculos = Array.isArray(dados.veiculos) ? dados.veiculos : [];\n\n// Verificar se há template (mesmo sem campanha)\nlet template = null;\ntry {\n  const templateData = $('Buscar Template Prompt Individual').first()?.json;\n  if (templateData && templateData.id) {\n    template = templateData;\n  }\n} catch (e) {\n  // Template não encontrado ou não configurado\n}\n\n// Se não houver campanha nem template, usar contexto básico\nif (!campanha && !template) {\n  let contextoIA = `=== DADOS DO CLIENTE ===\\n`;\n  contextoIA += `Cliente: ${nomeCliente}\\n`;\n  \n  if (veiculos.length > 0) {\n    contextoIA += `\\nVeículos adquiridos:\\n`;\n    veiculos.forEach((v) => {\n      contextoIA += `- ${v.veiculo || 'Veículo'}`;\n      if (v.placa) contextoIA += ` (Placa: ${v.placa})`;\n      if (v.dtVenda) contextoIA += ` - Comprado em ${v.dtVenda}`;\n      contextoIA += `\\n`;\n    });\n  }\n  \n  return [{\n    json: {\n      ...dados,\n      contextoIA: contextoIA\n    }\n  }];\n}\n\n// Se houver template mas não campanha, criar objeto campanha mínimo do template\nlet campanhaAtual = campanha;\nif (!campanhaAtual && template) {\n  campanhaAtual = {\n    usar_veiculos: false,\n    usar_vendedor: false,\n    usar_configuracoes_globais: true,\n    sessoes_contexto_habilitadas: template.sessoes_habilitadas || [],\n    configuracoes_empresa_sobrescritas: {},\n    prompt_ia: template.prompt_completo || ''\n  };\n}\n\n// Montar contexto completo com dados dinâmicos (campanha ou template)\nconst usarVeiculos = campanhaAtual.usar_veiculos === true; // Mudado: agora só usa se explicitamente true\nconst usarVendedor = campanhaAtual.usar_vendedor === true;\nconst usarConfiguracoesGlobais = campanhaAtual.usar_configuracoes_globais === true; // Mudado: agora só usa se explicitamente true\n\n// Verificar se é modo \"apenas prompt personalizado\"\n// (todas as configurações desmarcadas + prompt preenchido)\nlet sessoesHabilitadas = campanhaAtual.sessoes_contexto_habilitadas || [];\nconst modoApenasPrompt = !usarVeiculos && !usarConfiguracoesGlobais && sessoesHabilitadas.length === 0 && campanhaAtual.prompt_ia && campanhaAtual.prompt_ia.trim().length > 0;\n\n// Buscar dados dinâmicos - usar dados já disponíveis no objeto campanha\n// e tentar buscar do Supabase se necessário\nconst supabaseUrl = $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_URL || '';\nconst supabaseKey = $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY || '';\n\n// Usar configurações sobrescritas que já vêm na campanha\nconst configuracoesSobrescritas = campanhaAtual.configuracoes_empresa_sobrescritas || {};\n\n// Montar configurações da empresa a partir das sobrescritas\nlet configuracoesEmpresa = [];\nif (usarConfiguracoesGlobais && Object.keys(configuracoesSobrescritas).length > 0) {\n  // Converter objeto de sobrescritas em array de configurações\n  Object.keys(configuracoesSobrescritas).forEach(chave => {\n    const partes = chave.split('.');\n    const categoria = partes[0] || 'outros';\n    const titulo = partes[1] || chave;\n    \n    configuracoesEmpresa.push({\n      chave: chave,\n      categoria: categoria,\n      titulo: titulo,\n      conteudo: configuracoesSobrescritas[chave],\n      ativo: true\n    });\n  });\n}\n\n// Obter sessões de contexto (buscadas nos nós anteriores)\nlet todasSessoes = [];\ntry {\n  const sessoesData = $('Buscar Sessões Contexto Individual').all();\n  if (sessoesData && sessoesData.length > 0) {\n    todasSessoes = sessoesData.map(item => item.json);\n  }\n} catch (e) {\n  console.log('Erro ao buscar sessões:', e.message);\n}\n\n// Obter configurações da empresa (buscadas nos nós anteriores)\nif (usarConfiguracoesGlobais) {\n  try {\n    const configsData = $('Buscar Configurações Empresa Individual').all();\n    if (configsData && configsData.length > 0) {\n      // Combinar configurações globais com sobrescritas\n      const configsGlobais = configsData.map(item => item.json);\n      \n      // Adicionar configurações globais que não foram sobrescritas\n      configsGlobais.forEach(config => {\n        if (!configuracoesSobrescritas[config.chave]) {\n          configuracoesEmpresa.push(config);\n        }\n      });\n    }\n  } catch (e) {\n    console.log('Erro ao buscar configurações:', e.message);\n  }\n}\n\n// Se houver template, adicionar suas sessões habilitadas\nif (template && template.sessoes_habilitadas && Array.isArray(template.sessoes_habilitadas)) {\n  template.sessoes_habilitadas.forEach(slug => {\n    if (!sessoesHabilitadas.includes(slug)) {\n      sessoesHabilitadas.push(slug);\n    }\n  });\n}\n\n// Função para substituir variáveis em templates\nfunction substituirVariaveis(texto) {\n  if (!texto) return '';\n  \n  const dataHoje = new Date().toLocaleDateString('pt-BR', { \n    weekday: 'long', \n    year: 'numeric', \n    month: 'long', \n    day: 'numeric',\n    timeZone: 'America/Sao_Paulo'\n  });\n  \n  return texto\n    .replace(/\\{\\{nome_cliente\\}\\}/g, nomeCliente)\n    .replace(/\\{\\{telefone\\}\\}/g, telefone)\n    .replace(/\\{\\{data_hoje\\}\\}/g, dataHoje)\n    .replace(/\\{\\{periodo_ano\\}\\}/g, (campanha || {}).periodo_ano || '')\n    .replace(/\\{\\{veiculos\\.length\\}\\}/g, veiculos.length.toString());\n}\n\n// Construir contexto base\nlet contextoIA = '';\n\n// Se for modo \"apenas prompt personalizado\", usar contexto mínimo\nif (modoApenasPrompt) {\n  contextoIA = `Cliente: ${nomeCliente}\\n\\n`;\n} else {\n  contextoIA = `=== DADOS DO CLIENTE ===\\n`;\n  contextoIA += `Cliente: ${nomeCliente}\\n`;\n\n// Adicionar veículos se configurado\nif (usarVeiculos && veiculos.length > 0) {\n  const veiculosOrdenados = [...veiculos].sort((a, b) => {\n    const dataA = a.dtVenda ? new Date(a.dtVenda) : new Date(0);\n    const dataB = b.dtVenda ? new Date(b.dtVenda) : new Date(0);\n    return dataB - dataA;\n  });\n  \n  const veiculoRecente = veiculosOrdenados[0];\n  \n  contextoIA += `\\nVeículos adquiridos:\\n`;\n  veiculosOrdenados.forEach((v) => {\n    const veiculo = (v.veiculo || 'Veículo').trim();\n    const placa = v.placa ? v.placa.trim() : null;\n    const dtVenda = v.dtVenda ? v.dtVenda.trim() : null;\n    \n    contextoIA += `- ${veiculo}`;\n    if (placa) contextoIA += ` (Placa: ${placa})`;\n    if (dtVenda) contextoIA += ` - Comprado em ${dtVenda}`;\n    contextoIA += `\\n`;\n  });\n  \n  if (usarVendedor && veiculoRecente.vendedor) {\n    const vendedor = veiculoRecente.vendedor.trim();\n    if (vendedor.length > 0) {\n      contextoIA += `\\nVendedor responsável: ${vendedor}\\n`;\n    }\n  }\n  \n  if (veiculos.length > 1) {\n    contextoIA += `\\nEste cliente comprou ${veiculos.length} veículos conosco.\\n`;\n  }\n} else if (usarVeiculos && veiculos.length === 0) {\n  contextoIA += `\\nCliente ainda não possui veículos registrados.\\n`;\n}\n}\n\n// Adicionar configurações da empresa\nif (usarConfiguracoesGlobais && configuracoesEmpresa.length > 0) {\n  contextoIA += `\\n=== CONFIGURAÇÕES DA EMPRESA ===\\n`;\n  \n  const sobrescritas = campanhaAtual.configuracoes_empresa_sobrescritas || {};\n  \n  const configsPorCategoria = {};\n  configuracoesEmpresa.forEach(config => {\n    if (!configsPorCategoria[config.categoria]) {\n      configsPorCategoria[config.categoria] = [];\n    }\n    configsPorCategoria[config.categoria].push(config);\n  });\n  \n  Object.keys(configsPorCategoria).sort().forEach(categoria => {\n    const configs = configsPorCategoria[categoria];\n    configs.forEach(config => {\n      const chave = config.chave;\n      let conteudo = config.conteudo;\n      \n      if (sobrescritas[chave]) {\n        conteudo = sobrescritas[chave];\n      }\n      \n      conteudo = substituirVariaveis(conteudo);\n      contextoIA += `\\n[${config.titulo || chave}]\\n${conteudo}\\n`;\n    });\n  });\n}\n\n// Adicionar sessões de contexto habilitadas\nif (!modoApenasPrompt && sessoesHabilitadas.length > 0) {\n  contextoIA += `\\n=== SESSÕES DE CONTEXTO ===\\n`;\n  \n  sessoesHabilitadas.forEach(slug => {\n    const sessao = todasSessoes.find(s => s.slug === slug);\n    if (sessao && sessao.ativo) {\n      let conteudo = sessao.conteudo_template || '';\n      conteudo = substituirVariaveis(conteudo);\n      contextoIA += `\\n[${sessao.nome}]\\n${conteudo}\\n`;\n    }\n  });\n}\n\n// Adicionar prompt da campanha ou template\nif (!modoApenasPrompt) {\n  contextoIA += `\\n=== INSTRUÇÕES DA CAMPANHA ===\\n`;\n}\n\nlet promptFinal = campanhaAtual.prompt_ia || '';\n\n// Log de debug\nconsole.log('=== DEBUG: Preparar Contexto IA Individual ===');\nconsole.log('Campanha encontrada:', !!campanha);\nconsole.log('CampanhaAtual encontrada:', !!campanhaAtual);\nconsole.log('Prompt da campanha:', campanhaAtual?.prompt_ia || 'VAZIO');\nconsole.log('Template encontrado:', !!template);\nconsole.log('Template prompt_completo:', template?.prompt_completo || 'VAZIO');\n\n// Se houver template E não houver prompt na campanha, usar template\n// Caso contrário, priorizar prompt da campanha\nif (template && template.prompt_completo && !campanhaAtual.prompt_ia) {\n  promptFinal = template.prompt_completo;\n  console.log('Usando prompt do template');\n} else if (campanhaAtual.prompt_ia) {\n  promptFinal = campanhaAtual.prompt_ia;\n  console.log('Usando prompt da campanha');\n} else {\n  console.log('⚠️ Nenhum prompt encontrado!');\n}\n\npromptFinal = substituirVariaveis(promptFinal);\ncontextoIA += promptFinal;\n\nreturn [{\n  json: {\n    ...dados,\n    contextoIA: contextoIA\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -832,
+        -144
+      ],
+      "id": "56ff5247-31e5-4983-bbb3-c2b0e1326a61",
+      "name": "Preparar Contexto IA Individual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Montar System Message dinâmico para o agente IA (envio individual)\nconst dados = $json;\nconst campanha = dados.campanha;\n\n// Verificar se há template (mesmo sem campanha)\nlet template = null;\ntry {\n  const templateData = $('Buscar Template Prompt Individual').first()?.json;\n  if (templateData && templateData.id) {\n    template = templateData;\n  }\n} catch (e) {\n  // Template não encontrado\n}\n\n// Base do System Message\nlet systemMessage = 'Você é um assistente da Instacar Automóveis. Escreva mensagens calorosas e personalizadas para clientes.\\n\\n';\n\n// Buscar configurações de políticas para o System Message\nlet configsPoliticas = [];\n\n// Se houver campanha ou template, buscar configurações\nconst usarConfiguracoes = (campanha && campanha.usar_configuracoes_globais !== false) || template;\n\nif (usarConfiguracoes) {\n  try {\n    // Buscar configurações globais da categoria 'politicas'\n    const configsData = $('Buscar Configurações Empresa Individual').all();\n    if (configsData && configsData.length > 0) {\n      configsPoliticas = configsData\n        .map(item => item.json)\n        .filter(config => config.categoria === 'politicas' && config.ativo)\n        .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));\n    }\n    \n    // Aplicar sobrescritas da campanha\n    const sobrescritas = campanha.configuracoes_empresa_sobrescritas || {};\n    \n    configsPoliticas.forEach(config => {\n      const chave = config.chave;\n      let conteudo = config.conteudo;\n      \n      // Aplicar sobrescrita se existir\n      if (sobrescritas[chave]) {\n        conteudo = sobrescritas[chave];\n      }\n      \n      systemMessage += `${conteudo}\\n\\n`;\n    });\n  } catch (e) {\n    console.log('Erro ao buscar configurações para System Message:', e.message);\n  }\n}\n\n// Se não houver configurações de políticas, usar padrão\nif (configsPoliticas.length === 0) {\n  systemMessage += 'Mantenha um tom amigável, profissional e breve (máximo 280 caracteres).\\n';\n  systemMessage += 'Sempre chame o cliente pelo nome. Use emojis com moderação.\\n\\n';\n}\n\n// Adicionar instrução para seguir o contexto\nsystemMessage += 'Siga as instruções da campanha fornecidas no contexto.\\n';\n\n// Adicionar data de hoje\nconst dataHoje = new Date().toLocaleDateString('pt-BR', { \n  weekday: 'long', \n  year: 'numeric', \n  month: 'long', \n  day: 'numeric',\n  hour: '2-digit',\n  minute: '2-digit',\n  timeZone: 'America/Sao_Paulo'\n});\nsystemMessage += `*data_de_hoje: Hoje é ${dataHoje}*`;\n\nreturn [{\n  json: {\n    ...dados,\n    systemMessage: systemMessage\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        -144
+      ],
+      "id": "4b287d65-f2b0-4609-8140-24944ee0e1a5",
+      "name": "Preparar System Message Individual"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.contextoIA }}",
+        "options": {
+          "systemMessage": "={{ $json.systemMessage }}",
+          "maxIterations": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -480,
+        -144
+      ],
+      "id": "3de1ca11-4829-4abe-9a47-e743ddcae4f6",
+      "name": "AI Agent Individual",
+      "notesInFlow": true,
+      "aiModel": "openai-model-individual"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.OPENAI_MODEL }}",
+          "mode": "id"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 150,
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -480,
+        0
+      ],
+      "id": "d0826f3c-2277-4612-b281-b3c6ddbacc0d",
+      "name": "OpenAI Model Individual",
+      "notesInFlow": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair mensagem da IA ou usar customizada\nconst dados = $('Combinar Dados Individual').first().json;\nlet mensagem = '';\n\nif (dados.usarIA) {\n  const item = $input.first();\n  if (item.json.output) {\n    mensagem = item.json.output.toString().trim();\n  } else if (item.json.text) {\n    mensagem = item.json.text.toString().trim();\n  } else if (item.json.message) {\n    mensagem = item.json.message.toString().trim();\n  }\n  \n  // Fallback se IA falhar\n  if (!mensagem || mensagem.length < 10) {\n    const cliente = dados.nome_cliente || 'Cliente';\n    const prompt = dados.campanha?.prompt_ia || '';\n    mensagem = `Olá ${cliente}! ${prompt.substring(0, 200)}`;\n  }\n} else {\n  mensagem = dados.mensagemCustomizada || '';\n}\n\n// Limitar a 280 caracteres\nif (mensagem.length > 280) {\n  mensagem = mensagem.substring(0, 277) + '...';\n}\n\nreturn [{\n  json: {\n    ...dados,\n    mensagemGerada: mensagem\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        64
+      ],
+      "id": "5a75d51c-48f6-4cd8-8e85-e0b0d65e2c08",
+      "name": "Processar Mensagem Final Individual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar URL, headers e body para envio\nconst dados = $json;\nconst api = dados.apiWhatsapp;\nconst telefone = dados.telefone;\nconst mensagem = dados.mensagemGerada;\n\nlet url = '';\nlet headers = {};\nlet body = {};\n\nif (api.tipo === 'uazapi') {\n  url = `${api.baseUrl}/send/text`;\n  headers = { 'Accept': 'application/json', 'token': api.token };\n  body = { number: telefone, text: mensagem, delay: 1000 };\n} else if (api.tipo === 'zapi') {\n  url = `${api.baseUrl}/instances/${api.configExtra.instance_id}/send-text`;\n  headers = { 'Content-Type': 'application/json', 'Client-Token': api.token };\n  body = { phone: telefone, message: mensagem };\n} else if (api.tipo === 'evolution') {\n  url = `${api.baseUrl}/message/sendText/${api.configExtra.instance_id}`;\n  headers = { 'Content-Type': 'application/json', 'apikey': api.token };\n  body = { number: telefone, text: mensagem };\n} else {\n  throw new Error(`Tipo de API não suportado: ${api.tipo}`);\n}\n\nreturn [{\n  json: {\n    ...dados,\n    urlEnvio: url,\n    headersEnvio: headers,\n    bodyEnvio: body\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        64
+      ],
+      "id": "a6e72be6-2cbc-4bae-93f9-f9940347fd8b",
+      "name": "Preparar Envio Individual"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.urlEnvio }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "=application/json"
+            },
+            {
+              "name": "token",
+              "value": "={{ $json.apiWhatsapp.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.bodyEnvio }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        288,
+        64
+      ],
+      "id": "fc1c518a-4526-4eba-a737-c9ae33441390",
+      "name": "Enviar Individual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar resultado do envio individual\nconst item = $input.first();\nconst dados = $('Preparar Envio Individual').first().json;\nconst respostaApi = item.json;\n\nconst api = dados.apiWhatsapp;\nlet sucesso = false;\n\nif (api.tipo === 'uazapi') {\n  sucesso = respostaApi?.id || respostaApi?.messageid || false;\n} else if (api.tipo === 'zapi') {\n  sucesso = respostaApi?.status === 'success' || respostaApi?.id || false;\n} else if (api.tipo === 'evolution') {\n  sucesso = respostaApi?.key?.id || respostaApi?.status === 'success' || false;\n}\n\nconst statusEnvio = sucesso ? 'enviado' : 'erro';\nconst mensagemErro = sucesso ? null : (respostaApi?.error || respostaApi?.message || 'Erro desconhecido');\n\n// Preservar campanha_id do payload original (pode vir de campanha_id direto ou de dados.campanha)\nlet campanhaIdFinal = dados.campanha?.id || dados.campanha_id || null;\n\nreturn [{\n  json: {\n    ...dados,\n    statusEnvio: statusEnvio,\n    mensagemErro: mensagemErro,\n    respostaApi: respostaApi,\n    timestampEnvio: new Date().toISOString(),\n    campanha: dados.campanha || (campanhaIdFinal ? { id: campanhaIdFinal } : null),\n    campanha_id: campanhaIdFinal\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        64
+      ],
+      "id": "91ace1e1-fd4b-484a-9aaa-757a3c3dd4a4",
+      "name": "Processar Resultado Individual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar dados para inserir no histórico de envios\nconst dados = $json;\n\n// Obter ID do cliente (se existir)\n// Tentar múltiplas fontes: id direto, ou buscar do nó anterior que tem o cliente completo\nlet clienteId = dados.id || dados.cliente_id || null; // ID do cliente na tabela instacar_clientes_envios\n\n// Se ainda não encontrou, tentar buscar do nó que preparou o cliente\nif (!clienteId) {\n  try {\n    const clienteData = $('Preparar Cliente Individual').first().json;\n    if (clienteData && clienteData.id) {\n      clienteId = clienteData.id;\n    }\n  } catch (e) {\n    // Ignorar erro se nó não existir\n  }\n}\n\n// Se ainda não encontrou, tentar buscar do nó \"Buscar Cliente Individual\"\nif (!clienteId) {\n  try {\n    const clienteBusca = $('Buscar Cliente Individual').first().json;\n    if (clienteBusca && Array.isArray(clienteBusca) && clienteBusca.length > 0) {\n      clienteId = clienteBusca[0].id;\n    } else if (clienteBusca && clienteBusca.id) {\n      clienteId = clienteBusca.id;\n    }\n  } catch (e) {\n    // Ignorar erro se nó não existir\n  }\n}\n\n// Validar campanha_id: só usar se houver uma campanha válida confirmada\n// Para envio individual, geralmente não há campanha, então campanha_id deve ser null\nlet campanhaId = null;\n\n// Só usar campanha_id se:\n// 1. Houver objeto campanha com ID válido E\n// 2. O ID da campanha for diferente do ID do cliente (evitar confusão)\nif (dados.campanha && dados.campanha.id && dados.campanha.id !== clienteId) {\n  // Validar formato UUID básico\n  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n  if (uuidRegex.test(dados.campanha.id)) {\n    campanhaId = dados.campanha.id;\n  }\n}\n// Se não houver campanha válida, campanhaId permanece null\n\n// Preparar dados do histórico (remover campanha_id se for null para evitar envio)\nconst historicoData = {\n  cliente_id: clienteId,\n  telefone: dados.telefone || '',\n  mensagem_enviada: dados.mensagemFinal || dados.mensagemCustomizada || dados.mensagem_enviada || null,\n  veiculo_referencia: dados.veiculos && dados.veiculos.length > 0 ? dados.veiculos[0] : null,\n  status_envio: dados.statusEnvio || 'erro', // 'enviado', 'erro' ou 'bloqueado'\n  mensagem_erro: dados.mensagemErro || null,\n  planilha_origem: dados.trigger_tipo === 'manual_individual' ? 'Envio Individual Manual' : null,\n  linha_planilha: null, // Não aplicável para envio individual\n  timestamp_envio: dados.timestampEnvio || new Date().toISOString()\n};\n\n// Log para debug (visível no N8N execution log)\nconsole.log('=== DEBUG: Preparar Histórico Individual ===');\nconsole.log('Cliente ID encontrado:', clienteId);\nconsole.log('Telefone:', historicoData.telefone);\nconsole.log('Status Envio:', historicoData.status_envio);\nconsole.log('Histórico Data completo:', JSON.stringify(historicoData, null, 2));\n\n// Só adicionar campanha_id se for válido (não null)\nif (campanhaId) {\n  historicoData.campanha_id = campanhaId;\n}\n// execucao_id sempre null para envio individual\n\nreturn [{\n  json: historicoData\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        64
+      ],
+      "id": "eb92aa2f-6304-4f28-bf73-bf4145a24cf0",
+      "name": "Preparar Histórico Individual"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_PROJECT_ID.supabase.co",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY || 'YOUR_SUPABASE_SERVICE_KEY' }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY || 'YOUR_SUPABASE_SERVICE_KEY' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        64
+      ],
+      "id": "8bee20c2-729b-4f55-8897-ab3476ddb80e",
+      "name": "Registrar Histórico Individual"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_campanhas",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "YOUR_KEYVALUE"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3760,
+        608
+      ],
+      "id": "75ac267c-c40e-42ad-8bac-8395bae07f9e",
+      "name": "Obter Campanha",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtrar campanha por ID se fornecido, ou usar a primeira encontrada\n// Pode vir de Verificar Horário e Dia Útil ou de IF Tem Campanha Agendada\nlet payload;\ntry {\n  payload = $('Verificar Horário e Dia Útil').first().json;\n} catch (e) {\n  // Se não encontrar, pode vir de IF Tem Campanha Agendada (campanha agendada)\n  payload = $input.first().json;\n}\n\n// Se já veio com campanha_id (campanha agendada), retornar direto\nif (payload.campanha_id && payload.campanhaAgendada) {\n  return [{\n    json: payload\n  }];\n}\n\nconst campanhas = $input.all();\n\nif (!campanhas || campanhas.length === 0) {\n  throw new Error('Nenhuma campanha ativa encontrada no banco de dados');\n}\n\nlet campanha = null;\n\nif (payload.campanha_id) {\n  // Buscar campanha específica por ID\n  campanha = campanhas.find(c => c.json.id === payload.campanha_id);\n  if (!campanha) {\n    throw new Error(`Campanha com ID ${payload.campanha_id} não encontrada ou não está ativa`);\n  }\n  // Usar dados da campanha encontrada e mesclar com payload\n  return [{\n    json: {\n      ...campanha.json,\n      campanha_id: campanha.json.id,\n      trigger_tipo: payload.trigger_tipo || 'manual',\n      continuar: payload.continuar || false,\n      dentroHorarioComercial: payload.dentroHorarioComercial,\n      ehDiaUtil: payload.ehDiaUtil\n    }\n  }];\n} else {\n  // Usar a primeira campanha ativa encontrada (para execução manual)\n  campanha = campanhas[0];\n  return [{\n    json: {\n      ...campanha.json,\n      campanha_id: campanha.json.id,\n      trigger_tipo: payload.trigger_tipo || 'manual',\n      continuar: payload.continuar || false,\n      dentroHorarioComercial: payload.dentroHorarioComercial,\n      ehDiaUtil: payload.ehDiaUtil\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3600,
+        624
+      ],
+      "id": "5733ac93-163b-4da1-98eb-dfadf445cd06",
+      "name": "Filtrar Campanha por ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar período da campanha\nconst campanha = $input.first().json;\nconst hoje = new Date();\n\nif (campanha.data_inicio && new Date(campanha.data_inicio) > hoje) {\n  throw new Error(`Campanha inicia em ${campanha.data_inicio}`);\n}\n\nif (campanha.data_fim && new Date(campanha.data_fim) < hoje) {\n  throw new Error(`Campanha encerrou em ${campanha.data_fim}`);\n}\n\nreturn [{ json: campanha }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3424,
+        560
+      ],
+      "id": "8e7351a7-eb7c-4936-9e74-aec54b255507",
+      "name": "Validar Período"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_configuracoes_sistema",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3296,
+        416
+      ],
+      "id": "0c7a5276-ad6b-4a93-aaca-ce10d2e405c9",
+      "name": "Obter Configurações Sistema",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mesclar configurações globais com da campanha (prioridade para campanha)\nconst configs = $input.all();\nconst campanha = $('Validar Período').first().json;\n\n// Filtrar apenas as configurações que precisamos\nconst chavesNecessarias = ['telefones_teste_global', 'telefones_admin_global', 'modo_teste_ativo_global', 'modo_debug_ativo_global'];\nconst configsFiltradas = configs.filter(config => chavesNecessarias.includes(config.json.chave));\n\n// Converter array de configs filtradas em objeto\nconst configsGlobal = {};\nconfigsFiltradas.forEach(config => {\n  configsGlobal[config.json.chave] = config.json.valor;\n});\n\n// Mesclar: prioridade para configurações da campanha\nlet telefonesTeste = [];\nif (campanha.telefones_teste && Array.isArray(campanha.telefones_teste) && campanha.telefones_teste.length > 0) {\n  telefonesTeste = campanha.telefones_teste;\n} else {\n  try {\n    telefonesTeste = JSON.parse(configsGlobal.telefones_teste_global || '[]');\n  } catch (e) {\n    telefonesTeste = [];\n  }\n}\n\nlet telefonesAdmin = [];\nif (campanha.telefones_admin && Array.isArray(campanha.telefones_admin) && campanha.telefones_admin.length > 0) {\n  telefonesAdmin = campanha.telefones_admin;\n} else {\n  try {\n    telefonesAdmin = JSON.parse(configsGlobal.telefones_admin_global || '[]');\n  } catch (e) {\n    telefonesAdmin = [];\n  }\n}\n\nconst modoTeste = campanha.modo_teste || (configsGlobal.modo_teste_ativo_global === 'true');\nconst modoDebug = campanha.modo_debug || (configsGlobal.modo_debug_ativo_global === 'true');\n\n// Validação: modo teste requer telefones\nif (modoTeste && telefonesTeste.length === 0) {\n  throw new Error('Modo Teste está ativo mas nenhum telefone de teste foi configurado!');\n}\n\n// Determinar qual instância WhatsApp usar para notificações admin\n// Prioridade: whatsapp_api_id_admin > whatsapp_api_id (da campanha)\nconst whatsappApiIdAdmin = campanha.whatsapp_api_id_admin || campanha.whatsapp_api_id;\n\n// Preparar data de hoje no formato ISO (YYYY-MM-DD) para uso nos nós seguintes\nconst hoje = new Date().toISOString().split('T')[0];\n\n// Retornar configurações finais\nreturn [{\n  json: {\n    ...campanha,\n    modo_teste: modoTeste,\n    telefones_teste: telefonesTeste,\n    modo_debug: modoDebug,\n    telefones_admin: telefonesAdmin,\n    notificar_inicio: campanha.notificar_inicio || false,\n    notificar_erros: campanha.notificar_erros !== false, // default TRUE\n    notificar_conclusao: campanha.notificar_conclusao !== false, // default TRUE\n    notificar_limite: campanha.notificar_limite || false,\n    whatsapp_api_id_admin: whatsappApiIdAdmin,\n    data_hoje: hoje // Data formatada para uso nos filtros Supabase\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3152,
+        560
+      ],
+      "id": "a9342dfd-5a19-4d10-870e-c0a71e74e697",
+      "name": "Mesclar Configurações"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_campanhas_execucoes",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Mesclar Configurações').first().json.data_hoje }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3024,
+        384
+      ],
+      "id": "3464375c-dca8-4042-8863-0deca1450ba6",
+      "name": "Verificar Execução Hoje",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-exec-existe",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2880,
+        512
+      ],
+      "id": "d9a728a7-a6fe-41b3-8631-2c22a647fa13",
+      "name": "IF Execução Existe Hoje"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obter ou criar execução\nconst execucaoHoje = $('Verificar Execução Hoje').first().json;\nconst campanha = $('Validar Período').first().json;\nconst payload = $('Verificar Horário e Dia Útil').first().json;\n\n// Se é continuação explícita, usar execucao_id do payload\nif (payload.execucao_id && payload.continuar) {\n  return [{\n    json: {\n      ...campanha,\n      execucao_id: payload.execucao_id,\n      execucao_existente: true,\n      continuar: true\n    }\n  }];\n}\n\n// Se já existe execução hoje, verificar status\nif (execucaoHoje && execucaoHoje.length > 0) {\n  const execucao = execucaoHoje[0];\n  const status = execucao.status_execucao || 'em_andamento';\n  \n  // Se está em andamento, não executar novamente (evita duplicatas)\n  if (status === 'em_andamento') {\n    console.log(`Campanha '${campanha.nome || campanha.id}' já está em execução (execução ID: ${execucao.id}). Pulando nova execução.`);\n    // Retornar vazio para pular execução\n    return [];\n  }\n  \n  // Se está pausada, permitir continuar\n  if (status === 'pausada') {\n    console.log(`Campanha '${campanha.nome || campanha.id}' está pausada. Continuando execução existente.`);\n    return [{\n      json: {\n        ...campanha,\n        execucao_id: execucao.id,\n        execucao_existente: true,\n        continuar: true,\n        status_execucao_anterior: status\n      }\n    }];\n  }\n  \n  // Se está concluída ou erro, verificar se pode criar nova execução\n  if (status === 'concluida' || status === 'erro') {\n    // Para campanhas agendadas (cron), não criar nova execução no mesmo dia\n  if (payload.trigger_tipo === 'cron') {\n      console.log(`Campanha '${campanha.nome || campanha.id}' já foi executada hoje (status: ${status}). Pulando nova execução.`);\n      return [];\n    }\n    // Para execuções manuais, permitir criar nova execução\n    console.log(`Campanha '${campanha.nome || campanha.id}' já foi executada hoje (status: ${status}), mas é execução manual. Criando nova execução.`);\n  }\n}\n\n// Criar nova execução\nconst hoje = new Date().toISOString().split('T')[0];\nconsole.log(`Criando nova execução para campanha '${campanha.nome || campanha.id}'`);\n\nreturn [{\n  json: {\n    ...campanha,\n    execucao_id: null,\n    execucao_existente: false,\n    data_execucao: hoje,\n    trigger_tipo: payload.trigger_tipo || 'manual'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2672,
+        512
+      ],
+      "id": "4cc72049-95c9-45e7-85f6-16250fb568ff",
+      "name": "Preparar Execução"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-criar-exec",
+              "leftValue": "={{ $json.execucao_existente }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2480,
+        512
+      ],
+      "id": "200a3eff-9f91-48db-aebd-e9e7a161c84e",
+      "name": "IF Criar Execução"
+    },
+    {
+      "parameters": {
+        "operation": "insert"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2336,
+        400
+      ],
+      "id": "340aa779-5d99-4c5e-aa37-b11e8d6cb1ce",
+      "name": "Criar Execução",
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combinar dados da campanha com execução\nconst campanha = $('Preparar Execução').first().json;\nconst execucao = $input.first().json;\n\nreturn [{\n  json: {\n    ...campanha,\n    execucao_id: execucao.id || campanha.execucao_id,\n    execucao: execucao\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2176,
+        528
+      ],
+      "id": "ad91f3a5-0b70-4fbb-8218-b1dc59fdfab2",
+      "name": "Combinar Campanha Execução"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-notificar-inicio",
+              "leftValue": "={{ $('Mesclar Configurações').first().json.notificar_inicio }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1984,
+        528
+      ],
+      "id": "9c90369f-28e2-41eb-a919-1bc7c519d2db",
+      "name": "IF Notificar Início"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar notificação de início da campanha\nconst configs = $('Mesclar Configurações').first().json;\nconst execucao = $('Combinar Campanha Execução').first().json.execucao || $('Criar Execução').first().json;\nconst campanha = $('Combinar Campanha Execução').first().json;\n\nif (!configs.notificar_inicio) {\n  return []; // Não enviar se notificação desativada\n}\n\n// Obter total de clientes elegíveis (será calculado depois, usar 0 por enquanto)\n// Será atualizado quando buscar clientes, mas para notificação inicial usamos 0\nconst clientesElegiveis = 0;\n\n// Obter prompt da IA da campanha\nconst promptIA = campanha.prompt_ia || 'N/A';\n\n// Construir mensagem com prompt\nconst agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });\nlet mensagem = `🚀 *Campanha Iniciada*\\n\\n`;\nmensagem += `📋 *Campanha:* ${campanha.nome || 'N/A'}\\n`;\nmensagem += `📊 *Clientes Elegíveis:* ${clientesElegiveis}\\n`;\nmensagem += `🕐 *Horário:* ${agora}\\n`;\nmensagem += `🔄 *Trigger:* ${execucao.trigger_tipo || 'manual'}\\n\\n`;\n\nif (configs.modo_teste) {\n  mensagem += `⚠️ *MODO TESTE ATIVO*\\n`;\n}\nif (configs.modo_debug) {\n  mensagem += `🐛 *MODO DEBUG ATIVO*\\n`;\n}\n\nmensagem += `\\n🤖 *Prompt da IA:*\\n${promptIA}\\n\\n`;\nmensagem += `A campanha está em execução.`;\n\n// Retornar um item para cada telefone admin\nconst telefonesAdmin = configs.telefones_admin || [];\nif (telefonesAdmin.length === 0) {\n  return []; // Não há telefones para notificar\n}\n\nreturn telefonesAdmin.map(telefone => ({\n  json: {\n    telefone_destino: telefone,\n    mensagem: mensagem,\n    whatsapp_api_id_admin: configs.whatsapp_api_id_admin\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        368
+      ],
+      "id": "78114628-e06e-4947-80c8-5916c4651b82",
+      "name": "Preparar Notificação Início"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar e preparar ID admin para busca\nconst configs = $('Mesclar Configurações').first().json;\nconst whatsappApiIdAdmin = configs.whatsapp_api_id_admin;\n\nif (!whatsappApiIdAdmin) {\n  // Se não há ID admin, retornar vazio para pular busca\n  return [];\n}\n\n// Retornar ID para o nó Supabase buscar\nreturn [{\n  json: {\n    whatsapp_api_id_admin: whatsappApiIdAdmin\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1456,
+        368
+      ],
+      "id": "f70a5a56-cd2f-4db3-befb-89c2ac397b53",
+      "name": "Validar ID Admin Início"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_whatsapp_apis",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.whatsapp_api_id_admin }}"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1296,
+        368
+      ],
+      "id": "ff2a15ca-bfdc-4d62-a50b-a4592d852ef7",
+      "name": "Buscar Instância Admin Início",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://YOUR_PROJECT_ID.supabase.co",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1136,
+        368
+      ],
+      "id": "e4c44ab5-ee6a-41d4-9a14-c2ccea3ab07f",
+      "name": "Buscar Instância Admin Início HTTP"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar envio de notificação de início\nconst notificacao = $('Preparar Notificação Início').first().json;\nconst configs = $('Mesclar Configurações').first().json;\n\n// Tentar usar resultado do HTTP Request primeiro (mais confiável)\nlet apiResult = null;\ntry {\n  const httpResult = $('Buscar Instância Admin Início HTTP').first().json;\n  if (httpResult && Array.isArray(httpResult) && httpResult.length > 0) {\n    apiResult = httpResult[0];\n  } else if (httpResult && httpResult.id) {\n    apiResult = httpResult;\n  }\n} catch (e) {\n  // Se HTTP Request falhou, tentar usar resultado do Supabase\n  try {\n    apiResult = $('Buscar Instância Admin Início').first().json;\n  } catch (e2) {\n    // Ignorar\n  }\n}\n\n// Validar se temos um ID admin definido\nconst whatsappApiIdAdmin = configs.whatsapp_api_id_admin;\n\nif (!whatsappApiIdAdmin) {\n  // Se não há ID admin, usar instância da campanha como fallback\n  try {\n    const apiCampanha = $('Buscar Instância WhatsApp').first().json;\n    if (apiCampanha && apiCampanha.length > 0) {\n      const api = apiCampanha[0];\n      return [{\n        json: {\n          ...notificacao,\n          apiWhatsapp: {\n            id: api.id,\n            tipo: api.tipo_api,\n            baseUrl: api.base_url,\n            token: api.token,\n            configExtra: api.configuracao_extra || {}\n          }\n        }\n      }];\n    }\n  } catch (e) {\n    // Ignorar erro\n  }\n  return []; // Não há instância disponível\n}\n\n// Validar se encontrou resultado\nif (!apiResult || (Array.isArray(apiResult) && apiResult.length === 0)) {\n  return []; // Não encontrou instância\n}\n\nconst api = Array.isArray(apiResult) ? apiResult[0] : apiResult;\n\n// VALIDAÇÃO CRÍTICA: Verificar se o ID retornado corresponde ao ID buscado\nif (api.id !== whatsappApiIdAdmin) {\n  // Instância errada retornada, usar fallback\n  try {\n    const apiCampanha = $('Buscar Instância WhatsApp').first().json;\n    if (apiCampanha && apiCampanha.length > 0) {\n      const apiFallback = apiCampanha[0];\n      return [{\n        json: {\n          ...notificacao,\n          apiWhatsapp: {\n            id: apiFallback.id,\n            tipo: apiFallback.tipo_api,\n            baseUrl: apiFallback.base_url,\n            token: apiFallback.token,\n            configExtra: apiFallback.configuracao_extra || {}\n          }\n        }\n      }];\n    }\n  } catch (e) {\n    // Ignorar erro\n  }\n  return []; // Não há instância disponível\n}\n\nreturn [{\n  json: {\n    ...notificacao,\n    apiWhatsapp: {\n      id: api.id,\n      tipo: api.tipo_api,\n      baseUrl: api.base_url,\n      token: api.token,\n      configExtra: api.configuracao_extra || {}\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -976,
+        368
+      ],
+      "id": "9b8805a5-ebd1-4524-ab84-39876128bfad",
+      "name": "Combinar Notificação Início"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar URL, headers e body para envio de notificação\nconst dados = $json;\nconst api = dados.apiWhatsapp;\nconst telefone = dados.telefone_destino;\nconst mensagem = dados.mensagem;\n\nlet url = '';\nlet headers = {};\nlet body = {};\n\nif (api.tipo === 'uazapi') {\n  url = `${api.baseUrl}/send/text`;\n  headers = { 'Accept': 'application/json', 'token': api.token };\n  body = { number: telefone, text: mensagem, delay: 1000 };\n} else if (api.tipo === 'zapi') {\n  url = `${api.baseUrl}/instances/${api.configExtra.instance_id}/send-text`;\n  headers = { 'Content-Type': 'application/json', 'Client-Token': api.token };\n  body = { phone: telefone, message: mensagem };\n} else if (api.tipo === 'evolution') {\n  url = `${api.baseUrl}/message/sendText/${api.configExtra.instance_id}`;\n  headers = { 'Content-Type': 'application/json', 'apikey': api.token };\n  body = { number: telefone, text: mensagem };\n} else {\n  throw new Error(`Tipo de API não suportado: ${api.tipo}`);\n}\n\nreturn [{\n  json: {\n    ...dados,\n    urlEnvio: url,\n    headersEnvio: headers,\n    bodyEnvio: body\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        368
+      ],
+      "id": "a1917306-82d1-49c0-a1d8-dca37505c98c",
+      "name": "Preparar Envio Notificação Início"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.urlEnvio }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "=application/json"
+            },
+            {
+              "name": "token",
+              "value": "={{ $json.apiWhatsapp.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.bodyEnvio) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -624,
+        368
+      ],
+      "id": "8e62ba64-86c4-4d41-87f5-4689e440c92b",
+      "name": "Enviar Notificação Início",
+      "neverError": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_campanhas_clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Combinar Campanha Execução').first().json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1792,
+        592
+      ],
+      "id": "2c1ca849-61c1-4d98-810d-efe16cdc2fe6",
+      "name": "Buscar Clientes Selecionados",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar filtro de clientes baseado na seleção\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst clientesSelecionados = $input.all();\n\n// Extrair IDs dos clientes selecionados\nconst clienteIdsSelecionados = clientesSelecionados.map(item => item.json.cliente_id).filter(id => id);\n\n// Se há clientes selecionados, usar apenas esses IDs\n// Se não há clientes selecionados, buscar todos os elegíveis (comportamento padrão)\nconst temSelecao = clienteIdsSelecionados.length > 0;\n\nreturn [{\n  json: {\n    ...campanha,\n    clienteIdsSelecionados: clienteIdsSelecionados,\n    temSelecaoClientes: temSelecao\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1632,
+        592
+      ],
+      "id": "c814a62d-66a7-4b27-8422-f8eaa9b3f08e",
+      "name": "Preparar Filtro Clientes Selecionados"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_clientes_envios",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "YOUR_KEYVALUE"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": false
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1456,
+        752
+      ],
+      "id": "b21c0df6-5936-45cf-8d3a-ec3507c6651b",
+      "name": "Buscar Clientes Elegíveis Supabase",
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtrar clientes elegíveis para a campanha\nconst todosClientes = $input.all();\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst campanhaId = campanha.id;\nconst intervaloMinimo = campanha.intervalo_minimo_dias || 30;\n\n// Tentar obter filtro de clientes selecionados (pode não existir se não foi executado)\nlet clienteIdsSelecionados = [];\nlet temSelecao = false;\n\ntry {\n  const prepararFiltro = $('Preparar Filtro Clientes Selecionados').first().json;\n  clienteIdsSelecionados = prepararFiltro.clienteIdsSelecionados || [];\n  temSelecao = prepararFiltro.temSelecaoClientes || false;\n} catch (e) {\n  // Se o nó não foi executado, não há seleção - processar todos os clientes\n  console.log('Nó Preparar Filtro Clientes Selecionados não executado, processando todos os clientes elegíveis');\n  clienteIdsSelecionados = [];\n  temSelecao = false;\n}\n\nlet elegiveis = [];\nlet duplicados = 0;\nlet semIntervalo = 0;\n\nfor (const item of todosClientes) {\n  const cliente = item.json;\n  const telefone = cliente.telefone;\n  \n  // Pular clientes sem telefone válido\n  if (!telefone || telefone.trim() === '') {\n    continue; // Pular clientes sem telefone\n  }\n  \n  // Se há seleção de clientes, filtrar apenas os selecionados\n  if (temSelecao && !clienteIdsSelecionados.includes(cliente.id)) {\n    continue; // Pular clientes não selecionados\n  }\n  \n  // Verificar intervalo mínimo desde última campanha\n  if (cliente.ultimo_envio) {\n    const ultimaData = new Date(cliente.ultimo_envio);\n    const hoje = new Date();\n    const diasDesdeUltimo = Math.floor((hoje - ultimaData) / (1000 * 60 * 60 * 24));\n    \n    if (diasDesdeUltimo < intervaloMinimo) {\n      semIntervalo++;\n      continue;\n    }\n  }\n  \n  elegiveis.push(cliente);\n}\n\n// Calcular dias necessários\nconst limiteDiario = campanha.limite_envios_dia || 200;\nconst diasNecessarios = Math.ceil(elegiveis.length / limiteDiario);\n\nreturn [{\n  json: {\n    clientesElegiveis: elegiveis,\n    totalElegiveis: elegiveis.length,\n    totalDuplicados: duplicados,\n    totalSemIntervalo: semIntervalo,\n    diasNecessarios: diasNecessarios,\n    campanha_id: campanhaId,\n    execucao_id: campanha.execucao_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        592
+      ],
+      "id": "479010f3-a389-4581-bbcd-20f804114f06",
+      "name": "Filtrar Clientes Elegíveis para Campanha"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calcular lote atual e verificar horário (com cálculo adaptativo, intervalo de almoço e configuração por dia)\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst execucao = campanha.execucao || {};\nconst filtroClientes = $('Filtrar Clientes Elegíveis para Campanha').first().json;\n\n// Função auxiliar para obter horário do dia atual\nfunction obterHorarioDiaAtual(campanha, diaSemana) {\n  // diaSemana: 0=domingo, 1=segunda, ..., 6=sábado\n  const dias = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];\n  const nomeDia = dias[diaSemana];\n  \n  if (campanha.configuracao_dias_semana && campanha.configuracao_dias_semana[nomeDia]) {\n    const configDia = campanha.configuracao_dias_semana[nomeDia];\n    if (!configDia.habilitado) {\n      return { habilitado: false, horario_inicio: null, horario_fim: null };\n    }\n    return {\n      habilitado: true,\n      horario_inicio: configDia.horario_inicio || campanha.horario_inicio || '09:00:00',\n      horario_fim: configDia.horario_fim || campanha.horario_fim || '18:00:00'\n    };\n  }\n  \n  // Fallback para configuração antiga\n  if (diaSemana === 0 || diaSemana === 6) { // Domingo ou sábado\n    if (!campanha.processar_finais_semana) {\n      return { habilitado: false, horario_inicio: null, horario_fim: null };\n    }\n  }\n  \n  return {\n    habilitado: true,\n    horario_inicio: campanha.horario_inicio || '09:00:00',\n    horario_fim: campanha.horario_fim || '18:00:00'\n  };\n}\n\n// Configurações de lote e horário\nconst tamanhoLoteConfigurado = campanha.tamanho_lote || 50;\nconst processarFinaisSemana = campanha.processar_finais_semana || false;\nconst intervaloEnviosSegundos = campanha.intervalo_envios_segundos || 140; // 130-150s médio\n\n// Verificar horário atual e dia da semana\nconst agora = new Date();\nconst diaSemana = agora.getDay();\nconst horaAtual = agora.getHours();\nconst minutoAtual = agora.getMinutes();\nconst segundoAtual = agora.getSeconds();\nconst horaDecimal = horaAtual + (minutoAtual / 60);\n\n// Obter configuração do dia atual\nconst configDiaAtual = obterHorarioDiaAtual(campanha, diaSemana);\n\nif (!configDiaAtual.habilitado) {\n  // Dia não habilitado, pausar\n  return [{\n    json: {\n      ...campanha,\n      dentroHorario: false,\n      podeProcessar: false,\n      motivoPausa: 'Dia da semana não habilitado na configuração'\n    }\n  }];\n}\n\nconst horarioInicio = configDiaAtual.horario_inicio;\nconst horarioFim = configDiaAtual.horario_fim || null;\n\n// Verificar intervalo de almoço\nconst pausarAlmoco = campanha.pausar_almoco || false;\nconst horarioAlmocoInicio = campanha.horario_almoco_inicio || '12:00:00';\nconst horarioAlmocoFim = campanha.horario_almoco_fim || '13:00:00';\n\n// Converter horários de string para decimal\nconst [horaInicioNum, minutoInicioNum] = horarioInicio.split(':').map(Number);\nconst horaInicioDecimal = horaInicioNum + (minutoInicioNum / 60);\n\nlet horaFimDecimal = null;\nif (horarioFim) {\n  const [horaFimNum, minutoFimNum] = horarioFim.split(':').map(Number);\n  horaFimDecimal = horaFimNum + (minutoFimNum / 60);\n}\n\n// Verificar se está no intervalo de almoço\nlet dentroIntervaloAlmoco = false;\nif (pausarAlmoco) {\n  const [hAlmocoInicio, mAlmocoInicio] = horarioAlmocoInicio.split(':').map(Number);\n  const [hAlmocoFim, mAlmocoFim] = horarioAlmocoFim.split(':').map(Number);\n  const horaAlmocoInicioDecimal = hAlmocoInicio + (mAlmocoInicio / 60);\n  const horaAlmocoFimDecimal = hAlmocoFim + (mAlmocoFim / 60);\n  dentroIntervaloAlmoco = horaDecimal >= horaAlmocoInicioDecimal && horaDecimal < horaAlmocoFimDecimal;\n  \n  if (dentroIntervaloAlmoco) {\n    // Pausar durante almoço\n    return [{\n      json: {\n        ...campanha,\n        dentroHorario: false,\n        podeProcessar: false,\n        motivoPausa: 'Intervalo de almoço (pausa automática)'\n      }\n    }];\n  }\n}\n\n// Verificar se está dentro do horário configurado\nconst dentroHorario = horaFimDecimal \n  ? (horaDecimal >= horaInicioDecimal && horaDecimal < horaFimDecimal)\n  : (horaDecimal >= horaInicioDecimal);\n\n// Verificar se é dia útil (para compatibilidade)\nconst ehDiaUtil = diaSemana >= 1 && diaSemana <= 5;\nconst podeProcessar = configDiaAtual.habilitado && dentroHorario;\n\n// Obter clientes elegíveis\nconst clientesElegiveis = filtroClientes.clientesElegiveis || [];\nconst totalElegiveis = clientesElegiveis.length;\n\n// CALCULAR TAMANHO DO LOTE ADAPTATIVO (considerando intervalo de almoço)\nlet tamanhoLote = tamanhoLoteConfigurado;\n\nif (horarioFim && dentroHorario) {\n  // Calcular minutos disponíveis até o fim do horário ou início do almoço\n  const minutosAtual = (horaAtual * 60) + minutoAtual + (segundoAtual / 60);\n  let minutosDisponiveis = 0;\n  \n  if (pausarAlmoco) {\n    const [hAlmocoInicio, mAlmocoInicio] = horarioAlmocoInicio.split(':').map(Number);\n    const minutosAlmocoInicio = (hAlmocoInicio * 60) + mAlmocoInicio;\n    const minutosFim = (horaFimDecimal * 60);\n    \n    // Se está antes do almoço, calcular até o início do almoço\n    if (minutosAtual < minutosAlmocoInicio) {\n      minutosDisponiveis = minutosAlmocoInicio - minutosAtual;\n    } else {\n      // Se está depois do almoço, calcular até o fim do horário\n      const [hAlmocoFim, mAlmocoFim] = horarioAlmocoFim.split(':').map(Number);\n      const minutosAlmocoFim = (hAlmocoFim * 60) + mAlmocoFim;\n      minutosDisponiveis = minutosFim - minutosAtual;\n    }\n  } else {\n    // Sem intervalo de almoço, calcular até o fim do horário\n    const minutosFim = (horaFimDecimal * 60);\n    minutosDisponiveis = minutosFim - minutosAtual;\n  }\n  \n  // Calcular quantos clientes podem ser processados no tempo disponível\n  const segundosDisponiveis = minutosDisponiveis * 60;\n  const clientesPossiveis = Math.floor(segundosDisponiveis / intervaloEnviosSegundos);\n  \n  // Usar o menor entre: clientes possíveis, tamanho_lote configurado, e clientes restantes\n  const clientesRestantes = totalElegiveis - (execucao.contatos_processados || 0);\n  tamanhoLote = Math.min(clientesPossiveis, tamanhoLoteConfigurado, clientesRestantes);\n  \n  // Garantir mínimo de 1\n  tamanhoLote = Math.max(1, tamanhoLote);\n  \n  console.log(`Cálculo adaptativo: ${minutosDisponiveis.toFixed(1)} min disponíveis, ${clientesPossiveis} clientes possíveis, lote: ${tamanhoLote}${pausarAlmoco ? ' (considerando intervalo de almoço)' : ''}`);\n} else {\n  // Se não tem horario_fim ou está fora do horário, usar tamanho_lote configurado\n  tamanhoLote = tamanhoLoteConfigurado;\n}\n\n// Calcular lote atual\nconst loteAtual = execucao.lote_atual || 1;\nconst clientesProcessados = execucao.contatos_processados || 0;\nconst inicioLote = clientesProcessados;\nconst fimLote = Math.min(inicioLote + tamanhoLote, totalElegiveis);\n\n// Selecionar clientes do lote atual\nconst clientesLoteAtual = clientesElegiveis.slice(inicioLote, fimLote);\n\n// Calcular próxima execução\nlet proximaExecucaoEm = null;\nif (fimLote < totalElegiveis) {\n  const amanha = new Date(agora);\n  amanha.setDate(amanha.getDate() + 1);\n  amanha.setHours(horaInicioNum, minutoInicioNum, 0, 0);\n  proximaExecucaoEm = amanha.toISOString();\n}\n\n// Calcular dias necessários\nconst limiteDiario = campanha.limite_envios_dia || 200;\nconst lotesPorDia = Math.floor(limiteDiario / tamanhoLote);\nconst totalLotes = Math.ceil(totalElegiveis / tamanhoLote);\nconst diasNecessarios = Math.ceil(totalLotes / lotesPorDia);\n\nreturn [{\n  json: {\n    ...campanha,\n    clientesLoteAtual: clientesLoteAtual,\n    tamanhoLote: tamanhoLote,\n    tamanhoLoteConfigurado: tamanhoLoteConfigurado,\n    loteAtual: loteAtual,\n    inicioLote: inicioLote,\n    fimLote: fimLote,\n    totalElegiveis: totalElegiveis,\n    dentroHorario: dentroHorario,\n    podeProcessar: podeProcessar,\n    proximaExecucaoEm: proximaExecucaoEm,\n    diasNecessarios: diasNecessarios,\n    totalLotes: totalLotes,\n    lotesPorDia: lotesPorDia,\n    horarioInicio: horarioInicio,\n    horarioFim: horarioFim\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        592
+      ],
+      "id": "7ffcb45b-cff5-419a-a494-9d1451d75545",
+      "name": "Calcular Lote e Verificar Horário"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-dentro-horario",
+              "leftValue": "={{ $json.dentroHorario }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "cond-pode-processar",
+              "leftValue": "={{ $json.podeProcessar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -896,
+        592
+      ],
+      "id": "e3707ff2-ae51-4890-a67f-6c0d98cab12b",
+      "name": "IF Dentro Horário e Pode Processar"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pausar e agendar próxima execução (pausa automática - não manual)\nconst dados = $('Calcular Lote e Verificar Horário').first().json;\nconst execucao = dados.execucao || {};\nconst campanha = dados;\n\n// Calcular próxima execução considerando intervalo de almoço\nlet proximaExecucaoEm = dados.proximaExecucaoEm;\nlet motivoPausa = !dados.dentroHorario ? 'Fora do horário configurado' : 'Final de semana (se não permitido)';\n\n// Se está no intervalo de almoço, agendar para depois do almoço\nif (dados.motivoPausa && dados.motivoPausa.includes('Intervalo de almoço')) {\n  const agora = new Date();\n  const horarioAlmocoFim = campanha.horario_almoco_fim || '13:00:00';\n  const [hAlmocoFim, mAlmocoFim] = horarioAlmocoFim.split(':').map(Number);\n  \n  const proximaExec = new Date(agora);\n  proximaExec.setHours(hAlmocoFim, mAlmocoFim, 0, 0);\n  \n  // Se já passou do horário de almoço hoje, agendar para amanhã\n  if (proximaExec < agora) {\n    proximaExec.setDate(proximaExec.getDate() + 1);\n  }\n  \n  proximaExecucaoEm = proximaExec.toISOString();\n  motivoPausa = 'Intervalo de almoço (pausa automática) - retomará após ' + horarioAlmocoFim;\n}\n\nreturn [{\n  json: {\n    execucao_id: execucao.id || dados.execucao_id,\n    status_execucao: 'pausada',\n    pausa_manual: false, // Pausa automática (fora do horário)\n    proxima_execucao_em: proximaExecucaoEm,\n    motivo_pausa: motivoPausa,\n    contatos_pendentes: dados.totalElegiveis - (execucao.contatos_processados || 0)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        720
+      ],
+      "id": "0c1dabf3-7530-4534-a761-4f31430de7d6",
+      "name": "Pausar e Agendar Próxima Execução"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar dados e URL para atualizar execução pausada via HTTP Request\nconst dados = $input.first().json;\nconst supabaseUrl = $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_URL || 'https://YOUR_PROJECT_ID.supabase.co';\nconst supabaseKey = $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY || '';\n\n// Preparar objeto com campos a serem atualizados\nconst dadosUpdate = {\n  status_execucao: dados.status_execucao || 'pausada',\n  pausa_manual: dados.pausa_manual !== undefined ? dados.pausa_manual : false\n};\n\n// Adicionar campos opcionais apenas se não forem null\nif (dados.proxima_execucao_em !== null && dados.proxima_execucao_em !== undefined) {\n  dadosUpdate.proxima_execucao_em = dados.proxima_execucao_em;\n}\n\nif (dados.motivo_pausa !== null && dados.motivo_pausa !== undefined) {\n  dadosUpdate.motivo_pausa = dados.motivo_pausa;\n}\n\n// Construir URL para PATCH (UPDATE)\nconst updateUrl = `${supabaseUrl}/rest/v1/instacar_campanhas_execucoes?id=eq.${dados.execucao_id}`;\n\nreturn [{\n  json: {\n    ...dados,\n    updateUrl: updateUrl,\n    supabaseKey: supabaseKey,\n    dadosUpdate: dadosUpdate\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        512
+      ],
+      "id": "d0e7b6ad-f60e-4291-a6ba-c2f3f43a612a",
+      "name": "Preparar Dados Update Execução"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.updateUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.dadosUpdate) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -384,
+        512
+      ],
+      "id": "0f11a21d-382f-42e8-97ae-0093bcd8dc3d",
+      "name": "Atualizar Execução Pausada"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-notificar-conclusao",
+              "leftValue": "={{ $('Mesclar Configurações').first().json.notificar_conclusao }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -240,
+        592
+      ],
+      "id": "7c44d690-baf8-44dd-932b-757444800b00",
+      "name": "IF Notificar Conclusão"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar notificação de conclusão da campanha\nconst configs = $('Mesclar Configurações').first().json;\nconst execucao = $('Combinar Campanha Execução').first().json.execucao || $('Criar Execução').first().json;\nconst campanha = $('Combinar Campanha Execução').first().json;\n\nif (!configs.notificar_conclusao) {\n  return []; // Não enviar se notificação desativada\n}\n\n// Buscar dados atualizados da execução\nlet execucaoAtualizada = execucao;\ntry {\n  const execucaoUpdate = $('Atualizar Execução Contadores').first().json;\n  if (execucaoUpdate) {\n    execucaoAtualizada = { ...execucao, ...execucaoUpdate };\n  }\n} catch (e) {\n  // Usar execucao original se não conseguir buscar atualizada\n}\n\n// Calcular duração\nfunction calcularDuracao(inicio, fim) {\n  if (!inicio || !fim) return 'N/A';\n  const diff = new Date(fim) - new Date(inicio);\n  const horas = Math.floor(diff / (1000 * 60 * 60));\n  const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));\n  return `${horas}h ${minutos}min`;\n}\n\nconst duracao = calcularDuracao(execucaoAtualizada.horario_inicio, execucaoAtualizada.horario_fim || new Date().toISOString());\nconst totalEnviado = execucaoAtualizada.total_enviado || 0;\nconst totalErros = execucaoAtualizada.total_erros || 0;\nconst totalEnviadoNormal = execucaoAtualizada.total_enviado_normal || 0;\nconst totalEnviadoTeste = execucaoAtualizada.total_enviado_teste || 0;\nconst totalEnviadoDebug = execucaoAtualizada.total_enviado_debug || 0;\nconst totalDuplicados = execucaoAtualizada.total_duplicados || 0;\nconst totalSemWhatsapp = execucaoAtualizada.total_sem_whatsapp || 0;\n\nconst taxaSucesso = totalEnviado > 0 ? ((totalEnviado / (totalEnviado + totalErros)) * 100).toFixed(1) : 0;\nconst agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });\n\nlet mensagem = `✅ *Campanha Concluída*\\n\\n`;\nmensagem += `📋 *Campanha:* ${campanha.nome || 'N/A'}\\n`;\nmensagem += `📊 *Estatísticas:*\\n`;\nmensagem += `• Enviados (normal): ${totalEnviadoNormal}\\n`;\nif (totalEnviadoTeste > 0) {\n  mensagem += `• Enviados (teste): ${totalEnviadoTeste}\\n`;\n}\nif (totalEnviadoDebug > 0) {\n  mensagem += `• Enviados (debug): ${totalEnviadoDebug}\\n`;\n}\nmensagem += `• Erros: ${totalErros}\\n`;\nmensagem += `• Duplicados: ${totalDuplicados}\\n`;\nmensagem += `• Sem WhatsApp: ${totalSemWhatsapp}\\n`;\nmensagem += `📈 *Taxa de Sucesso:* ${taxaSucesso}%\\n`;\nmensagem += `⏱️ *Duração:* ${duracao}\\n`;\nmensagem += `🕐 *Horário Conclusão:* ${agora}\\n\\n`;\nmensagem += `Campanha finalizada com sucesso!`;\n\n// Retornar um item para cada telefone admin\nconst telefonesAdmin = configs.telefones_admin || [];\nif (telefonesAdmin.length === 0) {\n  return []; // Não há telefones para notificar\n}\n\nreturn telefonesAdmin.map(telefone => ({\n  json: {\n    telefone_destino: telefone,\n    mensagem: mensagem,\n    whatsapp_api_id_admin: configs.whatsapp_api_id_admin\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        592
+      ],
+      "id": "41735c9e-9b97-41fc-bb38-7247636ae3d0",
+      "name": "Preparar Notificação Conclusão"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar e preparar ID admin para busca\nconst configs = $('Mesclar Configurações').first().json;\nconst whatsappApiIdAdmin = configs.whatsapp_api_id_admin;\n\nif (!whatsappApiIdAdmin) {\n  // Se não há ID admin, retornar vazio para pular busca\n  return [];\n}\n\n// Retornar ID para o nó Supabase buscar\nreturn [{\n  json: {\n    whatsapp_api_id_admin: whatsappApiIdAdmin\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        592
+      ],
+      "id": "0f2a6085-300e-47a6-be32-33234ae71f84",
+      "name": "Validar ID Admin Conclusão"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_whatsapp_apis",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.whatsapp_api_id_admin }}"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        272,
+        592
+      ],
+      "id": "4b267e94-9545-4d08-a1a1-af3f0668f056",
+      "name": "Buscar Instância Admin Conclusão",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://YOUR_PROJECT_ID.supabase.co",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        592
+      ],
+      "id": "196d2d67-da17-4afd-b0fb-9b7952a635a3",
+      "name": "Buscar Instância Admin Conclusão HTTP"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar envio de notificação de conclusão\nconst notificacao = $('Preparar Notificação Conclusão').first().json;\nconst configs = $('Mesclar Configurações').first().json;\n\n// Tentar usar resultado do HTTP Request primeiro (mais confiável)\nlet apiResult = null;\ntry {\n  const httpResult = $('Buscar Instância Admin Conclusão HTTP').first().json;\n  if (httpResult && Array.isArray(httpResult) && httpResult.length > 0) {\n    apiResult = httpResult[0];\n  } else if (httpResult && httpResult.id) {\n    apiResult = httpResult;\n  }\n} catch (e) {\n  // Se HTTP Request falhou, tentar usar resultado do Supabase\n  try {\n    apiResult = $('Buscar Instância Admin Conclusão').first().json;\n  } catch (e2) {\n    // Ignorar\n  }\n}\n\n// Validar se temos um ID admin definido\nconst whatsappApiIdAdmin = configs.whatsapp_api_id_admin;\n\nif (!whatsappApiIdAdmin) {\n  // Se não há ID admin, usar instância da campanha como fallback\n  try {\n    const apiCampanha = $('Buscar Instância WhatsApp').first().json;\n    if (apiCampanha && apiCampanha.length > 0) {\n      const api = apiCampanha[0];\n      return [{\n        json: {\n          ...notificacao,\n          apiWhatsapp: {\n            id: api.id,\n            tipo: api.tipo_api,\n            baseUrl: api.base_url,\n            token: api.token,\n            configExtra: api.configuracao_extra || {}\n          }\n        }\n      }];\n    }\n  } catch (e) {\n    // Ignorar erro\n  }\n  return []; // Não há instância disponível\n}\n\n// Validar se encontrou resultado\nif (!apiResult || (Array.isArray(apiResult) && apiResult.length === 0)) {\n  return []; // Não encontrou instância\n}\n\nconst api = Array.isArray(apiResult) ? apiResult[0] : apiResult;\n\n// VALIDAÇÃO CRÍTICA: Verificar se o ID retornado corresponde ao ID buscado\nif (api.id !== whatsappApiIdAdmin) {\n  // Instância errada retornada, usar fallback\n  try {\n    const apiCampanha = $('Buscar Instância WhatsApp').first().json;\n    if (apiCampanha && apiCampanha.length > 0) {\n      const apiFallback = apiCampanha[0];\n      return [{\n        json: {\n          ...notificacao,\n          apiWhatsapp: {\n            id: apiFallback.id,\n            tipo: apiFallback.tipo_api,\n            baseUrl: apiFallback.base_url,\n            token: apiFallback.token,\n            configExtra: apiFallback.configuracao_extra || {}\n          }\n        }\n      }];\n    }\n  } catch (e) {\n    // Ignorar erro\n  }\n  return []; // Não há instância disponível\n}\n\nreturn [{\n  json: {\n    ...notificacao,\n    apiWhatsapp: {\n      id: api.id,\n      tipo: api.tipo_api,\n      baseUrl: api.base_url,\n      token: api.token,\n      configExtra: api.configuracao_extra || {}\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        592
+      ],
+      "id": "becbfe2f-1d06-4b50-b577-eef51b1058ef",
+      "name": "Combinar Notificação Conclusão"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar URL, headers e body para envio de notificação\nconst dados = $json;\nconst api = dados.apiWhatsapp;\nconst telefone = dados.telefone_destino;\nconst mensagem = dados.mensagem;\n\nlet url = '';\nlet headers = {};\nlet body = {};\n\nif (api.tipo === 'uazapi') {\n  url = `${api.baseUrl}/send/text`;\n  headers = { 'Accept': 'application/json', 'token': api.token };\n  body = { number: telefone, text: mensagem, delay: 1000 };\n} else if (api.tipo === 'zapi') {\n  url = `${api.baseUrl}/instances/${api.configExtra.instance_id}/send-text`;\n  headers = { 'Content-Type': 'application/json', 'Client-Token': api.token };\n  body = { phone: telefone, message: mensagem };\n} else if (api.tipo === 'evolution') {\n  url = `${api.baseUrl}/message/sendText/${api.configExtra.instance_id}`;\n  headers = { 'Content-Type': 'application/json', 'apikey': api.token };\n  body = { number: telefone, text: mensagem };\n} else {\n  throw new Error(`Tipo de API não suportado: ${api.tipo}`);\n}\n\nreturn [{\n  json: {\n    ...dados,\n    urlEnvio: url,\n    headersEnvio: headers,\n    bodyEnvio: body\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        592
+      ],
+      "id": "8b06fa7c-c3ea-467c-8284-ffd7900263b8",
+      "name": "Preparar Envio Notificação Conclusão"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.urlEnvio }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "=application/json"
+            },
+            {
+              "name": "token",
+              "value": "={{ $json.apiWhatsapp.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.bodyEnvio) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1008,
+        592
+      ],
+      "id": "e5ff7d13-b226-4efa-b5e0-8d6743ab23f2",
+      "name": "Enviar Notificação Conclusão",
+      "neverError": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar clientes do lote atual para processamento\nconst loteInfo = $('Calcular Lote e Verificar Horário').first().json;\nconst clientesLoteAtual = loteInfo.clientesLoteAtual || [];\n\n// Retornar para Split in Batches processar um por vez\nreturn clientesLoteAtual.map(cliente => ({ json: cliente }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4288,
+        848
+      ],
+      "id": "7d292500-e932-4879-8ab5-8afa08a1f96f",
+      "name": "Preparar Lote Atual"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -4064,
+        848
+      ],
+      "id": "339c2437-4b00-457c-a5db-b040bcbb032d",
+      "name": "Split in Batches - Lote"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_historico_envios",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.telefone }}"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Filtrar Clientes Elegíveis para Campanha').first().json.campanha_id }}"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "YOUR_KEYVALUE"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3760,
+        832
+      ],
+      "id": "78e76615-01aa-4388-84d8-83c23df7b017",
+      "name": "Verificar Duplicata por Campanha",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-ja-recebeu",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3584,
+        832
+      ],
+      "id": "267d3488-6b84-4417-a898-2ec9e98af6cb",
+      "name": "IF Já Recebeu Esta Campanha"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_configuracoes_empresa",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3760,
+        1008
+      ],
+      "id": "4264c207-4714-4e66-95a0-c5cff2aefb92",
+      "name": "Buscar Configurações Empresa",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_sessoes_contexto_ia",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3584,
+        1008
+      ],
+      "id": "76bfbd4e-3f61-415f-955e-521743d0a02a",
+      "name": "Buscar Sessões Contexto",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Buscar template se template_prompt_id estiver preenchido\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst templatePromptId = campanha.template_prompt_id;\n\nif (!templatePromptId) {\n  // Não há template, retornar vazio\n  return [{\n    json: {\n      temTemplate: false,\n      template: null\n    }\n  }];\n}\n\n// Template será buscado no próximo nó Supabase\nreturn [{\n  json: {\n    temTemplate: true,\n    template_prompt_id: templatePromptId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3744,
+        1216
+      ],
+      "id": "df630912-0584-47d9-b19c-6e54054e6a56",
+      "name": "Verificar Template Prompt"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-template",
+              "leftValue": "={{ $json.temTemplate }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3568,
+        1216
+      ],
+      "id": "f02fd90b-71b3-46c4-ae8b-a62c8c658409",
+      "name": "IF Tem Template"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "instacar_templates_prompt",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $('Verificar Template Prompt').first().json.template_prompt_id }}"
+            },
+            {
+              "keyName": "id",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3344,
+        944
+      ],
+      "id": "34179a79-ff70-45c2-b951-a41bf32225b6",
+      "name": "Buscar Template Prompt",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Montar contexto dinâmico para IA combinando configurações, sessões e template\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst usarVeiculos = campanha.usar_veiculos === true; // Mudado: agora só usa se explicitamente true\nconst usarVendedor = campanha.usar_vendedor === true;\nconst usarConfiguracoesGlobais = campanha.usar_configuracoes_globais === true; // Mudado: agora só usa se explicitamente true\nconst sessoesHabilitadas = campanha.sessoes_contexto_habilitadas || [];\n\n// Verificar se é modo \"apenas prompt personalizado\"\n// (todas as configurações desmarcadas + prompt preenchido)\nconst modoApenasPrompt = !usarVeiculos && !usarConfiguracoesGlobais && sessoesHabilitadas.length === 0 && campanha.prompt_ia && campanha.prompt_ia.trim().length > 0;\n\n// Obter dados do cliente\nconst cliente = $json;\nconst nomeCliente = (cliente.nome_cliente || 'Cliente').trim();\nconst telefone = cliente.telefone || '';\nconst veiculos = Array.isArray(cliente.veiculos) ? cliente.veiculos : [];\n\n// Obter configurações da empresa\nlet configuracoesEmpresa = [];\ntry {\n  const configsData = $('Buscar Configurações Empresa').all();\n  if (configsData && configsData.length > 0) {\n    configuracoesEmpresa = configsData.map(item => item.json);\n  }\n} catch (e) {\n  console.log('Erro ao buscar configurações:', e.message);\n}\n\n// Obter sessões de contexto\nlet todasSessoes = [];\ntry {\n  const sessoesData = $('Buscar Sessões Contexto').all();\n  if (sessoesData && sessoesData.length > 0) {\n    todasSessoes = sessoesData.map(item => item.json);\n  }\n} catch (e) {\n  console.log('Erro ao buscar sessões:', e.message);\n}\n\n// Obter template (se existir)\nlet template = null;\ntry {\n  const templateData = $('Buscar Template Prompt').first()?.json;\n  if (templateData && templateData.id) {\n    template = templateData;\n  }\n} catch (e) {\n  // Template não encontrado ou não configurado - usar prompt da campanha\n}\n\n// Função para substituir variáveis em templates\nfunction substituirVariaveis(texto) {\n  if (!texto) return '';\n  \n  const dataHoje = new Date().toLocaleDateString('pt-BR', { \n    weekday: 'long', \n    year: 'numeric', \n    month: 'long', \n    day: 'numeric',\n    timeZone: 'America/Sao_Paulo'\n  });\n  \n  return texto\n    .replace(/\\{\\{nome_cliente\\}\\}/g, nomeCliente)\n    .replace(/\\{\\{telefone\\}\\}/g, telefone)\n    .replace(/\\{\\{data_hoje\\}\\}/g, dataHoje)\n    .replace(/\\{\\{periodo_ano\\}\\}/g, (campanha || {}).periodo_ano || '')\n    .replace(/\\{\\{veiculos\\.length\\}\\}/g, veiculos.length.toString());\n}\n\n// Construir contexto base\nlet contextoIA = '';\n\n// Se for modo \"apenas prompt personalizado\", usar contexto mínimo\nif (modoApenasPrompt) {\n  contextoIA = `Cliente: ${nomeCliente}\\n\\n`;\n} else {\n  contextoIA = `=== DADOS DO CLIENTE ===\\n`;\n  contextoIA += `Cliente: ${nomeCliente}\\n`;\n  \n  // Adicionar veículos se configurado\n  if (usarVeiculos && veiculos.length > 0) {\n    // Ordenar veículos por data (mais recente primeiro)\n  const veiculosOrdenados = [...veiculos].sort((a, b) => {\n    const dataA = a.dtVenda ? new Date(a.dtVenda) : new Date(0);\n    const dataB = b.dtVenda ? new Date(b.dtVenda) : new Date(0);\n    return dataB - dataA;\n  });\n  \n  const veiculoRecente = veiculosOrdenados[0];\n  \n  contextoIA += `\\nVeículos adquiridos:\\n`;\n  veiculosOrdenados.forEach((v) => {\n    const veiculo = (v.veiculo || 'Veículo').trim();\n    const placa = v.placa ? v.placa.trim() : null;\n    const dtVenda = v.dtVenda ? v.dtVenda.trim() : null;\n    \n    contextoIA += `- ${veiculo}`;\n    if (placa) contextoIA += ` (Placa: ${placa})`;\n    if (dtVenda) contextoIA += ` - Comprado em ${dtVenda}`;\n    contextoIA += `\\n`;\n  });\n  \n  // Adicionar vendedor do veículo mais recente (se configurado)\n  if (usarVendedor && veiculoRecente.vendedor) {\n    const vendedor = veiculoRecente.vendedor.trim();\n    if (vendedor.length > 0) {\n      contextoIA += `\\nVendedor responsável: ${vendedor}\\n`;\n    }\n  }\n  \n  if (veiculos.length > 1) {\n    contextoIA += `\\nEste cliente comprou ${veiculos.length} veículos conosco.\\n`;\n  }\n} else if (usarVeiculos && veiculos.length === 0) {\n  contextoIA += `\\nCliente ainda não possui veículos registrados.\\n`;\n}\n\n// Adicionar configurações da empresa\nif (usarConfiguracoesGlobais && configuracoesEmpresa.length > 0) {\n  contextoIA += `\\n=== CONFIGURAÇÕES DA EMPRESA ===\\n`;\n  \n  // Aplicar sobrescritas da campanha\n  const sobrescritas = campanha.configuracoes_empresa_sobrescritas || {};\n  \n  // Agrupar por categoria\n  const configsPorCategoria = {};\n  configuracoesEmpresa.forEach(config => {\n    if (!configsPorCategoria[config.categoria]) {\n      configsPorCategoria[config.categoria] = [];\n    }\n    configsPorCategoria[config.categoria].push(config);\n  });\n  \n  // Adicionar configurações por categoria\n  Object.keys(configsPorCategoria).sort().forEach(categoria => {\n    const configs = configsPorCategoria[categoria];\n    configs.forEach(config => {\n      const chave = config.chave;\n      let conteudo = config.conteudo;\n      \n      // Aplicar sobrescrita se existir\n      if (sobrescritas[chave]) {\n        conteudo = sobrescritas[chave];\n      }\n      \n      // Substituir variáveis\n      conteudo = substituirVariaveis(conteudo);\n      \n      contextoIA += `\\n[${config.titulo || chave}]\\n${conteudo}\\n`;\n    });\n  });\n}\n\n// Adicionar sessões de contexto habilitadas\nif (!modoApenasPrompt && sessoesHabilitadas.length > 0) {\n  contextoIA += `\\n=== SESSÕES DE CONTEXTO ===\\n`;\n  \n  sessoesHabilitadas.forEach(slug => {\n    const sessao = todasSessoes.find(s => s.slug === slug);\n    if (sessao && sessao.ativo) {\n      let conteudo = sessao.conteudo_template || '';\n      conteudo = substituirVariaveis(conteudo);\n      contextoIA += `\\n[${sessao.nome}]\\n${conteudo}\\n`;\n    }\n  });\n}\n\n// Adicionar prompt da campanha ou template\nif (!modoApenasPrompt) {\n  contextoIA += `\\n=== INSTRUÇÕES DA CAMPANHA ===\\n`;\n}\n\nlet promptFinal = campanha.prompt_ia || '';\n\n// Se há template, usar prompt do template como base\nif (template && template.prompt_completo) {\n  promptFinal = template.prompt_completo;\n  \n  // Se template tem sessões habilitadas, adicionar automaticamente\n  if (template.sessoes_habilitadas && Array.isArray(template.sessoes_habilitadas)) {\n    template.sessoes_habilitadas.forEach(slug => {\n      if (!sessoesHabilitadas.includes(slug)) {\n        sessoesHabilitadas.push(slug);\n      }\n    });\n  }\n}\n\n// Substituir variáveis no prompt\npromptFinal = substituirVariaveis(promptFinal);\ncontextoIA += promptFinal;\n\nreturn [{\n  json: {\n    ...cliente,\n    telefone: cliente.telefone || '', // Garantir que telefone seja preservado\n    contextoIA: contextoIA,\n    usarVeiculos: usarVeiculos,\n    usarVendedor: usarVendedor,\n    campanha_id: campanha.id,\n    execucao_id: campanha.execucao_id\n  }\n}];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3184,
+        944
+      ],
+      "id": "43e20ccc-99a3-4555-ac48-c625ec2b1d81",
+      "name": "Preparar Dados IA Campanha"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Montar System Message dinâmico para o agente IA (campanhas)\nconst dados = $json;\nconst campanha = $('Combinar Campanha Execução').first().json;\n\n// Base do System Message\nlet systemMessage = 'Você é um assistente da Instacar Automóveis. Escreva mensagens calorosas e personalizadas para clientes.\\n\\n';\n\n// Buscar configurações de políticas para o System Message\nlet configsPoliticas = [];\n\nif (campanha && campanha.usar_configuracoes_globais !== false) {\n  try {\n    // Buscar configurações globais da categoria 'politicas'\n    const configsData = $('Buscar Configurações Empresa').all();\n    if (configsData && configsData.length > 0) {\n      configsPoliticas = configsData\n        .map(item => item.json)\n        .filter(config => config.categoria === 'politicas' && config.ativo)\n        .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));\n    }\n    \n    // Aplicar sobrescritas da campanha\n    const sobrescritas = campanha.configuracoes_empresa_sobrescritas || {};\n    \n    configsPoliticas.forEach(config => {\n      const chave = config.chave;\n      let conteudo = config.conteudo;\n      \n      // Aplicar sobrescrita se existir\n      if (sobrescritas[chave]) {\n        conteudo = sobrescritas[chave];\n      }\n      \n      systemMessage += `${conteudo}\\n\\n`;\n    });\n  } catch (e) {\n    console.log('Erro ao buscar configurações para System Message:', e.message);\n  }\n}\n\n// Se não houver configurações de políticas, usar padrão\nif (configsPoliticas.length === 0) {\n  systemMessage += 'Mantenha um tom amigável, profissional e breve (máximo 280 caracteres).\\n';\n  systemMessage += 'Sempre chame o cliente pelo nome. Use emojis com moderação.\\n\\n';\n}\n\n// Adicionar instrução para seguir o contexto\nsystemMessage += 'Siga as instruções da campanha fornecidas no contexto.\\n';\n\n// Adicionar data de hoje\nconst dataHoje = new Date().toLocaleDateString('pt-BR', { \n  weekday: 'long', \n  year: 'numeric', \n  month: 'long', \n  day: 'numeric',\n  hour: '2-digit',\n  minute: '2-digit',\n  timeZone: 'America/Sao_Paulo'\n});\nsystemMessage += `*data_de_hoje: Hoje é ${dataHoje}*`;\n\nreturn [{\n  json: {\n    ...dados,\n    systemMessage: systemMessage\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3024,
+        944
+      ],
+      "id": "ed29d755-52e2-45fe-9bb1-b5a779b7014c",
+      "name": "Preparar System Message Campanha"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_whatsapp_apis",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Combinar Campanha Execução').first().json.whatsapp_api_id }}"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2864,
+        944
+      ],
+      "id": "bc01243c-f5c2-4b8b-8428-05be4c85f57b",
+      "name": "Buscar Instância WhatsApp",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combinar dados do cliente, campanha e API WhatsApp\nconst cliente = $('Preparar Dados IA Campanha').first().json;\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst apiWhatsapp = $('Buscar Instância WhatsApp').first().json;\nconst systemMessage = $('Preparar System Message Campanha').first().json.systemMessage;\n\nif (!apiWhatsapp || apiWhatsapp.length === 0) {\n  throw new Error('Instância WhatsApp não encontrada ou inativa');\n}\n\nconst api = apiWhatsapp[0] || apiWhatsapp;\n\nreturn [{\n  json: {\n    ...cliente,\n    campanha: campanha,\n    systemMessage: systemMessage,\n    apiWhatsapp: {\n      id: api.id,\n      nome: api.nome,\n      tipo: api.tipo_api,\n      baseUrl: api.base_url,\n      token: api.token,\n      configExtra: api.configuracao_extra || {}\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2704,
+        944
+      ],
+      "id": "d02f93cc-f084-4670-8ea4-40a49adf2a31",
+      "name": "Combinar Dados Cliente Campanha API"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.contextoIA }}",
+        "options": {
+          "systemMessage": "={{ $json.systemMessage }}",
+          "maxIterations": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -2544,
+        848
+      ],
+      "id": "cd035b7e-9734-450a-8578-4323d84e4150",
+      "name": "AI Agent - Gerar Mensagem",
+      "aiModel": "openai-chat-model"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.OPENAI_MODEL }}",
+          "mode": "id"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 150,
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -2560,
+        1104
+      ],
+      "id": "444dccd9-f3c6-48d4-aef2-b8eb733c219a",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair mensagem gerada e aplicar fallback\nconst item = $input.first();\nlet mensagem = '';\n\n// Tentar extrair mensagem do output do AI Agent\nif (item.json.output) {\n  mensagem = item.json.output.toString().trim();\n} else if (item.json.text) {\n  mensagem = item.json.text.toString().trim();\n} else if (item.json.message) {\n  mensagem = item.json.message.toString().trim();\n}\n\n// Fallback se IA falhar\nif (!mensagem || mensagem.length < 10) {\n  const dados = $('Combinar Dados Cliente Campanha API').first().json;\n  const cliente = dados.nome_cliente || 'Cliente';\n  const promptCampanha = dados.campanha?.prompt_ia || '';\n  \n  mensagem = `Olá ${cliente}! ${promptCampanha.substring(0, 200)}`;\n}\n\n// Limitar a 280 caracteres\nif (mensagem.length > 280) {\n  mensagem = mensagem.substring(0, 277) + '...';\n}\n\nreturn [{\n  json: {\n    ...$('Combinar Dados Cliente Campanha API').first().json,\n    mensagemGerada: mensagem,\n    usadoFallback: !item.json.output\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2400,
+        1088
+      ],
+      "id": "0b99f254-0470-422f-a740-f2f2db094701",
+      "name": "Processar Mensagem IA"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar URL, headers e body baseado no tipo de API\n// Suporta modo teste: envia para TODOS os telefones de teste\nconst dados = $json;\nconst api = dados.apiWhatsapp;\n// Buscar telefone de múltiplas fontes possíveis\nconst telefoneOriginal = dados.telefone || dados.telefone_destino || dados.bodyEnvio?.number || ''; // Formato: 55XXXXXXXXXXX - preservar para histórico\nconst mensagem = dados.mensagemGerada;\n\n// Obter configurações mescladas\nconst configs = $('Mesclar Configurações').first().json;\nconst modoTeste = configs.modo_teste || false;\nconst telefonesTeste = configs.telefones_teste || [];\nconst modoDebug = configs.modo_debug || false;\n\n// Determinar telefones de destino\nlet telefonesDestino = [];\nlet tipoEnvio = 'normal';\n\nif (modoTeste && telefonesTeste.length > 0) {\n  // Modo teste: enviar para TODOS os telefones de teste\n  telefonesDestino = telefonesTeste;\n  tipoEnvio = 'teste';\n  \n  if (modoDebug) {\n    console.log(`[MODO TESTE] Cliente: ${dados.nome_cliente || 'N/A'} (${telefoneOriginal}) → Enviando para ${telefonesDestino.length} telefone(s) de teste`);\n  }\n} else {\n  // Modo normal: enviar apenas para telefone original\n  if (!telefoneOriginal || telefoneOriginal.trim() === '') {\n    // Retornar item indicando que foi pulado (para workflow continuar)\n    console.log(`[AVISO] Cliente sem telefone válido: ${dados.nome_cliente || 'N/A'}. Pulando envio.`);\n    return [{\n      json: {\n        ...dados,\n        pulado: true,\n        motivo_pulo: 'Telefone não encontrado ou inválido',\n        telefone_original: telefoneOriginal || '',\n        telefone_destino: null,\n        tipo_envio: 'pulado'\n      }\n    }];\n  }\n  telefonesDestino = [telefoneOriginal];\n  tipoEnvio = 'normal';\n}\n\nif (modoDebug) {\n  console.log('============================================');\n  console.log('[DEBUG] Preparando envio WhatsApp');\n  console.log('[DEBUG] Cliente:', dados.nome_cliente || 'N/A');\n  console.log('[DEBUG] Telefone Original:', telefoneOriginal);\n  console.log('[DEBUG] Telefones Destino:', telefonesDestino);\n  console.log('[DEBUG] Tipo Envio:', tipoEnvio);\n  console.log('[DEBUG] Modo Teste:', modoTeste);\n  console.log('============================================');\n}\n\n// Criar array de envios (um para cada telefone destino)\nconst envios = telefonesDestino.map(telefoneDestino => {\n  let url = '';\n  let headers = {};\n  let body = {};\n\n  if (api.tipo === 'uazapi') {\n    // Uazapi\n    url = `${api.baseUrl}/send/text`;\n    headers = {\n      'Accept': 'application/json',\n      'token': api.token\n    };\n    body = {\n      number: telefoneDestino,\n      text: mensagem,\n      delay: 1000\n    };\n  } else if (api.tipo === 'zapi') {\n    // Z-API (exemplo - ajustar conforme documentação)\n    url = `${api.baseUrl}/instances/${api.configExtra.instance_id}/send-text`;\n    headers = {\n      'Content-Type': 'application/json',\n      'Client-Token': api.token\n    };\n    body = {\n      phone: telefoneDestino,\n      message: mensagem\n    };\n  } else if (api.tipo === 'evolution') {\n    // Evolution API (exemplo - ajustar conforme documentação)\n    url = `${api.baseUrl}/message/sendText/${api.configExtra.instance_id}`;\n    headers = {\n      'Content-Type': 'application/json',\n      'apikey': api.token\n    };\n    body = {\n      number: telefoneDestino,\n      text: mensagem\n    };\n  } else {\n    throw new Error(`Tipo de API não suportado: ${api.tipo}`);\n  }\n\n  return {\n    json: {\n      ...dados,\n      telefone_destino: telefoneDestino,\n      telefone_original: telefoneOriginal,\n      tipo_envio: tipoEnvio,\n      urlEnvio: url,\n      headersEnvio: headers,\n      bodyEnvio: body,\n      modo_teste: modoTeste,\n      modo_debug: modoDebug\n    }\n  };\n});\n\nreturn envios;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2240,
+        944
+      ],
+      "id": "ebaf67af-fdd3-47c1-b5f9-0ebbf617935d",
+      "name": "Preparar Envio WhatsApp"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-cliente-pulado",
+              "leftValue": "={{ $json.pulado }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2144,
+        944
+      ],
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "name": "IF Cliente Foi Pulado"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.urlEnvio }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "=application/json"
+            },
+            {
+              "name": "token",
+              "value": "={{ $json.apiWhatsapp.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.telefone_destino }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.mensagemGerada }}"
+            },
+            {
+              "name": "delay",
+              "value": "1000"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2064,
+        944
+      ],
+      "id": "01836e43-0866-4861-a0db-d8df8940c2a3",
+      "name": "Enviar Mensagem WhatsApp"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar resposta da API e determinar sucesso/erro\n// Processa cada envio (pode ser múltiplos se modo teste)\nconst item = $input.first();\nconst dadosEnvio = item.json; // Dados do envio preparado (já tem telefone_destino, tipo_envio, etc)\n\n// Verificar se cliente foi pulado (sem telefone)\nif (dadosEnvio.pulado === true) {\n  // Cliente foi pulado, retornar dados sem tentar processar envio\n  const dadosCliente = $('Combinar Dados Cliente Campanha API').first().json;\n  return [{\n    json: {\n      ...dadosCliente,\n      pulado: true,\n      motivo_pulo: dadosEnvio.motivo_pulo || 'Telefone não encontrado ou inválido',\n      telefone_original: dadosEnvio.telefone_original || '',\n      telefone_destino: null,\n      tipo_envio: 'pulado',\n      statusEnvio: 'pulado',\n      mensagemErro: dadosEnvio.motivo_pulo || 'Telefone não encontrado ou inválido',\n      timestampEnvio: new Date().toISOString(),\n      campanha_id: dadosCliente.campanha_id,\n      execucao_id: dadosCliente.execucao_id\n    }\n  }];\n}\n\nconst respostaApi = item.json; // Resposta da API (pode estar em item.json se erro)\n\n// Obter dados originais do cliente (preservar telefone_original)\nconst dadosCliente = $('Combinar Dados Cliente Campanha API').first().json;\n\n// Detectar sucesso baseado no tipo de API\nconst api = dadosEnvio.apiWhatsapp;\nlet sucesso = false;\n\n// Verificar se há resposta da API (pode estar em diferentes formatos)\nlet respostaApiFinal = respostaApi;\nif (respostaApi?.json) {\n  respostaApiFinal = respostaApi.json;\n} else if (respostaApi?.body) {\n  respostaApiFinal = respostaApi.body;\n}\n\nif (api.tipo === 'uazapi') {\n  sucesso = respostaApiFinal?.id || respostaApiFinal?.messageid || false;\n} else if (api.tipo === 'zapi') {\n  sucesso = respostaApiFinal?.status === 'success' || respostaApiFinal?.id || false;\n} else if (api.tipo === 'evolution') {\n  sucesso = respostaApiFinal?.key?.id || respostaApiFinal?.status === 'success' || false;\n}\n\nconst statusEnvio = sucesso ? 'enviado' : 'erro';\nconst mensagemErro = sucesso ? null : (respostaApiFinal?.error || respostaApiFinal?.message || 'Erro desconhecido');\n\n// Preservar dados importantes do envio\nreturn [{\n  json: {\n    ...dadosCliente,\n    telefone_destino: dadosEnvio.telefone_destino,\n    telefone_original: dadosEnvio.telefone_original || dadosCliente.telefone,\n    tipo_envio: dadosEnvio.tipo_envio || 'normal',\n    mensagemGerada: dadosCliente.mensagemGerada,\n    statusEnvio: statusEnvio,\n    mensagemErro: mensagemErro,\n    respostaApi: respostaApiFinal,\n    timestampEnvio: new Date().toISOString(),\n    modo_teste: dadosEnvio.modo_teste || false,\n    modo_debug: dadosEnvio.modo_debug || false,\n    campanha_id: dadosCliente.campanha_id,\n    execucao_id: dadosCliente.execucao_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1888,
+        944
+      ],
+      "id": "c4316334-5ace-4443-b408-f5ef91871c3e",
+      "name": "Processar Resultado Envio"
+    },
+    {
+      "parameters": {
+        "operation": "insert"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1712,
+        944
+      ],
+      "id": "b8f61642-08ab-4c07-b143-88ccaf9be72d",
+      "name": "Registrar Histórico Campanha",
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_controle_envios",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Mesclar Configurações').first().json.data_hoje }}"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.campanha_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1552,
+        944
+      ],
+      "id": "21452d46-24d7-4246-ac36-041003bcfc3f",
+      "name": "Buscar Controle Diário",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar controle diário e incrementar contadores separados\nconst controleExistente = $('Buscar Controle Diário').first().json;\nconst dados = $input.first().json;\nconst statusEnvio = dados?.statusEnvio || 'erro';\nconst tipoEnvio = dados?.tipo_envio || 'normal';\nconst hoje = new Date().toISOString().split('T')[0];\n\n// Obter valores atuais ou inicializar\nlet totalEnviado = 0;\nlet totalEnviadoTeste = 0;\nlet totalEnviadoDebug = 0;\nlet totalEnviadoNormal = 0;\nlet totalErros = 0;\n\nif (controleExistente && controleExistente.length > 0) {\n  const controle = controleExistente[0];\n  totalEnviado = controle.total_enviado || 0;\n  totalEnviadoTeste = controle.total_enviado_teste || 0;\n  totalEnviadoDebug = controle.total_enviado_debug || 0;\n  totalEnviadoNormal = controle.total_enviado_normal || 0;\n  totalErros = controle.total_erros || 0;\n}\n\n// Incrementar contador apropriado baseado em tipo_envio e status\nif (statusEnvio === 'enviado') {\n  if (tipoEnvio === 'teste') {\n    totalEnviadoTeste += 1;\n  } else if (tipoEnvio === 'debug') {\n    totalEnviadoDebug += 1;\n  } else {\n    totalEnviadoNormal += 1;\n  }\n  // total_enviado será calculado automaticamente pelo trigger no banco\n  totalEnviado = totalEnviadoTeste + totalEnviadoDebug + totalEnviadoNormal;\n} else if (statusEnvio === 'erro') {\n  totalErros += 1;\n}\n\n// Preparar dados para upsert na tabela instacar_controle_envios\nconst controleData = {\n  data: hoje,\n  campanha_id: dados.campanha_id || null,\n  total_enviado: totalEnviado,\n  total_erros: totalErros,\n  status_processamento: 'em_andamento'\n};\n\n// Preparar dados para upsert na tabela instacar_campanhas_execucoes\nconst execucao = $('Combinar Campanha Execução').first().json;\nconst execucaoId = execucao.execucao_id || dados.execucao_id;\n\nconst execucaoData = {\n  id: execucaoId,\n  total_enviado_teste: totalEnviadoTeste,\n  total_enviado_debug: totalEnviadoDebug,\n  total_enviado_normal: totalEnviadoNormal,\n  ultima_atualizacao_processamento: new Date().toISOString()\n  // total_enviado será calculado automaticamente pelo trigger\n};\n\nreturn [{\n  json: {\n    ...dados,\n    controleDiario: controleData,\n    execucaoData: execucaoData,\n    totalEnviadoHoje: totalEnviado,\n    totalEnviadoTesteHoje: totalEnviadoTeste,\n    totalEnviadoDebugHoje: totalEnviadoDebug,\n    totalEnviadoNormalHoje: totalEnviadoNormal,\n    totalErrosHoje: totalErros\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        944
+      ],
+      "id": "db7a6049-45c3-405e-8fe8-0fda8d7fc2ea",
+      "name": "Processar Controle Diário"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar URL e credenciais para upsert controle\nconst item = $input.first();\nconst dados = item.json;\nconst supabaseUrl = $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_URL;\nconst supabaseKey = $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY;\nconst hoje = new Date().toISOString().split('T')[0];\nconst campanhaId = dados.campanha_id || null;\n\n// Construir URL de upsert\nlet upsertUrl = `${supabaseUrl}/rest/v1/instacar_controle_envios?data=eq.${hoje}`;\nif (campanhaId) {\n  upsertUrl += `&campanha_id=eq.${campanhaId}`;\n} else {\n  upsertUrl += `&campanha_id=is.null`;\n}\n\nreturn [{\n  json: {\n    ...dados,\n    supabaseUrl: supabaseUrl,\n    supabaseKey: supabaseKey,\n    upsertUrl: upsertUrl\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1168,
+        944
+      ],
+      "id": "44048ac8-8e50-4839-ad29-4bf0c9f9fc17",
+      "name": "Preparar URL Controle"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.upsertUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "=application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "=return=representation,resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.controleDiario) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1008,
+        944
+      ],
+      "id": "13bac629-ecb0-4bec-bb0a-da3c2e862903",
+      "name": "Atualizar Controle Diário"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://YOUR_PROJECT_ID.supabase.co",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Processar Controle Diário').first().json.execucaoData.id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "=application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "=return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Processar Controle Diário').first().json.execucaoData) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -816,
+        944
+      ],
+      "id": "00b0e143-1749-4f75-8ec6-e9bc51a453a0",
+      "name": "Atualizar Execução Contadores",
+      "notesInFlow": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verificar se atingiu limite diário da campanha\n// IMPORTANTE: O limite é aplicado apenas para envios NORMAIS (não conta teste/debug)\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst controle = $('Processar Controle Diário').first().json;\nconst limiteDia = campanha.limite_envios_dia || 200;\n\n// Usar apenas envios NORMAIS para verificar limite (teste e debug não contam)\nconst enviadosNormaisHoje = controle.totalEnviadoNormalHoje || 0;\nconst atingiuLimite = enviadosNormaisHoje >= limiteDia;\n\n// Log para debug\nconsole.log(`Verificação de limite: ${enviadosNormaisHoje}/${limiteDia} envios normais hoje. Atingiu limite: ${atingiuLimite}`);\n\nreturn [{\n  json: {\n    ...$('Processar Resultado Envio').first().json,\n    atingiuLimite: atingiuLimite,\n    enviadosHoje: enviadosNormaisHoje, // Usar apenas normais\n    enviadosTotalHoje: controle.totalEnviadoHoje || 0, // Total incluindo teste/debug\n    limiteDia: limiteDia\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -624,
+        944
+      ],
+      "id": "9bafceff-07cd-454f-aac5-56f6551ea9d8",
+      "name": "Verificar Limite Diário"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-atingiu-limite",
+              "leftValue": "={{ $json.atingiuLimite }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -464,
+        896
+      ],
+      "id": "e2f485c3-24c7-4f08-9c68-2705a8bf14ff",
+      "name": "IF Atingiu Limite"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-notificar-limite",
+              "leftValue": "={{ $('Mesclar Configurações').first().json.notificar_limite }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -208,
+        880
+      ],
+      "id": "6ed6c142-ef73-4432-8d7b-e20cb5df55db",
+      "name": "IF Notificar Limite"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar notificação de limite atingido\nconst configs = $('Mesclar Configurações').first().json;\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst controle = $('Verificar Limite Diário').first().json;\n\nif (!configs.notificar_limite) {\n  return []; // Não enviar se notificação desativada\n}\n\nconst agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });\nlet mensagem = `⏸️ *Limite Diário Atingido*\\n\\n`;\nmensagem += `📋 *Campanha:* ${campanha.nome || 'N/A'}\\n`;\nmensagem += `📊 *Total Enviado Hoje:* ${controle.enviadosHoje || 0}/${controle.limiteDia || 200}\\n`;\nmensagem += `🕐 *Horário:* ${agora}\\n\\n`;\nmensagem += `A campanha foi pausada até amanhã.`;\n\n// Retornar um item para cada telefone admin\nconst telefonesAdmin = configs.telefones_admin || [];\nif (telefonesAdmin.length === 0) {\n  return []; // Não há telefones para notificar\n}\n\nreturn telefonesAdmin.map(telefone => ({\n  json: {\n    telefone_destino: telefone,\n    mensagem: mensagem,\n    whatsapp_api_id_admin: configs.whatsapp_api_id_admin\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        864
+      ],
+      "id": "85d11d38-ba7d-4f98-8a85-3275bf3a1a5d",
+      "name": "Preparar Notificação Limite"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar e preparar ID admin para busca\nconst configs = $('Mesclar Configurações').first().json;\nconst whatsappApiIdAdmin = configs.whatsapp_api_id_admin;\n\nif (!whatsappApiIdAdmin) {\n  // Se não há ID admin, retornar vazio para pular busca\n  return [];\n}\n\n// Retornar ID para o nó Supabase buscar\nreturn [{\n  json: {\n    whatsapp_api_id_admin: whatsappApiIdAdmin\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        864
+      ],
+      "id": "27999c0f-d3b6-4ded-975d-6b6d40e0d812",
+      "name": "Validar ID Admin Limite"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "instacar_whatsapp_apis",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.whatsapp_api_id_admin }}"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        304,
+        864
+      ],
+      "id": "ae15b827-e034-479d-9f6f-c98129a31612",
+      "name": "Buscar Instância Admin Limite",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Your Credential Name"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://YOUR_PROJECT_ID.supabase.co",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        864
+      ],
+      "id": "8de6dd79-5b44-445f-8baf-f0ef126b0c35",
+      "name": "Buscar Instância Admin Limite HTTP"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar envio de notificação de limite\nconst notificacao = $('Preparar Notificação Limite').first().json;\nconst configs = $('Mesclar Configurações').first().json;\n\n// Tentar usar resultado do HTTP Request primeiro (mais confiável)\nlet apiResult = null;\ntry {\n  const httpResult = $('Buscar Instância Admin Limite HTTP').first().json;\n  if (httpResult && Array.isArray(httpResult) && httpResult.length > 0) {\n    apiResult = httpResult[0];\n  } else if (httpResult && httpResult.id) {\n    apiResult = httpResult;\n  }\n} catch (e) {\n  // Se HTTP Request falhou, tentar usar resultado do Supabase\n  try {\n    apiResult = $('Buscar Instância Admin Limite').first().json;\n  } catch (e2) {\n    // Ignorar\n  }\n}\n\n// Validar se temos um ID admin definido\nconst whatsappApiIdAdmin = configs.whatsapp_api_id_admin;\n\nif (!whatsappApiIdAdmin) {\n  // Se não há ID admin, usar instância da campanha como fallback\n  try {\n    const apiCampanha = $('Buscar Instância WhatsApp').first().json;\n    if (apiCampanha && apiCampanha.length > 0) {\n      const api = apiCampanha[0];\n      return [{\n        json: {\n          ...notificacao,\n          apiWhatsapp: {\n            id: api.id,\n            tipo: api.tipo_api,\n            baseUrl: api.base_url,\n            token: api.token,\n            configExtra: api.configuracao_extra || {}\n          }\n        }\n      }];\n    }\n  } catch (e) {\n    // Ignorar erro\n  }\n  return []; // Não há instância disponível\n}\n\n// Validar se encontrou resultado\nif (!apiResult || (Array.isArray(apiResult) && apiResult.length === 0)) {\n  return []; // Não encontrou instância\n}\n\nconst api = Array.isArray(apiResult) ? apiResult[0] : apiResult;\n\n// VALIDAÇÃO CRÍTICA: Verificar se o ID retornado corresponde ao ID buscado\nif (api.id !== whatsappApiIdAdmin) {\n  // Instância errada retornada, usar fallback\n  try {\n    const apiCampanha = $('Buscar Instância WhatsApp').first().json;\n    if (apiCampanha && apiCampanha.length > 0) {\n      const apiFallback = apiCampanha[0];\n      return [{\n        json: {\n          ...notificacao,\n          apiWhatsapp: {\n            id: apiFallback.id,\n            tipo: apiFallback.tipo_api,\n            baseUrl: apiFallback.base_url,\n            token: apiFallback.token,\n            configExtra: apiFallback.configuracao_extra || {}\n          }\n        }\n      }];\n    }\n  } catch (e) {\n    // Ignorar erro\n  }\n  return []; // Não há instância disponível\n}\n\nreturn [{\n  json: {\n    ...notificacao,\n    apiWhatsapp: {\n      id: api.id,\n      tipo: api.tipo_api,\n      baseUrl: api.base_url,\n      token: api.token,\n      configExtra: api.configuracao_extra || {}\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        864
+      ],
+      "id": "d4de4790-62eb-47ec-9eb8-98e76121b713",
+      "name": "Combinar Notificação Limite"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar URL, headers e body para envio de notificação\nconst dados = $json;\nconst api = dados.apiWhatsapp;\nconst telefone = dados.telefone_destino;\nconst mensagem = dados.mensagem;\n\nlet url = '';\nlet headers = {};\nlet body = {};\n\nif (api.tipo === 'uazapi') {\n  url = `${api.baseUrl}/send/text`;\n  headers = { 'Accept': 'application/json', 'token': api.token };\n  body = { number: telefone, text: mensagem, delay: 1000 };\n} else if (api.tipo === 'zapi') {\n  url = `${api.baseUrl}/instances/${api.configExtra.instance_id}/send-text`;\n  headers = { 'Content-Type': 'application/json', 'Client-Token': api.token };\n  body = { phone: telefone, message: mensagem };\n} else if (api.tipo === 'evolution') {\n  url = `${api.baseUrl}/message/sendText/${api.configExtra.instance_id}`;\n  headers = { 'Content-Type': 'application/json', 'apikey': api.token };\n  body = { number: telefone, text: mensagem };\n} else {\n  throw new Error(`Tipo de API não suportado: ${api.tipo}`);\n}\n\nreturn [{\n  json: {\n    ...dados,\n    urlEnvio: url,\n    headersEnvio: headers,\n    bodyEnvio: body\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        864
+      ],
+      "id": "68afc3a9-8011-4e59-9de6-df698993853a",
+      "name": "Preparar Envio Notificação Limite"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.urlEnvio }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "=application/json"
+            },
+            {
+              "name": "token",
+              "value": "={{ $json.apiWhatsapp.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.bodyEnvio) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        864
+      ],
+      "id": "1ad2af70-2b53-4aff-a7b8-5365935d931c",
+      "name": "Enviar Notificação Limite",
+      "neverError": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calcular intervalo entre envios\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst intervaloFixo = campanha.intervalo_envios_segundos;\n\nlet intervalo = 130; // Padrão\n\nif (intervaloFixo) {\n  intervalo = intervaloFixo;\n} else {\n  // Aleatorizado: 130-150s\n  intervalo = 130 + Math.floor(Math.random() * 21);\n}\n\nreturn [{\n  json: {\n    ...$json,\n    intervaloSegundos: intervalo\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        1104
+      ],
+      "id": "9818b4b3-129e-4e15-a8fa-287b2c2b8f7a",
+      "name": "Calcular Intervalo"
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.intervaloSegundos }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        112,
+        1104
+      ],
+      "id": "b389c570-0b49-4a2f-9a25-6f3b8b6ce41d",
+      "name": "Wait - Intervalo",
+      "webhookId": "YOUR_UAZAPI_TOKEN"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -5152,
+        304
+      ],
+      "id": "f684c28a-4563-4997-acb1-cf970456db7b",
+      "name": "Schedule Trigger - 30min"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger - Campanha": {
+      "main": [
+        [
+          {
+            "node": "Validar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Payload": {
+      "main": [
+        [
+          {
+            "node": "Set Variables - CONFIGURAR AQUI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Variables - CONFIGURAR AQUI": {
+      "main": [
+        [
+          {
+            "node": "Preparar Data para Cron",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Data para Cron": {
+      "main": [
+        [
+          {
+            "node": "IF Buscar Campanhas Agendadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Buscar Campanhas Agendadas": {
+      "main": [
+        [
+          {
+            "node": "Buscar Campanhas Agendadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Campanhas Agendadas": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Campanhas para Executar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Campanhas para Executar": {
+      "main": [
+        [
+          {
+            "node": "IF Tem Campanha Agendada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Tem Campanha Agendada": {
+      "main": [
+        [
+          {
+            "node": "Obter Campanha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Verificar Horário e Dia Útil",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Horário e Dia Útil": {
+      "main": [
+        [
+          {
+            "node": "IF Envio Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Pular Execução": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Obter Campanha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Envio Individual": {
+      "main": [
+        [
+          {
+            "node": "Buscar Cliente Individual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Pular Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Cliente Individual": {
+      "main": [
+        [
+          {
+            "node": "Preparar Cliente Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Cliente Individual": {
+      "main": [
+        [
+          {
+            "node": "IF Tem Campanha Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Tem Campanha Individual": {
+      "main": [
+        [
+          {
+            "node": "Validar Campanha ID Individual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Combinar Cliente Campanha Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Campanha ID Individual": {
+      "main": [
+        [
+          {
+            "node": "Obter Campanha Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obter Campanha Individual": {
+      "main": [
+        [
+          {
+            "node": "Combinar Cliente Campanha Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Cliente Campanha Individual": {
+      "main": [
+        [
+          {
+            "node": "Preparar Mensagem Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Mensagem Individual": {
+      "main": [
+        [
+          {
+            "node": "Preparar Busca API Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Busca API Individual": {
+      "main": [
+        [
+          {
+            "node": "Buscar API Individual HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar API Individual HTTP": {
+      "main": [
+        [
+          {
+            "node": "Validar API Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar API Individual": {
+      "main": [
+        [
+          {
+            "node": "Combinar Dados Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Dados Individual": {
+      "main": [
+        [
+          {
+            "node": "Buscar Configurações Empresa Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Configurações Empresa Individual": {
+      "main": [
+        [
+          {
+            "node": "Buscar Sessões Contexto Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Sessões Contexto Individual": {
+      "main": [
+        [
+          {
+            "node": "Verificar Template Prompt Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Template Prompt Individual": {
+      "main": [
+        [
+          {
+            "node": "IF Tem Template Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Tem Template Individual": {
+      "main": [
+        [
+          {
+            "node": "Buscar Template Prompt Individual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Usar IA Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Template Prompt Individual": {
+      "main": [
+        [
+          {
+            "node": "IF Usar IA Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Usar IA Individual": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto IA Individual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Processar Mensagem Final Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto IA Individual": {
+      "main": [
+        [
+          {
+            "node": "Preparar System Message Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar System Message Individual": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Individual": {
+      "main": [
+        [
+          {
+            "node": "Processar Mensagem Final Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model Individual": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Individual",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Mensagem Final Individual": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envio Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Envio Individual": {
+      "main": [
+        [
+          {
+            "node": "Enviar Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Individual": {
+      "main": [
+        [
+          {
+            "node": "Processar Resultado Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Resultado Individual": {
+      "main": [
+        [
+          {
+            "node": "Preparar Histórico Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Histórico Individual": {
+      "main": [
+        [
+          {
+            "node": "Registrar Histórico Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obter Campanha": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Campanha por ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Campanha por ID": {
+      "main": [
+        [
+          {
+            "node": "Validar Período",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Período": {
+      "main": [
+        [
+          {
+            "node": "Obter Configurações Sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obter Configurações Sistema": {
+      "main": [
+        [
+          {
+            "node": "Mesclar Configurações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mesclar Configurações": {
+      "main": [
+        [
+          {
+            "node": "Verificar Execução Hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Execução Hoje": {
+      "main": [
+        [
+          {
+            "node": "IF Execução Existe Hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Execução Existe Hoje": {
+      "main": [
+        [
+          {
+            "node": "Preparar Execução",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Execução": {
+      "main": [
+        [
+          {
+            "node": "IF Criar Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Criar Execução": {
+      "main": [
+        [
+          {
+            "node": "Criar Execução",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Combinar Campanha Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Execução": {
+      "main": [
+        [
+          {
+            "node": "Combinar Campanha Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Campanha Execução": {
+      "main": [
+        [
+          {
+            "node": "IF Notificar Início",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Notificar Início": {
+      "main": [
+        [
+          {
+            "node": "Preparar Notificação Início",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Clientes Selecionados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Notificação Início": {
+      "main": [
+        [
+          {
+            "node": "Validar ID Admin Início",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar ID Admin Início": {
+      "main": [
+        [
+          {
+            "node": "Buscar Instância Admin Início",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Instância Admin Início": {
+      "main": [
+        [
+          {
+            "node": "Buscar Instância Admin Início HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Instância Admin Início HTTP": {
+      "main": [
+        [
+          {
+            "node": "Combinar Notificação Início",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Notificação Início": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envio Notificação Início",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Envio Notificação Início": {
+      "main": [
+        [
+          {
+            "node": "Enviar Notificação Início",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Notificação Início": {
+      "main": [
+        [
+          {
+            "node": "Buscar Clientes Selecionados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Clientes Selecionados": {
+      "main": [
+        [
+          {
+            "node": "Preparar Filtro Clientes Selecionados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Filtro Clientes Selecionados": {
+      "main": [
+        [
+          {
+            "node": "Buscar Clientes Elegíveis Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Clientes Elegíveis Supabase": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Clientes Elegíveis para Campanha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Clientes Elegíveis para Campanha": {
+      "main": [
+        [
+          {
+            "node": "Calcular Lote e Verificar Horário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Lote e Verificar Horário": {
+      "main": [
+        [
+          {
+            "node": "IF Dentro Horário e Pode Processar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Dentro Horário e Pode Processar": {
+      "main": [
+        [
+          {
+            "node": "IF Notificar Conclusão",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pausar e Agendar Próxima Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pausar e Agendar Próxima Execução": {
+      "main": [
+        [
+          {
+            "node": "Preparar Dados Update Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Dados Update Execução": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Execução Pausada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Execução Pausada": {
+      "main": [
+        [
+          {
+            "node": "IF Notificar Conclusão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Notificar Conclusão": {
+      "main": [
+        [
+          {
+            "node": "Preparar Notificação Conclusão",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Lote Atual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Notificação Conclusão": {
+      "main": [
+        [
+          {
+            "node": "Validar ID Admin Conclusão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar ID Admin Conclusão": {
+      "main": [
+        [
+          {
+            "node": "Buscar Instância Admin Conclusão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Instância Admin Conclusão": {
+      "main": [
+        [
+          {
+            "node": "Buscar Instância Admin Conclusão HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Instância Admin Conclusão HTTP": {
+      "main": [
+        [
+          {
+            "node": "Combinar Notificação Conclusão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Notificação Conclusão": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envio Notificação Conclusão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Envio Notificação Conclusão": {
+      "main": [
+        [
+          {
+            "node": "Enviar Notificação Conclusão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Notificação Conclusão": {
+      "main": [
+        [
+          {
+            "node": "Preparar Lote Atual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Lote Atual": {
+      "main": [
+        [
+          {
+            "node": "Split in Batches - Lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split in Batches - Lote": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Verificar Duplicata por Campanha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Duplicata por Campanha": {
+      "main": [
+        [
+          {
+            "node": "IF Já Recebeu Esta Campanha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Já Recebeu Esta Campanha": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Buscar Configurações Empresa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Configurações Empresa": {
+      "main": [
+        [
+          {
+            "node": "Buscar Sessões Contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Sessões Contexto": {
+      "main": [
+        [
+          {
+            "node": "Verificar Template Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Template Prompt": {
+      "main": [
+        [
+          {
+            "node": "IF Tem Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Tem Template": {
+      "main": [
+        [
+          {
+            "node": "Preparar Dados IA Campanha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Template Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Template Prompt": {
+      "main": [
+        [
+          {
+            "node": "Preparar Dados IA Campanha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Dados IA Campanha": {
+      "main": [
+        [
+          {
+            "node": "Preparar System Message Campanha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar System Message Campanha": {
+      "main": [
+        [
+          {
+            "node": "Buscar Instância WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Instância WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Combinar Dados Cliente Campanha API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Dados Cliente Campanha API": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Gerar Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Gerar Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Processar Mensagem IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Gerar Mensagem",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Mensagem IA": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envio WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Envio WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "IF Cliente Foi Pulado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Cliente Foi Pulado": {
+      "main": [
+        [
+          {
+            "node": "Processar Resultado Envio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Mensagem WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Mensagem WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Processar Resultado Envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Resultado Envio": {
+      "main": [
+        [
+          {
+            "node": "Registrar Histórico Campanha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Histórico Campanha": {
+      "main": [
+        [
+          {
+            "node": "Buscar Controle Diário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Controle Diário": {
+      "main": [
+        [
+          {
+            "node": "Processar Controle Diário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Controle Diário": {
+      "main": [
+        [
+          {
+            "node": "Preparar URL Controle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar URL Controle": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Controle Diário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Controle Diário": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Execução Contadores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Execução Contadores": {
+      "main": [
+        [
+          {
+            "node": "Verificar Limite Diário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Limite Diário": {
+      "main": [
+        [
+          {
+            "node": "IF Atingiu Limite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Atingiu Limite": {
+      "main": [
+        [
+          {
+            "node": "IF Notificar Limite",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Calcular Intervalo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Notificar Limite": {
+      "main": [
+        [
+          {
+            "node": "Preparar Notificação Limite",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pausar e Agendar Próxima Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Notificação Limite": {
+      "main": [
+        [
+          {
+            "node": "Validar ID Admin Limite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar ID Admin Limite": {
+      "main": [
+        [
+          {
+            "node": "Buscar Instância Admin Limite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Instância Admin Limite": {
+      "main": [
+        [
+          {
+            "node": "Buscar Instância Admin Limite HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Instância Admin Limite HTTP": {
+      "main": [
+        [
+          {
+            "node": "Combinar Notificação Limite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Notificação Limite": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envio Notificação Limite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Envio Notificação Limite": {
+      "main": [
+        [
+          {
+            "node": "Enviar Notificação Limite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Notificação Limite": {
+      "main": [
+        [
+          {
+            "node": "Pausar e Agendar Próxima Execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Intervalo": {
+      "main": [
+        [
+          {
+            "node": "Wait - Intervalo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait - Intervalo": {
+      "main": [
+        [
+          {
+            "node": "Split in Batches - Lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger - 30min": {
+      "main": [
+        [
+          {
+            "node": "Validar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "YOUR_INSTANCE_ID"
+  }
+}
