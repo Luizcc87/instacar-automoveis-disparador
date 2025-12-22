@@ -25,6 +25,7 @@ Este projeto implementa um sistema completo de disparo escalonado de mensagens v
 - ✅ **Design System Moderno**: Interface padronizada com shadcn-ui e boas práticas de UX
 - ✅ **Seleção de Clientes para Campanhas**: Selecionar todos, alguns ou nenhum cliente por campanha
 - ✅ **Bloqueio de Envios**: Marcar clientes que não devem receber mensagens (opt-out)
+- ✅ **Filtros e Ordenação de Clientes**: Sistema completo de ordenação por nome, último envio, status WhatsApp e bloqueio
 
 ## 🎯 Sistema de Campanhas (NOVO)
 
@@ -593,4 +594,4 @@ O campo `status_whatsapp` pode ser utilizado para evitar chamadas desnecessária
 ---
 
 **Última atualização**: Dezembro 2025  
-**Versão**: 2.3 (Gerenciamento de Instâncias WhatsApp com Prefixo Obrigatório)
+**Versão**: 2.6 (Filtros e Ordenação de Clientes)

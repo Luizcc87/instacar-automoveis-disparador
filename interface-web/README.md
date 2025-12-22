@@ -152,6 +152,32 @@ Os tooltips incluem:
 - Dicas de boas práticas
 - Guia completo de agendamento cron com 6 exemplos
 
+## 🔍 Filtros e Ordenação de Clientes
+
+A interface oferece sistema completo de filtros e ordenação para facilitar o gerenciamento de clientes:
+
+### Funcionalidades
+
+- **Ordenação por Campo**: Nome, Último Envio, Status WhatsApp, Status de Bloqueio
+- **Direção de Ordenação**: Crescente (↑) ou Decrescente (↓)
+- **Persistência**: Preferências salvas automaticamente e restauradas ao recarregar
+- **Dois Contextos**: Disponível na tela inicial e na seleção de clientes para campanhas
+- **Integração**: Funciona em conjunto com filtros de busca e status WhatsApp existentes
+
+### Como Usar
+
+**Na Tela Inicial (Gerenciar Clientes):**
+1. Use os dropdowns de ordenação ao lado dos filtros de busca
+2. Selecione o campo e a direção desejados
+3. A lista será automaticamente atualizada
+
+**Na Seleção de Clientes para Campanhas:**
+1. Abra o modal de criação/edição de campanha
+2. Use os dropdowns de ordenação acima da lista de clientes
+3. A lista será automaticamente reordenada
+
+📖 **Documentação completa**: [../docs/interface-web/CHANGELOG-filtros-ordenacao-clientes-2025-12.md](../docs/interface-web/CHANGELOG-filtros-ordenacao-clientes-2025-12.md)
+
 ## ⚙️ Gerenciamento de Instâncias WhatsApp
 
 A interface permite gerenciar múltiplas instâncias de APIs WhatsApp (Uazapi, Z-API, Evolution, etc.):

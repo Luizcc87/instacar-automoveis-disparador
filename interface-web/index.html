@@ -1792,6 +1792,24 @@
               <option value="invalid">WhatsApp Inválido</option>
               <option value="unknown">Não Verificado</option>
             </select>
+            <select
+              id="ordenacaoCampo"
+              style="width: 180px"
+              onchange="paginaAtualClientes = 1; carregarListaClientes(1)"
+            >
+              <option value="nome_cliente" selected>Nome (A-Z)</option>
+              <option value="ultimo_envio">Último Envio</option>
+              <option value="status_whatsapp">Status WhatsApp</option>
+              <option value="bloqueado_envios">Status Bloqueio</option>
+            </select>
+            <select
+              id="ordenacaoDirecao"
+              style="width: 120px"
+              onchange="paginaAtualClientes = 1; carregarListaClientes(1)"
+            >
+              <option value="asc" selected>Crescente ↑</option>
+              <option value="desc">Decrescente ↓</option>
+            </select>
             <label
               style="
                 display: flex;
@@ -3228,6 +3246,27 @@
                   "
                   onkeyup="filtrarClientesSelecao()"
                 />
+              </div>
+
+              <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                <select
+                  id="ordenacaoCampoSelecao"
+                  style="flex: 1; min-width: 150px"
+                  onchange="renderizarListaClientesSelecao()"
+                >
+                  <option value="nome_cliente" selected>Nome (A-Z)</option>
+                  <option value="ultimo_envio">Último Envio</option>
+                  <option value="status_whatsapp">Status WhatsApp</option>
+                  <option value="bloqueado_envios">Status Bloqueio</option>
+                </select>
+                <select
+                  id="ordenacaoDirecaoSelecao"
+                  style="width: 120px"
+                  onchange="renderizarListaClientesSelecao()"
+                >
+                  <option value="asc" selected>Crescente ↑</option>
+                  <option value="desc">Decrescente ↓</option>
+                </select>
               </div>
 
               <div style="margin-bottom: 10px">

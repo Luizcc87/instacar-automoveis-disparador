@@ -2049,15 +2049,27 @@
     if (!supabaseClient) return;
 
     try {
+      // Obter valores de ordenação (com fallback para valores padrão)
+      const ordenacaoCampoSalvo = localStorage.getItem('ordenacaoClientesSelecao_campo');
+      const ordenacaoDirecaoSalva = localStorage.getItem('ordenacaoClientesSelecao_direcao');
+      const ordenacaoCampo = document.getElementById("ordenacaoCampoSelecao")?.value || ordenacaoCampoSalvo || "nome_cliente";
+      const ordenacaoDirecao = document.getElementById("ordenacaoDirecaoSelecao")?.value || ordenacaoDirecaoSalva || "asc";
+      const ascending = ordenacaoDirecao === "asc";
+
+      // Salvar preferências no localStorage
+      localStorage.setItem('ordenacaoClientesSelecao_campo', ordenacaoCampo);
+      localStorage.setItem('ordenacaoClientesSelecao_direcao', ordenacaoDirecao);
+
       // Buscar apenas clientes com WhatsApp validado
       // Filtros: ativo, não bloqueado, WhatsApp válido
+      // Incluir campos necessários para ordenação
       const { data: clientes, error } = await supabaseClient
         .from("instacar_clientes_envios")
-        .select("id, nome_cliente, telefone, status_whatsapp")
+        .select("id, nome_cliente, telefone, status_whatsapp, ultimo_envio, bloqueado_envios")
         .eq("ativo", true)
         .eq("bloqueado_envios", false)
         .eq("status_whatsapp", "valid")
-        .order("nome_cliente");
+        .order(ordenacaoCampo, { ascending: ascending });
 
       if (error) throw error;
 
@@ -2087,6 +2099,39 @@
         (c.nome_cliente || "").toLowerCase().includes(busca) ||
         (c.telefone || "").includes(busca)
     );
+
+    // Ordenar clientes filtrados
+    const ordenacaoCampo = document.getElementById("ordenacaoCampoSelecao")?.value || "nome_cliente";
+    const ordenacaoDirecao = document.getElementById("ordenacaoDirecaoSelecao")?.value || "asc";
+    const ascending = ordenacaoDirecao === "asc";
+
+    clientesFiltrados.sort((a, b) => {
+      let valorA = a[ordenacaoCampo];
+      let valorB = b[ordenacaoCampo];
+      
+      // Tratamento para valores nulos
+      if (valorA == null) valorA = ordenacaoCampo === "ultimo_envio" ? new Date(0) : "";
+      if (valorB == null) valorB = ordenacaoCampo === "ultimo_envio" ? new Date(0) : "";
+      
+      // Tratamento especial para timestamps
+      if (ordenacaoCampo === "ultimo_envio") {
+        const dataA = valorA ? new Date(valorA).getTime() : 0;
+        const dataB = valorB ? new Date(valorB).getTime() : 0;
+        return ascending ? dataA - dataB : dataB - dataA;
+      }
+      
+      // Tratamento especial para booleanos
+      if (ordenacaoCampo === "bloqueado_envios") {
+        const boolA = valorA === true ? 1 : 0;
+        const boolB = valorB === true ? 1 : 0;
+        return ascending ? boolA - boolB : boolB - boolA;
+      }
+      
+      // Comparação padrão (strings e outros)
+      if (valorA < valorB) return ascending ? -1 : 1;
+      if (valorA > valorB) return ascending ? 1 : -1;
+      return 0;
+    });
 
     if (clientesFiltrados.length === 0) {
       container.innerHTML =
@@ -4624,11 +4669,13 @@
   window.inverterSelecaoClientes = inverterSelecaoClientes;
   window.filtrarClientesSelecao = filtrarClientesSelecao;
   window.toggleClienteSelecao = toggleClienteSelecao;
+  window.renderizarListaClientesSelecao = renderizarListaClientesSelecao;
   window.atualizarContadorSelecao = atualizarContadorSelecao;
   window.desmarcarTodosClientes = desmarcarTodosClientes;
   window.inverterSelecaoClientes = inverterSelecaoClientes;
   window.filtrarClientesSelecao = filtrarClientesSelecao;
   window.toggleClienteSelecao = toggleClienteSelecao;
+  window.renderizarListaClientesSelecao = renderizarListaClientesSelecao;
   window.toggleAtivo = toggleAtivo;
   window.dispararCampanha = dispararCampanha;
   window.verExecucoes = verExecucoes;
@@ -4694,6 +4741,47 @@
   window.verificarStatusConexao = verificarStatusConexao;
   window.sincronizarStatusInstancia = sincronizarStatusInstancia;
 
+  /**
+   * Inicializa preferências de ordenação de clientes do localStorage
+   */
+  function inicializarOrdenacaoClientes() {
+    // Inicializar ordenação da tela inicial (Gerenciar Clientes)
+    const campoSalvo = localStorage.getItem('ordenacaoClientes_campo');
+    const direcaoSalva = localStorage.getItem('ordenacaoClientes_direcao');
+    
+    if (campoSalvo) {
+      const selectCampo = document.getElementById("ordenacaoCampo");
+      if (selectCampo) {
+        selectCampo.value = campoSalvo;
+      }
+    }
+    
+    if (direcaoSalva) {
+      const selectDirecao = document.getElementById("ordenacaoDirecao");
+      if (selectDirecao) {
+        selectDirecao.value = direcaoSalva;
+      }
+    }
+
+    // Inicializar ordenação da seleção de clientes para campanhas
+    const campoSalvoSelecao = localStorage.getItem('ordenacaoClientesSelecao_campo');
+    const direcaoSalvaSelecao = localStorage.getItem('ordenacaoClientesSelecao_direcao');
+    
+    if (campoSalvoSelecao) {
+      const selectCampoSelecao = document.getElementById("ordenacaoCampoSelecao");
+      if (selectCampoSelecao) {
+        selectCampoSelecao.value = campoSalvoSelecao;
+      }
+    }
+    
+    if (direcaoSalvaSelecao) {
+      const selectDirecaoSelecao = document.getElementById("ordenacaoDirecaoSelecao");
+      if (selectDirecaoSelecao) {
+        selectDirecaoSelecao.value = direcaoSalvaSelecao;
+      }
+    }
+  }
+
   // Inicializar quando DOM estiver pronto
   function inicializarApp() {
     // Carregar configurações automaticamente (localStorage > config.js)
@@ -4731,6 +4819,9 @@
 
     // Inicializar formulário
     inicializarFormulario();
+
+    // Inicializar preferências de ordenação de clientes
+    inicializarOrdenacaoClientes();
 
     // Inicializar preferência de visualização de campanhas
     const modoSalvo = localStorage.getItem("campanhasViewMode") || "grid";
@@ -6597,6 +6688,17 @@
     const filtroStatus =
       document.getElementById("filtroStatusWhatsapp")?.value || "";
 
+    // Obter valores de ordenação (com fallback para valores padrão)
+    const ordenacaoCampoSalvo = localStorage.getItem('ordenacaoClientes_campo');
+    const ordenacaoDirecaoSalva = localStorage.getItem('ordenacaoClientes_direcao');
+    const ordenacaoCampo = document.getElementById("ordenacaoCampo")?.value || ordenacaoCampoSalvo || "nome_cliente";
+    const ordenacaoDirecao = document.getElementById("ordenacaoDirecao")?.value || ordenacaoDirecaoSalva || "asc";
+    const ascending = ordenacaoDirecao === "asc";
+
+    // Salvar preferências no localStorage
+    localStorage.setItem('ordenacaoClientes_campo', ordenacaoCampo);
+    localStorage.setItem('ordenacaoClientes_direcao', ordenacaoDirecao);
+
     // Obter itens por página do seletor
     const itensPorPaginaSelect = document.getElementById("itensPorPagina");
     const novoItensPorPagina = itensPorPaginaSelect
@@ -6661,7 +6763,7 @@
         .from("instacar_clientes_envios")
         .select("*")
         .eq("ativo", true) // Filtrar apenas clientes ativos
-        .order("created_at", { ascending: false })
+        .order(ordenacaoCampo, { ascending: ascending })
         .range(offset, offset + itensPorPaginaClientes - 1);
 
       // Aplicar filtros na query de dados
