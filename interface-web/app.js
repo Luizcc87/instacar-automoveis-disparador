@@ -7741,11 +7741,18 @@
    */
   function formatarTelefone(telefone) {
     if (!telefone) return "-";
-    // 5511999999999 -> (11) 99999-9999
+    // Celular: 5511999999999 -> (11) 99999-9999
     if (telefone.length === 13 && telefone.startsWith("55")) {
       const ddd = telefone.substring(2, 4);
       const parte1 = telefone.substring(4, 9);
       const parte2 = telefone.substring(9);
+      return `(${ddd}) ${parte1}-${parte2}`;
+    }
+    // Fixo: 551112345678 -> (11) 1234-5678
+    if (telefone.length === 12 && telefone.startsWith("55")) {
+      const ddd = telefone.substring(2, 4);
+      const parte1 = telefone.substring(4, 8);
+      const parte2 = telefone.substring(8);
       return `(${ddd}) ${parte1}-${parte2}`;
     }
     return telefone;
@@ -7781,11 +7788,166 @@
     if (!telefone) return "";
     // Remove tudo que não é número
     let numeros = telefone.replace(/\D/g, "");
-    // Se não começa com 55, adiciona
+    
+    // DDDs válidos no Brasil (lista completa):
+    // 11-19 (SP), 21-28 (RJ/ES), 31-38 (MG), 41-49 (PR/SC), 51-59 (RS), 
+    // 61 (DF), 62-64 (GO/TO), 65-69 (MT/MS), 71-79 (BA/SE), 81-89 (PE/AL/PB/RN/CE/PI/MA),
+    // 91-99 (PA/AP/AM/RR/RO/AC)
+    // IMPORTANTE: DDD 55 é válido (Rio Grande do Sul)
+    
+    // Se não começa com 55, adiciona código do país
     if (!numeros.startsWith("55")) {
       numeros = "55" + numeros;
     }
+    
+    // Padronizar números de celular antigos (8 dígitos) para 9 dígitos
+    // Números antigos: 55 + DDD + 8 dígitos começando com 6, 7, 8 ou 9
+    // Números modernos: 55 + DDD + 9 dígitos começando com 9
+    // Para padronizar: adicionar um 9 ANTES do número antigo
+    if (numeros.length === 12) {
+      // Estrutura: 55 (país, posições 0-1) + DDD (2 dígitos, posições 2-3) + número (8 dígitos, posições 4-11)
+      const codigoPais = numeros.substring(0, 2); // "55"
+      const ddd = numeros.substring(2, 4); // DDD (2 dígitos)
+      const primeiroDigitoAposDDD = numeros.charAt(4); // Primeiro dígito do número
+      
+      // Celulares antigos no Brasil geralmente começam com 6, 7, 8 ou 9
+      // Fixos geralmente começam com 1, 2, 3, 4 ou 5
+      // Se começa com 6, 7, 8 ou 9 após o DDD, é provavelmente celular antigo (8 dígitos)
+      // Padronizar: adicionar 9 antes do número antigo para ter 9 dígitos
+      // Exemplos:
+      // - 555596773757 → 55 + 55 + 9 + 96773757 = 5555996773757 (13 dígitos)
+      // - 555581158181 → 55 + 55 + 9 + 81158181 = 5555991158181 (13 dígitos)
+      if (["6", "7", "8", "9"].includes(primeiroDigitoAposDDD)) {
+        const numeroAposDDD = numeros.substring(4); // Número completo após DDD (8 dígitos)
+        // Adicionar 9 padronizado ANTES do número antigo
+        numeros = codigoPais + ddd + "9" + numeroAposDDD; // 55 + DDD + 9 + número antigo
+      }
+    }
+    
     return numeros;
+  }
+
+  /**
+   * Valida telefone em tempo real e exibe mensagem de validação
+   */
+  function validarTelefoneTempoReal() {
+    const telefoneInput = document.getElementById("fieldTelefoneInput");
+    const validacaoDiv = document.getElementById("fieldTelefoneValidacao");
+    const btnSalvar = document.getElementById("btnSalvarCliente");
+
+    if (!telefoneInput || !validacaoDiv) return;
+
+    const telefone = telefoneInput.value.trim();
+    
+    // Se vazio, ocultar validação mas manter botão habilitado (validação será feita no submit)
+    if (!telefone) {
+      validacaoDiv.style.display = "none";
+      validacaoDiv.className = "validation-message";
+      validacaoDiv.textContent = "";
+      if (btnSalvar) {
+        btnSalvar.disabled = false;
+        btnSalvar.style.opacity = "1";
+        btnSalvar.style.cursor = "pointer";
+      }
+      return;
+    }
+
+    // Normalizar telefone
+    const telefoneNormalizado = normalizarTelefone(telefone);
+    
+    // Detectar se o número original tinha código duplicado
+    const telefoneOriginalLimpo = telefone.replace(/\D/g, "");
+    const tinhaCodigoDuplicado = telefoneOriginalLimpo.startsWith("5555");
+    
+    // Validar comprimento
+    // Padrões brasileiros:
+    // - Fixo: 55 + DDD (2) + número (8) = 12 dígitos (ex: 551112345678)
+    // - Celular: 55 + DDD (2) + número (9) = 13 dígitos (ex: 5511999999999)
+    // - Mínimo aceitável: 12 dígitos (telefone fixo)
+    // - Máximo aceitável: 13 dígitos (celular)
+    
+    if (telefoneNormalizado.length < 12 || telefoneNormalizado.length > 13) {
+      validacaoDiv.style.display = "block";
+      validacaoDiv.className = "validation-message error";
+      
+      // Mensagem mais clara baseada no que foi digitado
+      let mensagem = `⚠️ Telefone inválido. `;
+      
+      if (telefoneNormalizado.length === 11) {
+        // 55 + DDD + 7 dígitos (faltou 1 dígito)
+        mensagem += `Falta 1 dígito. `;
+      } else if (telefoneNormalizado.length === 10) {
+        // 55 + DDD + 6 dígitos (faltam 2 dígitos)
+        mensagem += `Faltam 2 dígitos. `;
+      } else if (telefoneNormalizado.length < 12) {
+        mensagem += `Faltam dígitos. `;
+      } else if (telefoneNormalizado.length === 14 || tinhaCodigoDuplicado) {
+        // Possível "55" duplicado ou número muito longo
+        mensagem += `Código do país duplicado detectado. `;
+        mensagem += `Exemplo: se você copiou "+55 55 98765-4321" do WhatsApp, use apenas "55987654321" (celular) ou "5511987654321" (fixo). `;
+      } else if (telefoneNormalizado.length > 13) {
+        mensagem += `Número muito longo. `;
+      }
+      
+      mensagem += `Formato esperado: 55 + DDD (2 dígitos) + número. `;
+      mensagem += `- Fixo: 8 dígitos (ex: 551112345678) `;
+      mensagem += `- Celular: 9 dígitos (ex: 5511999999999). `;
+      mensagem += `Telefone normalizado: ${telefoneNormalizado} (${telefoneNormalizado.length} dígitos, precisa de 12 ou 13).`;
+      
+      validacaoDiv.textContent = mensagem;
+      
+      if (btnSalvar) {
+        btnSalvar.disabled = true;
+        btnSalvar.style.opacity = "0.5";
+        btnSalvar.style.cursor = "not-allowed";
+      }
+      return;
+    }
+
+    // Telefone válido (12 ou 13 dígitos)
+    // Após normalização e padronização:
+    // - 12 dígitos: 55 + DDD (2) + número (8) = fixo
+    // - 13 dígitos: 55 + DDD (2) + número (9) = celular (padronizado)
+    let tipoTelefone = telefoneNormalizado.length === 12 ? "fixo" : "celular";
+    let numeroParaExibir = telefoneNormalizado;
+    let foiPadronizado = false;
+    
+    // Se tem 12 dígitos mas começa com 6, 7, 8 ou 9 após o DDD, é celular antigo que será padronizado
+    if (telefoneNormalizado.length === 12 && telefoneNormalizado.length >= 5) {
+      const primeiroDigitoAposDDD = telefoneNormalizado.charAt(4);
+      // Celulares antigos geralmente começam com 6, 7, 8 ou 9
+      if (["6", "7", "8", "9"].includes(primeiroDigitoAposDDD)) {
+        tipoTelefone = "celular";
+        // Aplicar padronização para mostrar o número correto
+        const codigoPais = telefoneNormalizado.substring(0, 2);
+        const ddd = telefoneNormalizado.substring(2, 4);
+        const numeroAposDDD = telefoneNormalizado.substring(4);
+        numeroParaExibir = codigoPais + ddd + "9" + numeroAposDDD; // Padronizado
+        foiPadronizado = true;
+      }
+    }
+    
+    // Mensagem de sucesso
+    let mensagemSucesso = `✅ Telefone válido (${tipoTelefone}): ${numeroParaExibir}`;
+    if (foiPadronizado) {
+      mensagemSucesso += ` (padronizado de ${telefoneNormalizado} para 9 dígitos)`;
+    }
+    
+    // Se tinha código duplicado detectado mas o número está correto, não avisar
+    // (porque 5555 pode ser correto: 55 país + 55 DDD RS)
+    if (tinhaCodigoDuplicado && telefoneNormalizado.length <= 13) {
+      // Se o número está válido, provavelmente não era duplicado, era DDD 55 válido
+      // Não adicionar aviso neste caso
+    }
+    
+    validacaoDiv.style.display = "block";
+    validacaoDiv.className = "validation-message success";
+    validacaoDiv.textContent = mensagemSucesso;
+    if (btnSalvar) {
+      btnSalvar.disabled = false;
+      btnSalvar.style.opacity = "1";
+      btnSalvar.style.cursor = "pointer";
+    }
   }
 
   /**
@@ -8242,6 +8404,19 @@
       document.getElementById("btnEditarCliente").style.display = "block";
       document.getElementById("btnSalvarCliente").style.display = "none";
       document.getElementById("btnCancelarEdicao").style.display = "none";
+      
+      // Remover validação em tempo real
+      const telefoneInput = document.getElementById("fieldTelefoneInput");
+      if (telefoneInput) {
+        telefoneInput.removeEventListener("input", validarTelefoneTempoReal);
+        telefoneInput.removeEventListener("blur", validarTelefoneTempoReal);
+      }
+      
+      // Ocultar mensagem de validação
+      const validacaoTelefone = document.getElementById("fieldTelefoneValidacao");
+      if (validacaoTelefone) {
+        validacaoTelefone.style.display = "none";
+      }
     } else {
       // Entrar em modo edição
       modalContent.classList.remove("modo-visualizacao");
@@ -8249,6 +8424,19 @@
       document.getElementById("btnEditarCliente").style.display = "none";
       document.getElementById("btnSalvarCliente").style.display = "block";
       document.getElementById("btnCancelarEdicao").style.display = "block";
+      
+      // Configurar validação em tempo real do telefone
+      const telefoneInput = document.getElementById("fieldTelefoneInput");
+      if (telefoneInput) {
+        // Remover listeners anteriores para evitar duplicação
+        telefoneInput.removeEventListener("input", validarTelefoneTempoReal);
+        telefoneInput.removeEventListener("blur", validarTelefoneTempoReal);
+        // Adicionar novos listeners
+        telefoneInput.addEventListener("input", validarTelefoneTempoReal);
+        telefoneInput.addEventListener("blur", validarTelefoneTempoReal);
+        // Validar imediatamente se já houver valor
+        validarTelefoneTempoReal();
+      }
     }
   }
 
@@ -8298,9 +8486,10 @@
 
     // Normalizar telefone
     const telefoneNormalizado = normalizarTelefone(telefone);
-    if (telefoneNormalizado.length < 13) {
+    // Validar: fixo (12 dígitos) ou celular (13 dígitos)
+    if (telefoneNormalizado.length < 12 || telefoneNormalizado.length > 13) {
       mostrarAlerta(
-        "Telefone inválido. Deve conter DDD + número (ex: 11999999999)",
+        "Telefone inválido. Deve conter DDD + número (fixo: 8 dígitos, celular: 9 dígitos). Ex: 11999999999 (celular) ou 1112345678 (fixo)",
         "error"
       );
       return;
@@ -8314,12 +8503,17 @@
 
     try {
       // Verificar se telefone já existe em outro cliente
-      const { data: clienteExistente } = await supabaseClient
+      const { data: clienteExistente, error: errorConsulta } = await supabaseClient
         .from("instacar_clientes_envios")
         .select("id")
         .eq("telefone", telefoneNormalizado)
         .neq("id", clienteId)
-        .single();
+        .maybeSingle();
+
+      if (errorConsulta) {
+        console.error("Erro ao verificar telefone existente:", errorConsulta);
+        // Continuar mesmo com erro na verificação
+      }
 
       if (clienteExistente) {
         mostrarAlerta(
@@ -8794,6 +8988,25 @@
     document.getElementById("fieldTelefoneInput").value = "";
     document.getElementById("fieldEmailValue").textContent = "";
     document.getElementById("fieldEmailInput").value = "";
+    
+    // Limpar validação de telefone
+    const validacaoTelefone = document.getElementById("fieldTelefoneValidacao");
+    if (validacaoTelefone) {
+      validacaoTelefone.style.display = "none";
+      validacaoTelefone.className = "validation-message";
+      validacaoTelefone.textContent = "";
+    }
+    
+    // Configurar validação em tempo real do telefone
+    const telefoneInput = document.getElementById("fieldTelefoneInput");
+    if (telefoneInput) {
+      // Remover listeners anteriores para evitar duplicação
+      telefoneInput.removeEventListener("input", validarTelefoneTempoReal);
+      telefoneInput.removeEventListener("blur", validarTelefoneTempoReal);
+      // Adicionar novos listeners
+      telefoneInput.addEventListener("input", validarTelefoneTempoReal);
+      telefoneInput.addEventListener("blur", validarTelefoneTempoReal);
+    }
     document.getElementById("fieldStatusWhatsappValue").innerHTML =
       '<span class="badge badge-unknown">⚪ Não verificado</span>';
     document.getElementById("statTotalEnvios").textContent = "0";
@@ -8856,9 +9069,10 @@
 
     // Normalizar telefone
     const telefoneNormalizado = normalizarTelefone(telefone);
-    if (telefoneNormalizado.length < 13) {
+    // Validar: fixo (12 dígitos) ou celular (13 dígitos)
+    if (telefoneNormalizado.length < 12 || telefoneNormalizado.length > 13) {
       mostrarAlerta(
-        "Telefone inválido. Deve conter DDD + número (ex: 11999999999)",
+        "Telefone inválido. Deve conter DDD + número (fixo: 8 dígitos, celular: 9 dígitos). Ex: 11999999999 (celular) ou 1112345678 (fixo)",
         "error"
       );
       return;
@@ -8872,11 +9086,16 @@
 
     try {
       // Verificar se telefone já existe
-      const { data: clienteExistente } = await supabaseClient
+      const { data: clienteExistente, error: errorConsulta } = await supabaseClient
         .from("instacar_clientes_envios")
         .select("id")
         .eq("telefone", telefoneNormalizado)
-        .single();
+        .maybeSingle();
+
+      if (errorConsulta) {
+        console.error("Erro ao verificar telefone existente:", errorConsulta);
+        // Continuar mesmo com erro na verificação
+      }
 
       if (clienteExistente) {
         mostrarAlerta(

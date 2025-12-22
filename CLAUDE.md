@@ -14,7 +14,7 @@ Este é um sistema automatizado de disparo de mensagens via WhatsApp para a Inst
 - **OpenAI GPT-4**: Geração de mensagens personalizadas
 - **Google Sheets**: Fonte de dados dos clientes (9 planilhas)
 
-**Versão Atual:** 2.5 (Dezembro 2025 - painel de estimativas, intervalo de almoço e configuração granular por dia da semana)
+**Versão Atual:** 2.6 (Dezembro 2025 - validação e padronização de telefones, painel de estimativas, intervalo de almoço e configuração granular por dia da semana)
 
 ## Arquitetura
 
@@ -254,11 +254,24 @@ Isso garante que informações de veículos e detalhes do cliente da planilha n�
 
 Todos os telefones normalizados para o formato: `55XXXXXXXXXXX` (código do país Brasil + código de área + número)
 
-Exemplos:
+**Padrões aceitos:**
+- **Fixo:** 12 dígitos (55 + DDD + 8 dígitos) - Ex: `551112345678`
+- **Celular:** 13 dígitos (55 + DDD + 9 dígitos) - Ex: `5511999999999`
+- **Celular antigo:** 12 dígitos começando com 6, 7, 8 ou 9 após DDD - Padronizado automaticamente para 13 dígitos
 
-- `(11) 99999-9999` → `5511999999999`
-- `11999999999` → `5511999999999`
-- `5511999999999` → `5511999999999` (já normalizado)
+**Validação em tempo real:**
+- Detecta números inválidos enquanto o usuário digita
+- Identifica celulares antigos e padroniza automaticamente
+- Suporta DDD 55 (Rio Grande do Sul)
+- Remove código do país duplicado automaticamente
+
+**Exemplos de normalização:**
+
+- `(11) 99999-9999` → `5511999999999` (celular)
+- `11999999999` → `5511999999999` (celular)
+- `(11) 1234-5678` → `551112345678` (fixo)
+- `+55 55 9677-3757` → `5555996773757` (celular antigo padronizado)
+- `555581158181` → `55559981158181` (celular antigo padronizado)
 
 ### Lógica de Upsert (CRÍTICO)
 
@@ -457,6 +470,33 @@ Melhorias de interface e experiência do usuário:
 5. **Consistência Visual**: Paleta de cores, espaçamento e transições padronizados
 
 📖 **Changelog completo**: [docs/interface-web/CHANGELOG-UI-UX-2025-12.md](docs/interface-web/CHANGELOG-UI-UX-2025-12.md)
+
+### Versão 2.6 (Dezembro 2025 - Validação e Padronização de Telefones)
+
+Melhorias no sistema de validação e normalização de números de telefone:
+
+1. **Validação em Tempo Real**:
+   - Validação enquanto o usuário digita
+   - Mensagens de erro/sucesso em tempo real
+   - Botão "Salvar" habilitado/desabilitado automaticamente
+   - Feedback visual claro
+
+2. **Suporte Completo a Números Brasileiros**:
+   - Fixos: 12 dígitos (55 + DDD + 8 dígitos)
+   - Celulares: 13 dígitos (55 + DDD + 9 dígitos)
+   - Celulares antigos: 12 dígitos padronizados automaticamente para 13 dígitos
+
+3. **Padronização Automática**:
+   - Detecta celulares antigos (8 dígitos começando com 6, 7, 8 ou 9)
+   - Padroniza para 9 dígitos adicionando o 9 inicial
+   - Exemplo: `555596773757` → `5555996773757`
+
+4. **Correções**:
+   - Suporte ao DDD 55 (Rio Grande do Sul)
+   - Remoção automática de código do país duplicado
+   - Correção do erro 406 usando `.maybeSingle()`
+
+📖 **Changelog completo**: [docs/interface-web/CHANGELOG-validacao-telefone-2025-12.md](docs/interface-web/CHANGELOG-validacao-telefone-2025-12.md)
 
 ### Versão 2.5 (Dezembro 2025 - Painel de Estimativas e Configuração Avançada de Horários)
 

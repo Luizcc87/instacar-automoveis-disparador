@@ -4069,8 +4069,25 @@ Registra no histórico (Supabase)
                 type="text"
                 class="field-input"
                 id="fieldTelefoneInput"
+                placeholder="Ex: (11) 98765-4321 ou 11987654321"
                 required
               />
+              <small style="color: #666; display: block; margin-top: 5px">
+                Formato esperado: 55 + DDD + número<br>
+                • Fixo: 8 dígitos (ex: 551112345678)<br>
+                • Celular: 9 dígitos (ex: 5511987654321) - números antigos são padronizados automaticamente
+              </small>
+              <div
+                id="fieldTelefoneValidacao"
+                class="validation-message"
+                style="
+                  font-size: 0.85rem;
+                  margin-top: 0.5rem;
+                  padding: 0.5rem;
+                  border-radius: 4px;
+                  display: none;
+                "
+              ></div>
             </div>
 
             <div class="cliente-field">
