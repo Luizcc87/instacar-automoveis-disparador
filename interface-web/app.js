@@ -2194,11 +2194,18 @@
   /**
    * Carrega clientes elegíveis para seleção na campanha
    * Apenas clientes com WhatsApp validado (status_whatsapp = 'valid')
+   * Busca todos os clientes em lotes para evitar limite de 1000 do Supabase
    */
   async function carregarClientesParaSelecao() {
     if (!supabaseClient) return;
 
     try {
+      // Mostrar loading
+      const container = document.getElementById("listaClientesSelecao");
+      if (container) {
+        container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px">Carregando clientes...</p>';
+      }
+
       // Obter valores de ordenação (com fallback para valores padrão)
       const ordenacaoCampoSalvo = localStorage.getItem('ordenacaoClientesSelecao_campo');
       const ordenacaoDirecaoSalva = localStorage.getItem('ordenacaoClientesSelecao_direcao');
@@ -2210,26 +2217,51 @@
       localStorage.setItem('ordenacaoClientesSelecao_campo', ordenacaoCampo);
       localStorage.setItem('ordenacaoClientesSelecao_direcao', ordenacaoDirecao);
 
-      // Buscar apenas clientes com WhatsApp validado
-      // Filtros: ativo, não bloqueado, WhatsApp válido
-      // Incluir campos necessários para ordenação
-      const { data: clientes, error } = await supabaseClient
-        .from("instacar_clientes_envios")
-        .select("id, nome_cliente, telefone, status_whatsapp, ultimo_envio, bloqueado_envios")
-        .eq("ativo", true)
-        .eq("bloqueado_envios", false)
-        .eq("status_whatsapp", "valid")
-        .order(ordenacaoCampo, { ascending: ascending });
+      // Buscar TODOS os clientes elegíveis em lotes (sem limite de 1000)
+      let todosClientes = [];
+      let offset = 0;
+      const limit = 1000; // Lote máximo do Supabase
 
-      if (error) throw error;
+      while (true) {
+        const { data: clientes, error } = await supabaseClient
+          .from("instacar_clientes_envios")
+          .select("id, nome_cliente, telefone, status_whatsapp, ultimo_envio, bloqueado_envios")
+          .eq("ativo", true)
+          .eq("bloqueado_envios", false)
+          .eq("status_whatsapp", "valid")
+          .order(ordenacaoCampo, { ascending: ascending })
+          .range(offset, offset + limit - 1);
 
-      clientesElegiveis = clientes || [];
+        if (error) throw error;
+
+        if (!clientes || clientes.length === 0) {
+          break; // Não há mais clientes
+        }
+
+        todosClientes.push(...clientes);
+        offset += limit;
+
+        // Se retornou menos que o limite, chegamos ao fim
+        if (clientes.length < limit) {
+          break;
+        }
+      }
+
+      clientesElegiveis = todosClientes;
       renderizarListaClientesSelecao();
       atualizarContadorSelecao();
+
+      // Mostrar aviso se houver muitos clientes
+      if (todosClientes.length > 1000) {
+        logger.log(`Carregados ${todosClientes.length} clientes elegíveis para seleção`);
+      }
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
-      document.getElementById("listaClientesSelecao").innerHTML =
-        '<p style="color: red; text-align: center; padding: 20px">Erro ao carregar clientes</p>';
+      const container = document.getElementById("listaClientesSelecao");
+      if (container) {
+        container.innerHTML =
+          '<p style="color: red; text-align: center; padding: 20px">Erro ao carregar clientes: ' + error.message + '</p>';
+      }
     }
   }
 
