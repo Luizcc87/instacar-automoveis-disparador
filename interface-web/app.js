@@ -6942,7 +6942,12 @@
 
       // Aplicar filtros
       if (filtroStatus) {
-        queryBase = queryBase.eq("status_whatsapp", filtroStatus);
+        // Para "unknown", buscar tanto NULL quanto "unknown"
+        if (filtroStatus === "unknown") {
+          queryBase = queryBase.or("status_whatsapp.is.null,status_whatsapp.eq.unknown");
+        } else {
+          queryBase = queryBase.eq("status_whatsapp", filtroStatus);
+        }
       }
 
       if (busca) {
@@ -6980,7 +6985,12 @@
 
       // Aplicar filtros na query de dados
       if (filtroStatus) {
-        query = query.eq("status_whatsapp", filtroStatus);
+        // Para "unknown", buscar tanto NULL quanto "unknown"
+        if (filtroStatus === "unknown") {
+          query = query.or("status_whatsapp.is.null,status_whatsapp.eq.unknown");
+        } else {
+          query = query.eq("status_whatsapp", filtroStatus);
+        }
       }
 
       if (busca) {
