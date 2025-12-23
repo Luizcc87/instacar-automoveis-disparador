@@ -75,7 +75,7 @@ BEGIN
     -- Adicionar constraint CHECK
     ALTER TABLE instacar_campanhas
       ADD CONSTRAINT check_intervalo_envios_segundos 
-      CHECK (intervalo_envios_segundos IS NULL OR (intervalo_envios_segundos >= 60 AND intervalo_envios_segundos <= 300));
+      CHECK (intervalo_envios_segundos IS NULL OR (intervalo_envios_segundos >= 1 AND intervalo_envios_segundos <= 300));
   END IF;
 END $$;
 
