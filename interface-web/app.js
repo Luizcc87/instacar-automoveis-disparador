@@ -2452,14 +2452,24 @@
    * Salva seleção de clientes para uma campanha
    */
   async function salvarSelecaoClientesCampanha(campanhaId) {
-    if (!supabaseClient || !campanhaId) return;
+    if (!supabaseClient || !campanhaId) {
+      console.error('salvarSelecaoClientesCampanha: supabaseClient ou campanhaId não fornecido', { supabaseClient: !!supabaseClient, campanhaId });
+      return;
+    }
 
     try {
+      console.log(`Salvando seleção de clientes para campanha ${campanhaId}. Total selecionados: ${clientesSelecionados.size}`);
+      
       // Deletar seleção atual
-      await supabaseClient
+      const { error: deleteError } = await supabaseClient
         .from("instacar_campanhas_clientes")
         .delete()
         .eq("campanha_id", campanhaId);
+
+      if (deleteError) {
+        console.error('Erro ao deletar seleção anterior:', deleteError);
+        throw deleteError;
+      }
 
       // Se há clientes selecionados, inserir novos
       if (clientesSelecionados.size > 0) {
@@ -2468,11 +2478,21 @@
           cliente_id: clienteId,
         }));
 
-        const { error } = await supabaseClient
+        console.log(`Inserindo ${registros.length} registros na tabela instacar_campanhas_clientes`);
+        
+        const { data, error } = await supabaseClient
           .from("instacar_campanhas_clientes")
-          .insert(registros);
+          .insert(registros)
+          .select("id");
 
-        if (error) throw error;
+        if (error) {
+          console.error('Erro ao inserir seleção de clientes:', error);
+          throw error;
+        }
+
+        console.log(`Seleção de clientes salva com sucesso. ${data?.length || 0} registros inseridos.`);
+      } else {
+        console.log('Nenhum cliente selecionado. Seleção anterior foi removida.');
       }
     } catch (error) {
       console.error("Erro ao salvar seleção de clientes:", error);
@@ -3179,28 +3199,40 @@
 
       try {
         let result;
+        let campanhaIdFinal = id;
+        
         if (id) {
+          // Atualizar campanha existente
           result = await supabaseClient
             .from("instacar_campanhas")
             .update(dados)
-            .eq("id", id);
+            .eq("id", id)
+            .select("id")
+            .single();
         } else {
+          // Criar nova campanha - IMPORTANTE: usar .select() para retornar o ID
           result = await supabaseClient
             .from("instacar_campanhas")
-            .insert([dados]);
+            .insert([dados])
+            .select("id")
+            .single();
         }
 
         if (result.error) throw result.error;
 
         // Obter ID da campanha (novo ou existente)
-        let campanhaIdFinal = id;
-        if (!campanhaIdFinal && result.data && result.data.length > 0) {
-          campanhaIdFinal = result.data[0].id;
+        if (result.data && result.data.id) {
+          campanhaIdFinal = result.data.id;
         }
 
         // Salvar seleção de clientes
         if (campanhaIdFinal) {
+          console.log('Salvando seleção de clientes para campanha:', campanhaIdFinal, 'Total selecionados:', clientesSelecionados.size);
           await salvarSelecaoClientesCampanha(campanhaIdFinal);
+          console.log('Seleção de clientes salva com sucesso');
+        } else {
+          console.error('ERRO: Não foi possível obter o ID da campanha para salvar seleção de clientes');
+          mostrarAlerta("Campanha salva, mas não foi possível salvar a seleção de clientes. Tente editar a campanha e salvar novamente.", "warning");
         }
 
         mostrarAlerta(
@@ -3431,20 +3463,136 @@
         .single();
 
       if (errorCampanha || !campanha) {
-        mostrarAlerta("Erro ao carregar campanha", "error");
+        console.error("Erro ao carregar campanha:", errorCampanha);
+        mostrarAlerta("Erro ao carregar campanha: " + (errorCampanha?.message || "Campanha não encontrada"), "error");
         return;
       }
 
-      const { data: execucoes, error: errorExecucoes } = await supabaseClient
+      console.log("Campanha carregada:", campanha.nome, "ID:", campanhaId);
+
+      // Buscar execuções da campanha
+      // Garantir que campanhaId é uma string válida
+      const campanhaIdStr = String(campanhaId).trim();
+      console.log("Buscando execuções com campanha_id:", campanhaIdStr);
+      
+      let { data: execucoes, error: errorExecucoes } = await supabaseClient
         .from("instacar_campanhas_execucoes")
         .select("*")
-        .eq("campanha_id", campanhaId)
+        .eq("campanha_id", campanhaIdStr)
         .order("data_execucao", { ascending: false })
-        .limit(20);
+        .order("created_at", { ascending: false })
+        .limit(50); // Aumentar limite para 50
 
-      if (errorExecucoes) throw errorExecucoes;
+      if (errorExecucoes) {
+        console.error("Erro ao buscar execuções:", errorExecucoes);
+        mostrarAlerta("Erro ao buscar execuções: " + errorExecucoes.message, "error");
+        throw errorExecucoes;
+      }
 
-      const totalEnviados = execucoes.reduce(
+      // Log para debug
+      console.log("Execuções encontradas:", execucoes?.length || 0, "para campanha:", campanhaId);
+      if (execucoes && execucoes.length > 0) {
+        console.log("Primeira execução:", execucoes[0]);
+      } else {
+        console.log("⚠️ Nenhuma execução encontrada. Verificando se há execuções no banco...");
+        // Verificação adicional: buscar todas as execuções sem filtro para debug
+        const { data: todasExecucoes, error: errorTodas } = await supabaseClient
+          .from("instacar_campanhas_execucoes")
+          .select("id, campanha_id, data_execucao, status_execucao")
+          .limit(10);
+        
+        if (!errorTodas && todasExecucoes) {
+          console.log("Execuções no banco (amostra):", todasExecucoes);
+          console.log("Campanha ID usado na busca:", campanhaId, "Tipo:", typeof campanhaId);
+          
+          // Verificar se alguma execução tem o mesmo campanha_id
+          const execucoesComMesmoId = todasExecucoes.filter(e => e.campanha_id === campanhaId);
+          console.log("Execuções com mesmo campanha_id:", execucoesComMesmoId.length);
+          
+          if (execucoesComMesmoId.length === 0 && todasExecucoes.length > 0) {
+            console.log("⚠️ ATENÇÃO: Há execuções no banco, mas nenhuma com o campanha_id correto!");
+            console.log("Campanha ID buscado:", campanhaId);
+            console.log("Campanha IDs encontrados nas execuções:", todasExecucoes.map(e => e.campanha_id));
+            
+            // Verificar se há execuções com execucao_id no histórico que apontam para esta campanha
+            const { data: historicoComExecucao, error: errorHistorico } = await supabaseClient
+              .from("instacar_historico_envios")
+              .select("execucao_id, campanha_id")
+              .eq("campanha_id", campanhaId)
+              .not("execucao_id", "is", null)
+              .limit(10);
+            
+            if (!errorHistorico && historicoComExecucao && historicoComExecucao.length > 0) {
+              const execucaoIdsDoHistorico = [...new Set(historicoComExecucao.map(h => h.execucao_id))];
+              console.log("Execuções encontradas no histórico:", execucaoIdsDoHistorico);
+              
+              // Buscar essas execuções
+              if (execucaoIdsDoHistorico.length > 0) {
+                const { data: execucoesDoHistorico, error: errorExecHist } = await supabaseClient
+                  .from("instacar_campanhas_execucoes")
+                  .select("*")
+                  .in("id", execucaoIdsDoHistorico)
+                  .order("data_execucao", { ascending: false })
+                  .order("created_at", { ascending: false });
+                
+                if (!errorExecHist && execucoesDoHistorico && execucoesDoHistorico.length > 0) {
+                  console.log("✅ Encontradas execuções via histórico:", execucoesDoHistorico.length);
+                  // Usar essas execuções encontradas via histórico
+                  execucoes = execucoesDoHistorico;
+                  console.log("✅ Execuções atribuídas:", execucoes.length, "execuções");
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Se ainda não encontrou execuções, tentar buscar via histórico de envios
+      if ((!execucoes || execucoes.length === 0) && campanhaId) {
+        console.log("🔄 Tentando buscar execuções via histórico de envios...");
+        const { data: historicoEnvios, error: errorHist } = await supabaseClient
+          .from("instacar_historico_envios")
+          .select("execucao_id")
+          .eq("campanha_id", campanhaId)
+          .not("execucao_id", "is", null)
+          .limit(100);
+        
+        if (!errorHist && historicoEnvios && historicoEnvios.length > 0) {
+          const execucaoIdsUnicos = [...new Set(historicoEnvios.map(h => h.execucao_id).filter(id => id))];
+          console.log("✅ Execuções encontradas via histórico:", execucaoIdsUnicos.length, "IDs:", execucaoIdsUnicos);
+          
+          if (execucaoIdsUnicos.length > 0) {
+            const { data: execucoesViaHist, error: errorExecHist } = await supabaseClient
+              .from("instacar_campanhas_execucoes")
+              .select("*")
+              .in("id", execucaoIdsUnicos)
+              .order("data_execucao", { ascending: false })
+              .order("created_at", { ascending: false })
+              .limit(50);
+            
+            if (!errorExecHist && execucoesViaHist && execucoesViaHist.length > 0) {
+              console.log("✅ Execuções carregadas via histórico:", execucoesViaHist.length);
+              execucoes = execucoesViaHist;
+              console.log("✅ Execuções finais atribuídas:", execucoes.length, "execuções");
+            }
+          }
+        } else {
+          console.log("⚠️ Nenhum histórico de envios encontrado para esta campanha");
+        }
+      }
+
+      // Log final para debug
+      console.log("📊 Total de execuções para renderizar:", execucoes?.length || 0);
+      if (execucoes && execucoes.length > 0) {
+        console.log("📊 Primeira execução:", {
+          id: execucoes[0].id,
+          campanha_id: execucoes[0].campanha_id,
+          data_execucao: execucoes[0].data_execucao,
+          status: execucoes[0].status_execucao
+        });
+      }
+
+      const totalEnviados = (execucoes || []).reduce(
         (sum, e) => sum + (e.total_enviado || 0),
         0
       );
@@ -3572,80 +3720,174 @@
                 }
               </div>
 
-              <h3 style="margin-top: 30px; margin-bottom: 15px;">Histórico de Execuções</h3>
-              <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <thead>
-                    <tr style="background: #f5f5f5;">
-                      <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Data</th>
-                      <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Status</th>
-                      <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Enviados</th>
-                      <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Erros</th>
-                      <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Trigger</th>
-                      <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Início</th>
-                      <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${
-                      execucoes && execucoes.length > 0
-                        ? execucoes
-                            .map(
-                              (exec) => {
-                                const podePausar = exec.status_execucao === "em_andamento";
-                                const podeContinuar = exec.status_execucao === "pausada";
-                                const podeCancelar = exec.status_execucao === "em_andamento" || exec.status_execucao === "pausada";
-                                const hojeStr = new Date().toISOString().split("T")[0];
-                                const execucaoHoje = exec.data_execucao === hojeStr;
-                                
-                                let botoesAcoes = "";
-                                if (execucaoHoje && podePausar) {
-                                  botoesAcoes += `<button onclick="pausarExecucao('${exec.id}')" class="btn-warning" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">⏸️ Pausar</button>`;
-                                }
-                                if (execucaoHoje && podeContinuar) {
-                                  botoesAcoes += `<button onclick="continuarExecucao('${exec.id}')" class="btn-success" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">▶️ Continuar</button>`;
-                                }
-                                if (execucaoHoje && podeCancelar) {
-                                  botoesAcoes += `<button onclick="cancelarExecucao('${exec.id}')" class="btn-danger" style="padding: 4px 8px; font-size: 11px;">❌ Cancelar</button>`;
-                                }
-                                if (!botoesAcoes) {
-                                  botoesAcoes = "<span style='color: #999; font-size: 11px;'>-</span>";
-                                }
-                                
-                                return `
-                      <tr>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;">${new Date(
-                          exec.data_execucao
-                        ).toLocaleDateString("pt-BR")}</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="status ${
-                          exec.status_execucao
-                        }">${exec.status_execucao}</span></td>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;">${
-                          exec.total_enviado || 0
-                        }</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;">${
-                          exec.total_erros || 0
-                        }</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;">${
-                          exec.trigger_tipo || "N/A"
-                        }</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;">${
-                          exec.horario_inicio
-                            ? new Date(exec.horario_inicio).toLocaleString(
-                                "pt-BR"
-                              )
-                            : "N/A"
-                        }</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #eee;">${botoesAcoes}</td>
+              <h3 style="margin-top: 30px; margin-bottom: 15px;">📋 Histórico de Execuções</h3>
+              <div style="background: #f9fafb; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <p style="margin: 0 0 15px 0; color: #666; font-size: 14px;">
+                  Total de execuções: <strong>${execucoes?.length || 0}</strong> | 
+                  Mostrando as últimas 20 execuções ordenadas por data (mais recente primeiro)
+                </p>
+                <div style="overflow-x: auto;">
+                  <table id="tabelaExecucoes" style="width: 100%; border-collapse: collapse; background: white;">
+                    <thead>
+                      <tr style="background: #f5f5f5;">
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Data</th>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Status</th>
+                        <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; font-weight: 600;">Enviados</th>
+                        <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; font-weight: 600;">Erros</th>
+                        <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; font-weight: 600;">Duplicados</th>
+                        <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; font-weight: 600;">Sem WhatsApp</th>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Progresso</th>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Início/Fim</th>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Ações</th>
                       </tr>
-                    `;
-                              }
-                            )
-                            .join("")
-                        : '<tr><td colspan="7" style="padding: 20px; text-align: center; color: #666;">Nenhuma execução encontrada</td></tr>'
-                    }
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      ${
+                        (() => {
+                          console.log("🎨 Renderizando tabela - execucoes:", execucoes?.length || 0);
+                          if (execucoes && execucoes.length > 0) {
+                            console.log("🎨 Renderizando", execucoes.length, "execuções");
+                            return execucoes
+                              .map(
+                                (exec) => {
+                                  const podePausar = exec.status_execucao === "em_andamento";
+                                  const podeContinuar = exec.status_execucao === "pausada";
+                                  const podeCancelar = exec.status_execucao === "em_andamento" || exec.status_execucao === "pausada";
+                                  const hojeStr = new Date().toISOString().split("T")[0];
+                                  const execucaoHoje = exec.data_execucao === hojeStr;
+                                  
+                                  // Calcular progresso
+                                  const totalElegiveis = exec.total_contatos_elegiveis || 0;
+                                  const processados = exec.contatos_processados || 0;
+                                  const pendentes = exec.contatos_pendentes || 0;
+                                  const percentualProgresso = totalElegiveis > 0 
+                                    ? ((processados / totalElegiveis) * 100).toFixed(1)
+                                    : 0;
+                                  
+                                  // Status badge
+                                  let statusBadge = "";
+                                  if (exec.status_execucao === "em_andamento") {
+                                    statusBadge = `<span style="background: #2196F3; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">🟢 EM ANDAMENTO</span>`;
+                                  } else if (exec.status_execucao === "pausada") {
+                                    statusBadge = `<span style="background: #ff9800; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">⏸️ PAUSADA</span>`;
+                                  } else if (exec.status_execucao === "concluida") {
+                                    statusBadge = `<span style="background: #4caf50; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">✅ CONCLUÍDA</span>`;
+                                  } else if (exec.status_execucao === "erro") {
+                                    statusBadge = `<span style="background: #f44336; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">❌ ERRO</span>`;
+                                  } else {
+                                    statusBadge = `<span style="background: #999; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${exec.status_execucao || "N/A"}</span>`;
+                                  }
+                                  
+                                  // Botões de ação
+                                  let botoesAcoes = "";
+                                  if (execucaoHoje && podePausar) {
+                                    botoesAcoes += `<button onclick="pausarExecucao('${exec.id}')" class="btn-warning" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; margin-bottom: 4px;">⏸️ Pausar</button>`;
+                                  }
+                                  if (execucaoHoje && podeContinuar) {
+                                    botoesAcoes += `<button onclick="continuarExecucao('${exec.id}')" class="btn-success" style="padding: 4px 8px; font-size: 11px; margin-right: 4px; margin-bottom: 4px;">▶️ Continuar</button>`;
+                                  }
+                                  if (execucaoHoje && podeCancelar) {
+                                    botoesAcoes += `<button onclick="cancelarExecucao('${exec.id}')" class="btn-danger" style="padding: 4px 8px; font-size: 11px; margin-bottom: 4px;">❌ Cancelar</button>`;
+                                  }
+                                  // Botão para ver histórico de envios desta execução
+                                  botoesAcoes += `<button onclick="verHistoricoExecucao('${exec.id}', '${campanhaId}')" class="btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-top: 4px; display: block; width: 100%;">📨 Ver Envios</button>`;
+                                  
+                                  // Formatação de data/hora
+                                  const dataFormatada = new Date(exec.data_execucao).toLocaleDateString("pt-BR");
+                                  const horarioInicio = exec.horario_inicio
+                                    ? new Date(exec.horario_inicio).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })
+                                    : "N/A";
+                                  const horarioFim = exec.horario_fim
+                                    ? new Date(exec.horario_fim).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })
+                                    : null;
+                                  
+                                  return `
+                        <tr style="border-bottom: 1px solid #eee;">
+                          <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                            <strong>${dataFormatada}</strong>
+                            ${execucaoHoje ? '<br><small style="color: #4caf50; font-weight: 600;">HOJE</small>' : ''}
+                          </td>
+                          <td style="padding: 12px; border-bottom: 1px solid #eee;">${statusBadge}</td>
+                          <td style="padding: 12px; text-align: center; border-bottom: 1px solid #eee;">
+                            <strong style="color: #2196F3; font-size: 16px;">${exec.total_enviado || 0}</strong>
+                          </td>
+                          <td style="padding: 12px; text-align: center; border-bottom: 1px solid #eee;">
+                            <strong style="color: #f44336; font-size: 16px;">${exec.total_erros || 0}</strong>
+                          </td>
+                          <td style="padding: 12px; text-align: center; border-bottom: 1px solid #eee;">
+                            <span style="color: #ff9800;">${exec.total_duplicados || 0}</span>
+                          </td>
+                          <td style="padding: 12px; text-align: center; border-bottom: 1px solid #eee;">
+                            <span style="color: #9c27b0;">${exec.total_sem_whatsapp || 0}</span>
+                          </td>
+                          <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                            ${totalElegiveis > 0 ? `
+                              <div style="margin-bottom: 4px;">
+                                <div style="background: #e0e0e0; height: 8px; border-radius: 4px; overflow: hidden;">
+                                  <div style="background: #4caf50; height: 100%; width: ${percentualProgresso}%; transition: width 0.3s;"></div>
+                                </div>
+                                <small style="color: #666; font-size: 11px;">
+                                  ${processados}/${totalElegiveis} (${percentualProgresso}%)
+                                  ${pendentes > 0 ? `| ${pendentes} pendentes` : ''}
+                                </small>
+                              </div>
+                            ` : '<span style="color: #999; font-size: 11px;">N/A</span>'}
+                          </td>
+                          <td style="padding: 12px; border-bottom: 1px solid #eee; font-size: 12px;">
+                            <div><strong>Início:</strong> ${horarioInicio}</div>
+                            ${horarioFim ? `<div><strong>Fim:</strong> ${horarioFim}</div>` : '<div style="color: #999;">Em andamento...</div>'}
+                          </td>
+                          <td style="padding: 12px; border-bottom: 1px solid #eee; min-width: 120px;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                              ${botoesAcoes}
+                            </div>
+                          </td>
+                        </tr>
+                      `;
+                                }
+                              )
+                              .join("");
+                          } else {
+                            console.log("🎨 Nenhuma execução para renderizar");
+                            return `<tr>
+                              <td colspan="9" style="padding: 30px; text-align: center; color: #666;">
+                                <div style="margin-bottom: 15px;">
+                                  <span style="font-size: 48px;">📭</span>
+                                </div>
+                                <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #333;">
+                                  Nenhuma execução encontrada para esta campanha
+                                </div>
+                                <div style="font-size: 13px; color: #666; line-height: 1.6; max-width: 500px; margin: 0 auto;">
+                                  <p style="margin: 5px 0;">
+                                    Esta campanha ainda não foi executada. Para iniciar uma execução:
+                                  </p>
+                                  <ol style="text-align: left; display: inline-block; margin: 10px 0; padding-left: 20px;">
+                                    <li>Verifique se a campanha está ativa</li>
+                                    <li>Verifique se há clientes elegíveis ou selecionados</li>
+                                    <li>Dispare a campanha manualmente ou aguarde o agendamento (se configurado)</li>
+                                  </ol>
+                                  <p style="margin: 10px 0; font-size: 12px; color: #999;">
+                                    <strong>Dica:</strong> As execuções são criadas automaticamente quando uma campanha é disparada.
+                                  </p>
+                                </div>
+                              </td>
+                            </tr>`;
+                          }
+                        })()
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <h3 style="margin-top: 30px; margin-bottom: 15px;">📨 Últimos Envios (Tempo Real)</h3>
+              <div style="background: #f9fafb; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">
+                  Mostrando os últimos 50 envios da execução atual. Atualiza automaticamente a cada 12 segundos.
+                </p>
+                <div id="enviosIndividuais" style="max-height: 400px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+                  <div style="text-align: center; padding: 20px; color: #999;">Carregando envios...</div>
+                </div>
               </div>
             </div>
             <div class="modal-footer">
@@ -3667,6 +3909,132 @@
       if (modal) {
         modal.dataset.campanhaId = campanhaId;
       }
+
+      // Função para carregar envios individuais
+      const carregarEnviosIndividuais = async () => {
+        try {
+          // Buscar execução atual (em_andamento ou pausada de hoje)
+          const hojeStr = new Date().toISOString().split("T")[0];
+          const { data: execucaoAtual, error: errorExecucaoAtual } = await supabaseClient
+            .from("instacar_campanhas_execucoes")
+            .select("id")
+            .eq("campanha_id", campanhaId)
+            .eq("data_execucao", hojeStr)
+            .in("status_execucao", ["em_andamento", "pausada"])
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(); // Usar maybeSingle() em vez de single() para evitar erro 406 quando não há resultados
+
+          if (!execucaoAtual) {
+            // Se não há execução atual, buscar última execução concluída
+            const { data: ultimaExecucao, error: errorUltima } = await supabaseClient
+              .from("instacar_campanhas_execucoes")
+              .select("id")
+              .eq("campanha_id", campanhaId)
+              .order("data_execucao", { ascending: false })
+              .limit(1)
+              .maybeSingle(); // Usar maybeSingle() em vez de single() para evitar erro 406 quando não há resultados
+
+            if (errorUltima || !ultimaExecucao) {
+              document.getElementById("enviosIndividuais").innerHTML = 
+                '<div style="text-align: center; padding: 20px; color: #999;">Nenhuma execução encontrada</div>';
+              return;
+            }
+            execucaoAtual = { id: ultimaExecucao.id };
+          }
+
+          // Buscar últimos 50 envios desta execução
+          const { data: envios, error: errorEnvios } = await supabaseClient
+            .from("instacar_historico_envios")
+            .select(`
+              *,
+              instacar_clientes_envios (
+                nome_cliente,
+                telefone
+              )
+            `)
+            .eq("execucao_id", execucaoAtual.id)
+            .order("timestamp_envio", { ascending: false })
+            .limit(50);
+
+          if (errorEnvios) {
+            console.error("Erro ao buscar envios individuais:", errorEnvios);
+            document.getElementById("enviosIndividuais").innerHTML = 
+              '<div style="text-align: center; padding: 20px; color: #f44336;">Erro ao carregar envios</div>';
+            return;
+          }
+
+          if (!envios || envios.length === 0) {
+            document.getElementById("enviosIndividuais").innerHTML = 
+              '<div style="text-align: center; padding: 20px; color: #999;">Nenhum envio registrado ainda</div>';
+            return;
+          }
+
+          // Renderizar envios
+          const enviosHtml = envios.map((envio) => {
+            const cliente = envio.instacar_clientes_envios;
+            const nomeCliente = cliente?.nome_cliente || "N/A";
+            const telefone = envio.telefone || cliente?.telefone || "N/A";
+            
+            // Determinar cor do status
+            let statusColor = "#999";
+            let statusIcon = "⏳";
+            if (envio.status_envio === "enviado") {
+              statusColor = "#4caf50";
+              statusIcon = "✅";
+            } else if (envio.status_envio === "erro") {
+              statusColor = "#f44336";
+              statusIcon = "❌";
+            } else if (envio.status_envio === "bloqueado") {
+              statusColor = "#ff9800";
+              statusIcon = "🚫";
+            }
+
+            const timestamp = envio.timestamp_envio 
+              ? new Date(envio.timestamp_envio).toLocaleString("pt-BR")
+              : "N/A";
+
+            const mensagemPreview = envio.mensagem_enviada 
+              ? (envio.mensagem_enviada.length > 80 
+                  ? envio.mensagem_enviada.substring(0, 80) + "..." 
+                  : envio.mensagem_enviada)
+              : "Sem mensagem";
+
+            return `
+              <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: start;">
+                <div style="flex: 1;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    <span style="font-size: 16px;">${statusIcon}</span>
+                    <strong style="color: ${statusColor};">${envio.status_envio || "N/A"}</strong>
+                    <span style="color: #999; font-size: 12px;">${timestamp}</span>
+                  </div>
+                  <div style="margin-bottom: 4px;">
+                    <strong>${nomeCliente}</strong>
+                    <span style="color: #666; font-size: 12px; margin-left: 8px;">${telefone}</span>
+                  </div>
+                  <div style="color: #666; font-size: 12px; font-style: italic;">
+                    "${mensagemPreview}"
+                  </div>
+                  ${envio.mensagem_erro ? `
+                    <div style="color: #f44336; font-size: 11px; margin-top: 4px;">
+                      ⚠️ ${envio.mensagem_erro}
+                    </div>
+                  ` : ""}
+                </div>
+              </div>
+            `;
+          }).join("");
+
+          document.getElementById("enviosIndividuais").innerHTML = enviosHtml;
+        } catch (error) {
+          console.error("Erro ao carregar envios individuais:", error);
+          document.getElementById("enviosIndividuais").innerHTML = 
+            '<div style="text-align: center; padding: 20px; color: #f44336;">Erro ao carregar envios</div>';
+        }
+      };
+
+      // Carregar envios individuais inicialmente
+      await carregarEnviosIndividuais();
       
       // Iniciar polling automático para atualização em tempo real
       let pollingInterval = null;
@@ -3811,6 +4179,105 @@
                 }
               }
             }
+
+            // Atualizar envios individuais (usar função definida no escopo externo)
+            const campanhaIdAtual = modalAtual.dataset.campanhaId;
+            if (campanhaIdAtual) {
+              try {
+                // Buscar execução atual
+                const hojeStr = new Date().toISOString().split("T")[0];
+                const { data: execucaoAtual } = await supabaseClient
+                  .from("instacar_campanhas_execucoes")
+                  .select("id")
+                  .eq("campanha_id", campanhaIdAtual)
+                  .eq("data_execucao", hojeStr)
+                  .in("status_execucao", ["em_andamento", "pausada"])
+                  .order("created_at", { ascending: false })
+                  .limit(1)
+                  .maybeSingle(); // Usar maybeSingle() em vez de single() para evitar erro 406
+
+                let execucaoId = execucaoAtual?.id;
+                if (!execucaoId) {
+                  const { data: ultimaExecucao } = await supabaseClient
+                    .from("instacar_campanhas_execucoes")
+                    .select("id")
+                    .eq("campanha_id", campanhaIdAtual)
+                    .order("data_execucao", { ascending: false })
+                    .limit(1)
+                    .maybeSingle(); // Usar maybeSingle() em vez de single() para evitar erro 406
+                  execucaoId = ultimaExecucao?.id;
+                }
+
+                if (execucaoId) {
+                  const { data: envios } = await supabaseClient
+                    .from("instacar_historico_envios")
+                    .select(`
+                      *,
+                      instacar_clientes_envios (
+                        nome_cliente,
+                        telefone
+                      )
+                    `)
+                    .eq("execucao_id", execucaoId)
+                    .order("timestamp_envio", { ascending: false })
+                    .limit(50);
+
+                  const enviosContainer = document.getElementById("enviosIndividuais");
+                  if (enviosContainer && envios && envios.length > 0) {
+                    enviosContainer.innerHTML = envios.map((envio) => {
+                      const cliente = envio.instacar_clientes_envios;
+                      const nomeCliente = cliente?.nome_cliente || "N/A";
+                      const telefone = envio.telefone || cliente?.telefone || "N/A";
+                      let statusColor = "#999";
+                      let statusIcon = "⏳";
+                      if (envio.status_envio === "enviado") {
+                        statusColor = "#4caf50";
+                        statusIcon = "✅";
+                      } else if (envio.status_envio === "erro") {
+                        statusColor = "#f44336";
+                        statusIcon = "❌";
+                      } else if (envio.status_envio === "bloqueado") {
+                        statusColor = "#ff9800";
+                        statusIcon = "🚫";
+                      }
+                      const timestamp = envio.timestamp_envio 
+                        ? new Date(envio.timestamp_envio).toLocaleString("pt-BR")
+                        : "N/A";
+                      const mensagemPreview = envio.mensagem_enviada 
+                        ? (envio.mensagem_enviada.length > 80 
+                            ? envio.mensagem_enviada.substring(0, 80) + "..." 
+                            : envio.mensagem_enviada)
+                        : "Sem mensagem";
+                      return `
+                        <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: start;">
+                          <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                              <span style="font-size: 16px;">${statusIcon}</span>
+                              <strong style="color: ${statusColor};">${envio.status_envio || "N/A"}</strong>
+                              <span style="color: #999; font-size: 12px;">${timestamp}</span>
+                            </div>
+                            <div style="margin-bottom: 4px;">
+                              <strong>${nomeCliente}</strong>
+                              <span style="color: #666; font-size: 12px; margin-left: 8px;">${telefone}</span>
+                            </div>
+                            <div style="color: #666; font-size: 12px; font-style: italic;">
+                              "${mensagemPreview}"
+                            </div>
+                            ${envio.mensagem_erro ? `
+                              <div style="color: #f44336; font-size: 11px; margin-top: 4px;">
+                                ⚠️ ${envio.mensagem_erro}
+                              </div>
+                            ` : ""}
+                          </div>
+                        </div>
+                      `;
+                    }).join("");
+                  }
+                }
+              } catch (err) {
+                console.error("Erro ao atualizar envios individuais:", err);
+              }
+            }
           } catch (error) {
             console.error("Erro ao atualizar dashboard:", error);
           }
@@ -3846,6 +4313,184 @@
       modal.remove();
     }
     // Polling será parado automaticamente pelo observer
+  }
+
+  // Função para visualizar histórico de envios de uma execução específica
+  async function verHistoricoExecucao(execucaoId, campanhaId) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+
+    try {
+      // Buscar dados da execução
+      const { data: execucao, error: errorExecucao } = await supabaseClient
+        .from("instacar_campanhas_execucoes")
+        .select("*")
+        .eq("id", execucaoId)
+        .single();
+
+      if (errorExecucao || !execucao) {
+        mostrarAlerta("Erro ao carregar execução", "error");
+        return;
+      }
+
+      // Buscar todos os envios desta execução
+      const { data: envios, error: errorEnvios } = await supabaseClient
+        .from("instacar_historico_envios")
+        .select(`
+          *,
+          instacar_clientes_envios (
+            nome_cliente,
+            telefone
+          )
+        `)
+        .eq("execucao_id", execucaoId)
+        .order("timestamp_envio", { ascending: false })
+        .limit(500); // Limitar a 500 para performance
+
+      if (errorEnvios) {
+        mostrarAlerta("Erro ao carregar histórico de envios", "error");
+        return;
+      }
+
+      // Estatísticas
+      const totalEnvios = envios?.length || 0;
+      const enviados = envios?.filter(e => e.status_envio === "enviado").length || 0;
+      const erros = envios?.filter(e => e.status_envio === "erro").length || 0;
+      const bloqueados = envios?.filter(e => e.status_envio === "bloqueado").length || 0;
+
+      // Criar modal de histórico
+      const modalHtml = `
+        <div id="modalHistoricoExecucao" class="modal active">
+          <div class="modal-content" style="max-width: 1000px; max-height: 90vh;">
+            <div class="modal-header">
+              <h2>📨 Histórico de Envios - Execução ${new Date(execucao.data_execucao).toLocaleDateString("pt-BR")}</h2>
+              <button onclick="fecharModalHistoricoExecucao()" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 5px;">
+                  <div style="font-size: 24px; font-weight: bold; color: #2196F3;">${totalEnvios}</div>
+                  <div style="color: #666; font-size: 12px;">Total de Envios</div>
+                </div>
+                <div style="background: #e8f5e9; padding: 15px; border-radius: 5px;">
+                  <div style="font-size: 24px; font-weight: bold; color: #4caf50;">${enviados}</div>
+                  <div style="color: #666; font-size: 12px;">Enviados</div>
+                </div>
+                <div style="background: #ffebee; padding: 15px; border-radius: 5px;">
+                  <div style="font-size: 24px; font-weight: bold; color: #f44336;">${erros}</div>
+                  <div style="color: #666; font-size: 12px;">Erros</div>
+                </div>
+                <div style="background: #fff3e0; padding: 15px; border-radius: 5px;">
+                  <div style="font-size: 24px; font-weight: bold; color: #ff9800;">${bloqueados}</div>
+                  <div style="color: #666; font-size: 12px;">Bloqueados</div>
+                </div>
+              </div>
+
+              <div style="background: #f9fafb; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                <p style="margin: 0; color: #666; font-size: 13px;">
+                  <strong>Status:</strong> ${execucao.status_execucao} | 
+                  <strong>Início:</strong> ${execucao.horario_inicio ? new Date(execucao.horario_inicio).toLocaleString("pt-BR") : "N/A"} | 
+                  <strong>Fim:</strong> ${execucao.horario_fim ? new Date(execucao.horario_fim).toLocaleString("pt-BR") : "Em andamento..."}
+                </p>
+              </div>
+
+              <h3 style="margin-top: 20px; margin-bottom: 15px;">Lista de Envios</h3>
+              <div id="listaEnviosExecucao" style="background: white; border: 1px solid #ddd; border-radius: 4px; padding: 10px; max-height: 500px; overflow-y: auto;">
+                ${
+                  envios && envios.length > 0
+                    ? envios.map((envio) => {
+                        const cliente = envio.instacar_clientes_envios;
+                        const nomeCliente = cliente?.nome_cliente || "N/A";
+                        const telefone = envio.telefone || cliente?.telefone || "N/A";
+                        
+                        let statusColor = "#999";
+                        let statusIcon = "⏳";
+                        if (envio.status_envio === "enviado") {
+                          statusColor = "#4caf50";
+                          statusIcon = "✅";
+                        } else if (envio.status_envio === "erro") {
+                          statusColor = "#f44336";
+                          statusIcon = "❌";
+                        } else if (envio.status_envio === "bloqueado") {
+                          statusColor = "#ff9800";
+                          statusIcon = "🚫";
+                        }
+
+                        const timestamp = envio.timestamp_envio 
+                          ? new Date(envio.timestamp_envio).toLocaleString("pt-BR")
+                          : "N/A";
+
+                        const mensagemCompleta = envio.mensagem_enviada || "Sem mensagem";
+                        const mensagemPreview = mensagemCompleta.length > 100 
+                          ? mensagemCompleta.substring(0, 100) + "..." 
+                          : mensagemCompleta;
+
+                        return `
+                          <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                <span style="font-size: 18px;">${statusIcon}</span>
+                                <strong style="color: ${statusColor}; font-size: 14px;">${envio.status_envio?.toUpperCase() || "N/A"}</strong>
+                                <span style="color: #999; font-size: 11px;">${timestamp}</span>
+                              </div>
+                              <div style="margin-bottom: 4px;">
+                                <strong style="font-size: 14px;">${nomeCliente}</strong>
+                                <span style="color: #666; font-size: 12px; margin-left: 8px;">${telefone}</span>
+                              </div>
+                              <div style="color: #666; font-size: 12px; margin-top: 6px; padding: 8px; background: #f5f5f5; border-radius: 4px; white-space: pre-wrap;" title="${mensagemCompleta.replace(/"/g, '&quot;')}">
+                                ${mensagemPreview}
+                              </div>
+                              ${envio.mensagem_erro ? `
+                                <div style="color: #f44336; font-size: 11px; margin-top: 6px; padding: 6px; background: #ffebee; border-radius: 4px;">
+                                  ⚠️ <strong>Erro:</strong> ${envio.mensagem_erro}
+                                </div>
+                              ` : ""}
+                              ${envio.tipo_envio && envio.tipo_envio !== "normal" ? `
+                                <div style="margin-top: 6px;">
+                                  <span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;">
+                                    ${envio.tipo_envio === "teste" ? "🧪 TESTE" : envio.tipo_envio === "debug" ? "🔍 DEBUG" : envio.tipo_envio.toUpperCase()}
+                                  </span>
+                                </div>
+                              ` : ""}
+                            </div>
+                          </div>
+                        `;
+                      }).join("")
+                    : '<div style="text-align: center; padding: 40px; color: #999;">Nenhum envio registrado para esta execução</div>'
+                }
+              </div>
+              ${envios && envios.length >= 500 ? `
+                <div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin-top: 15px; text-align: center; color: #856404; font-size: 12px;">
+                  ⚠️ Mostrando apenas os últimos 500 envios. Total de envios pode ser maior.
+                </div>
+              ` : ""}
+            </div>
+            <div class="modal-footer">
+              <button onclick="fecharModalHistoricoExecucao()" class="btn-secondary">Fechar</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Adicionar modal ao DOM
+      const existingModal = document.getElementById("modalHistoricoExecucao");
+      if (existingModal) {
+        existingModal.remove();
+      }
+      document.body.insertAdjacentHTML("beforeend", modalHtml);
+    } catch (error) {
+      mostrarAlerta("Erro ao carregar histórico: " + error.message, "error");
+      console.error(error);
+    }
+  }
+
+  function fecharModalHistoricoExecucao() {
+    const modal = document.getElementById("modalHistoricoExecucao");
+    if (modal) {
+      modal.remove();
+    }
   }
 
   // Pausar execução
@@ -4929,6 +5574,8 @@
   window.continuarExecucao = continuarExecucao;
   window.cancelarExecucao = cancelarExecucao;
   window.alternarVisualizacaoCampanhas = alternarVisualizacaoCampanhas;
+  window.verHistoricoExecucao = verHistoricoExecucao;
+  window.fecharModalHistoricoExecucao = fecharModalHistoricoExecucao;
   
   // Função global para atualizar validação do prompt baseado no template selecionado
   window.atualizarValidacaoPrompt = function() {
