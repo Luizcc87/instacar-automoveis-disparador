@@ -210,3 +210,9 @@ A interface se adapta a diferentes tamanhos de tela:
 
 **Solução:** Isso é o comportamento esperado. Clientes bloqueados ou com WhatsApp inválido não devem ser incluídos.
 
+### Problema: Apenas 1000 clientes aparecem na seleção
+
+**Causa:** ~~Limite antigo do Supabase (corrigido em Dezembro 2025)~~
+
+**Solução:** ✅ **Corrigido** - O sistema agora carrega todos os clientes elegíveis automaticamente em lotes, sem limite de 1000. Todos os clientes com WhatsApp válido aparecem na lista de seleção.
+
