@@ -13,8 +13,7 @@
         96
       ],
       "id": "9e86934f-66fd-433e-974d-d6a8c5fc5fc1",
-      "name": "Webhook Trigger - Campanha",
-      "webhookId": "campanha-webhook-id"
+      "name": "Webhook Trigger - Campanha"
     },
     {
       "parameters": {},
@@ -153,12 +152,12 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "status",
               "condition": "eq",
-              "keyValue": "YOUR_KEYVALUE"
+              "keyValue": "ativa"
             },
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -316,11 +315,11 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "telefone",
               "keyValue": "={{ $('Verificar Horário e Dia Útil').first().json.telefone }}"
             },
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "keyValue": true
             }
           ]
@@ -415,12 +414,12 @@
               "keyValue": "={{ $json.campanha_id }}"
             },
             {
-              "keyName": "id",
+              "keyName": "status",
               "condition": "eq",
-              "keyValue": "YOUR_KEYVALUE"
+              "keyValue": "ativa"
             },
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -550,7 +549,7 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -580,7 +579,7 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -661,7 +660,7 @@
               "keyValue": "={{ $('Verificar Template Prompt Individual').first().json.template_prompt_id }}"
             },
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "keyValue": true
             }
           ]
@@ -880,7 +879,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://YOUR_PROJECT_ID.supabase.co",
+        "url": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_URL || 'https://YOUR_PROJECT_ID.supabase.co' }}/rest/v1/instacar_historico_envios",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -924,12 +923,12 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "status",
               "condition": "eq",
-              "keyValue": "YOUR_KEYVALUE"
+              "keyValue": "ativa"
             },
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -985,7 +984,7 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -1029,12 +1028,12 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "campanha_id",
               "condition": "eq",
               "keyValue": "={{ $json.id }}"
             },
             {
-              "keyName": "id",
+              "keyName": "data_execucao",
               "condition": "eq",
               "keyValue": "={{ $('Mesclar Configurações').first().json.data_hoje }}"
             }
@@ -1243,7 +1242,7 @@
               "keyValue": "={{ $json.whatsapp_api_id_admin }}"
             },
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -1268,7 +1267,7 @@
     },
     {
       "parameters": {
-        "url": "https://YOUR_PROJECT_ID.supabase.co",
+        "url": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_URL || 'https://YOUR_PROJECT_ID.supabase.co' }}/rest/v1/instacar_historico_envios",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -1410,17 +1409,17 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             },
             {
-              "keyName": "id",
+              "keyName": "status_whatsapp",
               "condition": "eq",
-              "keyValue": "YOUR_KEYVALUE"
+              "keyValue": "valid"
             },
             {
-              "keyName": "id",
+              "keyName": "bloqueado_envios",
               "condition": "eq",
               "keyValue": false
             }
@@ -1652,7 +1651,7 @@
               "keyValue": "={{ $json.whatsapp_api_id_admin }}"
             },
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -1677,7 +1676,7 @@
     },
     {
       "parameters": {
-        "url": "https://YOUR_PROJECT_ID.supabase.co",
+        "url": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_URL || 'https://YOUR_PROJECT_ID.supabase.co' }}/rest/v1/instacar_historico_envios",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -1805,19 +1804,19 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "telefone",
               "condition": "eq",
               "keyValue": "={{ $json.telefone }}"
             },
             {
-              "keyName": "id",
+              "keyName": "campanha_id",
               "condition": "eq",
               "keyValue": "={{ $('Filtrar Clientes Elegíveis para Campanha').first().json.campanha_id }}"
             },
             {
-              "keyName": "id",
+              "keyName": "status_envio",
               "condition": "eq",
-              "keyValue": "YOUR_KEYVALUE"
+              "keyValue": "enviado"
             }
           ]
         }
@@ -1879,7 +1878,7 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -1909,7 +1908,7 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -2051,7 +2050,7 @@
               "keyValue": "={{ $('Combinar Campanha Execução').first().json.whatsapp_api_id }}"
             },
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -2281,12 +2280,12 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "id",
+              "keyName": "data",
               "condition": "eq",
               "keyValue": "={{ $('Mesclar Configurações').first().json.data_hoje }}"
             },
             {
-              "keyName": "id",
+              "keyName": "campanha_id",
               "condition": "eq",
               "keyValue": "={{ $json.campanha_id }}"
             }
@@ -2377,7 +2376,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "https://YOUR_PROJECT_ID.supabase.co",
+        "url": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_URL || 'https://YOUR_PROJECT_ID.supabase.co' }}/rest/v1/instacar_campanhas_execucoes",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2544,7 +2543,7 @@
               "keyValue": "={{ $json.whatsapp_api_id_admin }}"
             },
             {
-              "keyName": "id",
+              "keyName": "ativo",
               "condition": "eq",
               "keyValue": true
             }
@@ -2569,7 +2568,7 @@
     },
     {
       "parameters": {
-        "url": "https://YOUR_PROJECT_ID.supabase.co",
+        "url": "={{ $('Set Variables - CONFIGURAR AQUI').first().json.SUPABASE_URL || 'https://YOUR_PROJECT_ID.supabase.co' }}/rest/v1/instacar_historico_envios",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -2685,8 +2684,7 @@
         1104
       ],
       "id": "b389c570-0b49-4a2f-9a25-6f3b8b6ce41d",
-      "name": "Wait - Intervalo",
-      "webhookId": "YOUR_UAZAPI_TOKEN"
+      "name": "Wait - Intervalo"
     },
     {
       "parameters": {
