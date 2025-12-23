@@ -37,6 +37,7 @@ O sistema de campanhas permite:
      - **Exemplo:** "Deseje um Feliz Natal de forma calorosa. Mencione oportunidades de fim de ano sem mencionar veículos específicos. Chame o cliente pelo nome."
      - **Variáveis disponíveis:** `{{nome_cliente}}`, `{{telefone}}`, `{{data_hoje}}`, `{{periodo_ano}}`, `{{veiculos.length}}`
      - **💡 Modo "Apenas Prompt":** Se você desmarcar todas as configurações de IA (veículos, configurações globais, sessões) e preencher este prompt, o sistema enviará apenas o prompt com mínimo de contexto. Veja: [modo-apenas-prompt-personalizado.md](modo-apenas-prompt-personalizado.md)
+     - **📝 Quebras de Linha:** Para instruir quebras de linha na mensagem, use `\n` (recomendado) ou `/n` (será corrigido automaticamente). Exemplo: "Use quebras de linha simples (\n) ou duplas (\n\n) para melhor visualização no WhatsApp." Veja: [CHANGELOG-correcao-quebras-linha-2025-12.md](CHANGELOG-correcao-quebras-linha-2025-12.md)
      - **Veja:** [GUIA-COMPLETO-CAMPANHAS.md](GUIA-COMPLETO-CAMPANHAS.md) seção 4 para entender como o prompt é usado
    - **Template de Mensagem**: Template base (opcional)
    - **Incluir Informações de Veículos**: Checkbox para incluir dados de veículos no contexto da IA (padrão: marcado)
