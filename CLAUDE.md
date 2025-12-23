@@ -14,7 +14,7 @@ Este é um sistema automatizado de disparo de mensagens via WhatsApp para a Inst
 - **OpenAI GPT-4**: Geração de mensagens personalizadas
 - **Google Sheets**: Fonte de dados dos clientes (9 planilhas)
 
-**Versão Atual:** 2.6 (Dezembro 2025 - validação e padronização de telefones, painel de estimativas, intervalo de almoço e configuração granular por dia da semana)
+**Versão Atual:** 2.7 (Dezembro 2025 - dashboard aprimorado com histórico de execuções e busca alternativa via histórico de envios)
 
 ## Arquitetura
 
@@ -497,6 +497,27 @@ Melhorias no sistema de validação e normalização de números de telefone:
    - Correção do erro 406 usando `.maybeSingle()`
 
 📖 **Changelog completo**: [docs/interface-web/CHANGELOG-validacao-telefone-2025-12.md](docs/interface-web/CHANGELOG-validacao-telefone-2025-12.md)
+
+### Versão 2.7 (Dezembro 2025 - Dashboard e Histórico de Execuções)
+
+Melhorias no dashboard de campanhas para visualização completa de execuções:
+
+1. **Tabela de Execuções Aprimorada**:
+   - Colunas adicionais: Duplicados, Sem WhatsApp, Progresso visual, Início/Fim
+   - Badges de status coloridos (Em andamento, Pausada, Concluída, Erro)
+   - Barra de progresso mostrando processados/total elegíveis
+   - Indicador "HOJE" para execuções do dia atual
+
+2. **Modal de Histórico de Envios por Execução**:
+   - Botão "Ver Envios" em cada execução
+   - Estatísticas resumidas (Total, Enviados, Erros, Bloqueados)
+   - Lista completa de envios individuais com detalhes (cliente, mensagem, status, erro)
+
+3. **Busca Alternativa de Execuções**:
+   - Quando execuções têm `campanha_id` incorreto, busca via histórico de envios
+   - Garante que execuções sejam encontradas mesmo com dados inconsistentes
+
+📖 **Changelog completo**: [docs/interface-web/CHANGELOG-dashboard-historico-execucoes-2025-12.md](docs/interface-web/CHANGELOG-dashboard-historico-execucoes-2025-12.md)
 
 ### Versão 2.5 (Dezembro 2025 - Painel de Estimativas e Configuração Avançada de Horários)
 
