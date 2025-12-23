@@ -8159,6 +8159,11 @@
         );
       }
 
+      // Armazenar histórico completo para filtros
+      window.historicoCompleto = historico || [];
+      window.clienteAtualId = clienteId;
+      window.clienteAtualTelefone = telefoneCliente;
+
       return {
         cliente,
         historico: historico || [],
@@ -8166,6 +8171,322 @@
     } catch (error) {
       console.error("Erro ao carregar dados do cliente:", error);
       throw error;
+    }
+  }
+
+  // Variáveis globais para histórico e paginação
+  window.historicoCompleto = [];
+  window.historicoFiltrado = [];
+  window.paginaAtualHistorico = 1;
+  window.registrosPorPagina = 20;
+  window.clienteAtualId = null;
+  window.clienteAtualTelefone = null;
+
+  /**
+   * Busca histórico com filtros e paginação
+   * @param {Object} filtros - Objeto com filtros (campanha_id, status, dataInicio, dataFim, buscaTexto)
+   * @param {number} pagina - Número da página
+   * @returns {Promise<Object>} Histórico filtrado e paginado
+   */
+  async function buscarHistoricoComFiltros(filtros = {}, pagina = 1) {
+    if (!supabaseClient || !window.clienteAtualId) {
+      return { historico: [], total: 0, totalPaginas: 0 };
+    }
+
+    try {
+      const clienteId = window.clienteAtualId;
+      const telefone = window.clienteAtualTelefone;
+
+      // Construir query base
+      let queryClienteId = supabaseClient
+        .from("instacar_historico_envios")
+        .select(
+          `
+          *,
+          instacar_campanhas (
+            id,
+            nome
+          )
+        `,
+          { count: "exact" }
+        )
+        .eq("cliente_id", clienteId);
+
+      let queryTelefone = supabaseClient
+        .from("instacar_historico_envios")
+        .select(
+          `
+          *,
+          instacar_campanhas (
+            id,
+            nome
+          )
+        `,
+          { count: "exact" }
+        )
+        .eq("telefone", telefone);
+
+      // Aplicar filtros
+      if (filtros.campanha_id) {
+        queryClienteId = queryClienteId.eq("campanha_id", filtros.campanha_id);
+        queryTelefone = queryTelefone.eq("campanha_id", filtros.campanha_id);
+      }
+
+      if (filtros.status) {
+        queryClienteId = queryClienteId.eq("status_envio", filtros.status);
+        queryTelefone = queryTelefone.eq("status_envio", filtros.status);
+      }
+
+      if (filtros.dataInicio) {
+        queryClienteId = queryClienteId.gte("timestamp_envio", filtros.dataInicio + "T00:00:00");
+        queryTelefone = queryTelefone.gte("timestamp_envio", filtros.dataInicio + "T00:00:00");
+      }
+
+      if (filtros.dataFim) {
+        queryClienteId = queryClienteId.lte("timestamp_envio", filtros.dataFim + "T23:59:59");
+        queryTelefone = queryTelefone.lte("timestamp_envio", filtros.dataFim + "T23:59:59");
+      }
+
+      // Ordenar e limitar
+      queryClienteId = queryClienteId
+        .order("timestamp_envio", { ascending: false })
+        .range((pagina - 1) * window.registrosPorPagina, pagina * window.registrosPorPagina - 1);
+
+      queryTelefone = queryTelefone
+        .order("timestamp_envio", { ascending: false })
+        .range((pagina - 1) * window.registrosPorPagina, pagina * window.registrosPorPagina - 1);
+
+      // Executar queries
+      const [resultClienteId, resultTelefone] = await Promise.all([
+        queryClienteId,
+        queryTelefone,
+      ]);
+
+      // Combinar resultados
+      const historicoMap = new Map();
+      if (resultClienteId.data) {
+        resultClienteId.data.forEach((item) => {
+          historicoMap.set(item.id, item);
+        });
+      }
+      if (resultTelefone.data) {
+        resultTelefone.data.forEach((item) => {
+          historicoMap.set(item.id, item);
+        });
+      }
+
+      let historico = Array.from(historicoMap.values()).sort((a, b) => {
+        const timestampA = new Date(a.timestamp_envio || a.created_at || 0);
+        const timestampB = new Date(b.timestamp_envio || b.created_at || 0);
+        return timestampB - timestampA;
+      });
+
+      // Aplicar filtro de busca por texto (se houver)
+      if (filtros.buscaTexto) {
+        const textoBusca = filtros.buscaTexto.toLowerCase();
+        historico = historico.filter((item) => {
+          const mensagem = (item.mensagem_enviada || "").toLowerCase();
+          return mensagem.includes(textoBusca);
+        });
+      }
+
+      // Obter total (usar o maior count entre as duas queries)
+      const total = Math.max(
+        resultClienteId.count || 0,
+        resultTelefone.count || 0
+      );
+      const totalPaginas = Math.ceil(total / window.registrosPorPagina);
+
+      return {
+        historico,
+        total,
+        totalPaginas,
+        pagina,
+      };
+    } catch (error) {
+      console.error("Erro ao buscar histórico com filtros:", error);
+      return { historico: [], total: 0, totalPaginas: 0, pagina: 1 };
+    }
+  }
+
+  /**
+   * Filtra e renderiza histórico
+   */
+  async function filtrarHistorico() {
+    const filtros = {
+      campanha_id: document.getElementById("filtroCampanhaHistorico")?.value || "",
+      status: document.getElementById("filtroStatusHistorico")?.value || "",
+      dataInicio: document.getElementById("filtroDataInicioHistorico")?.value || "",
+      dataFim: document.getElementById("filtroDataFimHistorico")?.value || "",
+      buscaTexto: document.getElementById("filtroBuscaTextoHistorico")?.value || "",
+    };
+
+    // Remover filtros vazios
+    Object.keys(filtros).forEach((key) => {
+      if (!filtros[key]) delete filtros[key];
+    });
+
+    window.paginaAtualHistorico = 1;
+    const resultado = await buscarHistoricoComFiltros(filtros, window.paginaAtualHistorico);
+    window.historicoFiltrado = resultado.historico;
+
+    renderizarHistoricoEnvios(resultado.historico);
+    atualizarEstatisticasHistorico(resultado.historico);
+    atualizarPaginacaoHistorico(resultado.totalPaginas, resultado.pagina);
+  }
+
+  /**
+   * Limpa todos os filtros
+   */
+  function limparFiltrosHistorico() {
+    document.getElementById("filtroCampanhaHistorico").value = "";
+    document.getElementById("filtroStatusHistorico").value = "";
+    document.getElementById("filtroDataInicioHistorico").value = "";
+    document.getElementById("filtroDataFimHistorico").value = "";
+    document.getElementById("filtroBuscaTextoHistorico").value = "";
+    filtrarHistorico();
+  }
+
+  /**
+   * Muda página do histórico
+   */
+  async function mudarPaginaHistorico(direcao) {
+    const novaPagina = window.paginaAtualHistorico + direcao;
+    if (novaPagina < 1) return;
+
+    const filtros = {
+      campanha_id: document.getElementById("filtroCampanhaHistorico")?.value || "",
+      status: document.getElementById("filtroStatusHistorico")?.value || "",
+      dataInicio: document.getElementById("filtroDataInicioHistorico")?.value || "",
+      dataFim: document.getElementById("filtroDataFimHistorico")?.value || "",
+      buscaTexto: document.getElementById("filtroBuscaTextoHistorico")?.value || "",
+    };
+
+    Object.keys(filtros).forEach((key) => {
+      if (!filtros[key]) delete filtros[key];
+    });
+
+    const resultado = await buscarHistoricoComFiltros(filtros, novaPagina);
+    if (resultado.historico.length === 0 && novaPagina > 1) return; // Não mudar se não houver resultados
+
+    window.paginaAtualHistorico = novaPagina;
+    window.historicoFiltrado = resultado.historico;
+
+    renderizarHistoricoEnvios(resultado.historico);
+    atualizarPaginacaoHistorico(resultado.totalPaginas, resultado.pagina);
+  }
+
+  /**
+   * Atualiza controles de paginação
+   */
+  function atualizarPaginacaoHistorico(totalPaginas, paginaAtual) {
+    const divPaginacao = document.getElementById("historicoPaginacao");
+    const infoPagina = document.getElementById("infoPaginaHistorico");
+    const btnAnterior = document.getElementById("btnPaginaAnterior");
+    const btnProxima = document.getElementById("btnPaginaProxima");
+
+    if (totalPaginas <= 1) {
+      if (divPaginacao) divPaginacao.style.display = "none";
+      return;
+    }
+
+    if (divPaginacao) divPaginacao.style.display = "block";
+    if (infoPagina) infoPagina.textContent = `Página ${paginaAtual} de ${totalPaginas}`;
+    if (btnAnterior) btnAnterior.disabled = paginaAtual <= 1;
+    if (btnProxima) btnProxima.disabled = paginaAtual >= totalPaginas;
+  }
+
+  /**
+   * Atualiza estatísticas do histórico
+   */
+  function atualizarEstatisticasHistorico(historico) {
+    const total = historico.length;
+    const enviados = historico.filter((h) => h.status_envio === "enviado").length;
+    const erros = historico.filter((h) => h.status_envio === "erro").length;
+    const campanhasUnicas = new Set(
+      historico
+        .filter((h) => h.campanha_id)
+        .map((h) => h.campanha_id)
+    ).size;
+
+    document.getElementById("statTotalHistorico").textContent = total;
+    document.getElementById("statEnviadosHistorico").textContent = enviados;
+    document.getElementById("statErrosHistorico").textContent = erros;
+    document.getElementById("statCampanhasHistorico").textContent = campanhasUnicas;
+  }
+
+  /**
+   * Exporta histórico filtrado para CSV
+   */
+  function exportarHistorico() {
+    const historico = window.historicoFiltrado || window.historicoCompleto || [];
+    if (historico.length === 0) {
+      mostrarAlerta("Nenhum histórico para exportar", "warning");
+      return;
+    }
+
+    // Cabeçalhos CSV
+    const headers = ["Data/Hora", "Status", "Tipo", "Campanha", "Mensagem", "Erro"];
+    const rows = historico.map((item) => {
+      const dataHora = formatarData(item.timestamp_envio || item.created_at);
+      const status = item.status_envio || "-";
+      const tipo = item.tipo_envio || "normal";
+      const campanha = item.instacar_campanhas?.nome || "-";
+      const mensagem = (item.mensagem_enviada || "-").replace(/"/g, '""');
+      const erro = (item.mensagem_erro || "-").replace(/"/g, '""');
+      return [dataHora, status, tipo, campanha, mensagem, erro];
+    });
+
+    // Criar CSV
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    // Download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `historico_envios_${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  /**
+   * Carrega lista de campanhas para o filtro
+   */
+  async function carregarCampanhasParaFiltro() {
+    if (!supabaseClient) return;
+
+    try {
+      const { data: campanhas, error } = await supabaseClient
+        .from("instacar_campanhas")
+        .select("id, nome")
+        .order("nome");
+
+      if (error) {
+        console.error("Erro ao carregar campanhas:", error);
+        return;
+      }
+
+      const select = document.getElementById("filtroCampanhaHistorico");
+      if (!select) return;
+
+      // Limpar opções existentes (exceto "Todas as campanhas")
+      select.innerHTML = '<option value="">Todas as campanhas</option>';
+
+      // Adicionar campanhas
+      campanhas.forEach((campanha) => {
+        const option = document.createElement("option");
+        option.value = campanha.id;
+        option.textContent = campanha.nome;
+        select.appendChild(option);
+      });
+    } catch (error) {
+      console.error("Erro ao carregar campanhas para filtro:", error);
     }
   }
 
@@ -8489,6 +8810,12 @@
 
     // Renderizar histórico
     renderizarHistoricoEnvios(historico || []);
+    
+    // Atualizar estatísticas iniciais
+    atualizarEstatisticasHistorico(historico || []);
+    
+    // Carregar campanhas para o filtro
+    carregarCampanhasParaFiltro();
 
     // Configurar botões de ação baseado no status ativo
     const btnDesativar = document.getElementById("btnDesativarCliente");
@@ -8714,7 +9041,7 @@
     if (!historico || historico.length === 0) {
       logger.warn("⚠️ Nenhum histórico encontrado para renderizar");
       tbody.innerHTML =
-        '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #666;">Nenhum histórico de envio encontrado.</td></tr>';
+        '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">Nenhum histórico de envio encontrado.</td></tr>';
       return;
     }
 
@@ -8733,7 +9060,20 @@
           ? '<span class="badge badge-invalid">❌ Erro</span>'
           : '<span class="badge badge-unknown">🚫 Bloqueado</span>';
 
+      const tipoEnvio = item.tipo_envio || "normal";
+      const tipoBadge =
+        tipoEnvio === "teste"
+          ? '<span class="badge" style="background: #fef3c7; color: #92400e;">🧪 Teste</span>'
+          : tipoEnvio === "debug"
+          ? '<span class="badge" style="background: #dbeafe; color: #1e40af;">🔍 Debug</span>'
+          : '<span class="badge" style="background: #f3f4f6; color: #374151;">📱 Normal</span>';
+
       const campanhaNome = item.instacar_campanhas?.nome || "-";
+      const campanhaId = item.campanha_id;
+      const campanhaLink = campanhaId
+        ? `<a href="#" onclick="event.preventDefault(); verDetalhesCampanha('${campanhaId}'); return false;" style="color: #3b82f6; text-decoration: underline; cursor: pointer;" title="Ver detalhes da campanha">${campanhaNome}</a>`
+        : campanhaNome;
+
       const mensagem = item.mensagem_enviada || "-";
       const mensagemPreview =
         mensagem.length > 50 ? mensagem.substring(0, 50) + "..." : mensagem;
@@ -8743,7 +9083,8 @@
         <tr>
           <td>${dataHora}</td>
           <td>${statusBadge}</td>
-          <td>${campanhaNome}</td>
+          <td>${tipoBadge}</td>
+          <td>${campanhaLink}</td>
           <td title="${mensagem.replace(
             /"/g,
             "&quot;"
@@ -10311,6 +10652,9 @@ Máximo de 3 parágrafos.</code></pre>
   window.fecharModalCliente = fecharModalCliente;
   window.verificarWhatsAppDoModal = verificarWhatsAppDoModal;
   window.filtrarHistorico = filtrarHistorico;
+  window.limparFiltrosHistorico = limparFiltrosHistorico;
+  window.mudarPaginaHistorico = mudarPaginaHistorico;
+  window.exportarHistorico = exportarHistorico;
   window.fecharTooltipPopover = fecharTooltipPopover;
   window.criarTooltipHelpIcon = criarTooltipHelpIcon;
   window.adicionarTooltipAoLabel = adicionarTooltipAoLabel;
