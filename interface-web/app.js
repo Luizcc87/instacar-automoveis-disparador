@@ -7409,32 +7409,105 @@
   }
 
   /**
-   * Verifica WhatsApp para clientes selecionados
+   * Verifica WhatsApp para clientes não verificados
+   * @param {boolean} apenasPaginaAtual - Se true, verifica apenas clientes da página atual
    */
-  async function verificarWhatsAppSelecionados() {
+  async function verificarWhatsAppSelecionados(apenasPaginaAtual = false) {
     if (!supabaseClient) {
       mostrarAlerta("Conecte ao Supabase primeiro!", "error");
       return;
     }
 
-    // Buscar clientes não verificados
-    const { data: clientes, error } = await supabaseClient
-      .from("instacar_clientes_envios")
-      .select("telefone")
-      .or("status_whatsapp.is.null,status_whatsapp.eq.unknown")
-      .limit(100);
+    let telefones = [];
 
-    if (error) {
-      mostrarAlerta("Erro ao buscar clientes: " + error.message, "error");
-      return;
+    if (apenasPaginaAtual) {
+      // Verificar apenas clientes da página atual
+      const container = document.getElementById("clientesContainer");
+      if (!container) {
+        mostrarAlerta("Lista de clientes não encontrada!", "error");
+        return;
+      }
+
+      // Buscar telefones dos clientes visíveis na página atual
+      const linhas = container.querySelectorAll("tbody tr[data-cliente-id]");
+      if (linhas.length === 0) {
+        mostrarAlerta("Nenhum cliente na página atual!", "error");
+        return;
+      }
+
+      // Extrair telefones das linhas da tabela
+      telefones = Array.from(linhas).map((linha) => {
+        const celulaTelefone = linha.querySelector("td:nth-child(2)");
+        return celulaTelefone ? celulaTelefone.textContent.trim() : null;
+      }).filter((tel) => tel !== null);
+
+      if (telefones.length === 0) {
+        mostrarAlerta("Nenhum telefone encontrado na página atual!", "error");
+        return;
+      }
+
+      mostrarAlerta(
+        `Verificando ${telefones.length} cliente(s) da página atual...`,
+        "info"
+      );
+    } else {
+      // Buscar TODOS os clientes não verificados (sem limite)
+      mostrarAlerta("Buscando todos os clientes não verificados...", "info");
+
+      let todosClientes = [];
+      let offset = 0;
+      const limit = 1000; // Buscar em lotes de 1000
+
+      while (true) {
+        const { data: clientes, error } = await supabaseClient
+          .from("instacar_clientes_envios")
+          .select("telefone")
+          .eq("ativo", true)
+          .or("status_whatsapp.is.null,status_whatsapp.eq.unknown")
+          .range(offset, offset + limit - 1);
+
+        if (error) {
+          mostrarAlerta("Erro ao buscar clientes: " + error.message, "error");
+          return;
+        }
+
+        if (!clientes || clientes.length === 0) {
+          break; // Não há mais clientes
+        }
+
+        todosClientes.push(...clientes.map((c) => c.telefone));
+        offset += limit;
+
+        // Se retornou menos que o limite, chegamos ao fim
+        if (clientes.length < limit) {
+          break;
+        }
+      }
+
+      if (todosClientes.length === 0) {
+        mostrarAlerta("Nenhum cliente não verificado encontrado!", "info");
+        return;
+      }
+
+      telefones = todosClientes;
+
+      // Confirmar se o usuário quer verificar muitos clientes
+      if (telefones.length > 100) {
+        const confirmar = confirm(
+          `Encontrados ${telefones.length} clientes não verificados.\n\n` +
+          `Isso pode levar alguns minutos. Deseja continuar?`
+        );
+        if (!confirmar) {
+          return;
+        }
+      }
+
+      mostrarAlerta(
+        `Verificando ${telefones.length} cliente(s) não verificado(s)...`,
+        "info"
+      );
     }
 
-    if (!clientes || clientes.length === 0) {
-      mostrarAlerta("Nenhum cliente não verificado encontrado!", "error");
-      return;
-    }
-
-    const telefones = clientes.map((c) => c.telefone);
     await verificarWhatsAppLote(telefones);
   }
 

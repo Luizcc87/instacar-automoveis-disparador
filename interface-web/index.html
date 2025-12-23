@@ -1839,10 +1839,19 @@
             </button>
             <button
               type="button"
-              onclick="verificarWhatsAppSelecionados()"
+              onclick="verificarWhatsAppSelecionados(false)"
               class="btn-secondary"
+              title="Verifica todos os clientes não verificados no banco de dados"
             >
-              ✅ Verificar WhatsApp
+              ✅ Verificar Todos Não Verificados
+            </button>
+            <button
+              type="button"
+              onclick="verificarWhatsAppSelecionados(true)"
+              class="btn-secondary"
+              title="Verifica apenas os clientes visíveis na página atual"
+            >
+              ✅ Verificar Página Atual
             </button>
             <button
               type="button"
