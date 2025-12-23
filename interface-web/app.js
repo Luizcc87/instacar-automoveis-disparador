@@ -9527,7 +9527,7 @@
         <h5>Configurações:</h5>
         <ul>
           <li><strong>Vazio (padrão):</strong> Intervalo aleatório entre 130-150 segundos</li>
-          <li><strong>Valor fixo:</strong> Use um valor entre 60-300 segundos para controle preciso</li>
+          <li><strong>Valor fixo:</strong> Use um valor entre 1-300 segundos para controle preciso</li>
         </ul>
         <p><strong>Recomendação:</strong> Deixe vazio para usar o padrão aleatorizado, que ajuda a evitar bloqueios do WhatsApp.</p>
       `,
