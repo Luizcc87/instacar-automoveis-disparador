@@ -301,7 +301,7 @@
           }
         } else {
           // Fallback para localStorage (compatibilidade)
-          const config = carregarConfiguracoesDoLocalStorage();
+          const config = await carregarConfiguracoesDoLocalStorage();
           if (config && config.uazapiBaseUrl && config.uazapiToken) {
             if (statusUazapiIcon) statusUazapiIcon.textContent = "✅";
             if (statusUazapiText)
@@ -332,7 +332,7 @@
       }
     } else {
       // Fallback para localStorage se Supabase não estiver conectado
-      const config = carregarConfiguracoesDoLocalStorage();
+      const config = await carregarConfiguracoesDoLocalStorage();
       if (config && config.uazapiBaseUrl && config.uazapiToken) {
         if (statusUazapiIcon) statusUazapiIcon.textContent = "✅";
         if (statusUazapiText)
@@ -382,8 +382,8 @@
     // Iniciar verificação periódica quando abrir modal de configurações
     iniciarVerificacaoPeriodicaStatus();
 
-    // Tentar carregar do localStorage primeiro
-    const savedConfig = carregarConfiguracoesDoLocalStorage();
+    // Tentar carregar do Supabase/localStorage (async)
+    const savedConfig = await carregarConfiguracoesDoLocalStorage();
 
     // Obter referências aos elementos (verificar se existem)
     const n8nWebhookInput = document.getElementById("configN8nWebhook");
@@ -1382,7 +1382,7 @@
   async function obterConfiguracaoUazapi(instanciaId = null) {
     if (!supabaseClient) {
       // Fallback para localStorage (compatibilidade)
-      const config = carregarConfiguracoesDoLocalStorage();
+      const config = await carregarConfiguracoesDoLocalStorage();
       if (config && config.uazapiBaseUrl && config.uazapiToken) {
         return {
           baseUrl: config.uazapiBaseUrl,
@@ -1415,7 +1415,7 @@
       }
 
       // Fallback para localStorage se não houver no Supabase
-      const config = carregarConfiguracoesDoLocalStorage();
+      const config = await carregarConfiguracoesDoLocalStorage();
       if (config && config.uazapiBaseUrl && config.uazapiToken) {
         return {
           baseUrl: config.uazapiBaseUrl,
@@ -1427,7 +1427,7 @@
     } catch (error) {
       console.error("Erro ao obter configuração Uazapi:", error);
       // Fallback para localStorage
-      const config = carregarConfiguracoesDoLocalStorage();
+      const config = await carregarConfiguracoesDoLocalStorage();
       if (config && config.uazapiBaseUrl && config.uazapiToken) {
         return {
           baseUrl: config.uazapiBaseUrl,
@@ -1438,9 +1438,57 @@
     }
   }
 
+  // ============================================================================
+  // Função auxiliar: Obter Webhook N8N do Supabase ou fallback
+  // ============================================================================
+  /**
+   * Obtém a URL do webhook N8N com prioridade:
+   * 1. Supabase (banco de dados)
+   * 2. localStorage (fallback)
+   * 3. window.INSTACAR_CONFIG (fallback)
+   * 
+   * @returns {Promise<string|null>} URL do webhook ou null se não encontrado
+   */
+  async function obterWebhookN8N() {
+    // 1. Tentar buscar do Supabase primeiro
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from("instacar_configuracoes_sistema")
+          .select("valor")
+          .eq("chave", "n8n_webhook_url")
+          .eq("ativo", true)
+          .maybeSingle();
+
+        if (!error && data && data.valor && data.valor.trim() !== "") {
+          return data.valor.trim();
+        }
+      } catch (error) {
+        logger.warn("Erro ao buscar webhook do Supabase:", error);
+        // Continuar para fallback
+      }
+    }
+
+    // 2. Fallback para localStorage
+    const webhookLocalStorage = localStorage.getItem("n8nWebhookUrl");
+    if (webhookLocalStorage && webhookLocalStorage.trim() !== "") {
+      return webhookLocalStorage.trim();
+    }
+
+    // 3. Fallback para window.INSTACAR_CONFIG
+    if (window.INSTACAR_CONFIG?.n8nWebhookUrl) {
+      return window.INSTACAR_CONFIG.n8nWebhookUrl.trim();
+    }
+
+    return null;
+  }
+
   // Carregar configurações do localStorage (apenas N8N, Uazapi agora vem do Supabase)
-  function carregarConfiguracoesDoLocalStorage() {
-    const webhook = localStorage.getItem("n8nWebhookUrl");
+  // ATUALIZADO: Agora busca webhook do Supabase primeiro
+  async function carregarConfiguracoesDoLocalStorage() {
+    // Buscar webhook do Supabase primeiro (async)
+    const webhook = await obterWebhookN8N();
+    
     const uazapiUrl = localStorage.getItem("uazapiBaseUrl");
     const uazapiToken = localStorage.getItem("uazapiToken");
 
@@ -1464,7 +1512,8 @@
   }
 
   // Salvar configurações (do modal) - apenas N8N agora
-  function salvarConfiguracoes() {
+  // ATUALIZADO: Agora salva no Supabase também
+  async function salvarConfiguracoes() {
     // Remover campos de Supabase - agora vem de variáveis de ambiente
     // Remover campos de Uazapi - agora gerenciado via instâncias no Supabase
     const webhookInput = document.getElementById("configN8nWebhook");
@@ -1480,7 +1529,45 @@
       return;
     }
 
-    // Salvar no localStorage (apenas N8N)
+    // Salvar no Supabase (se conectado)
+    if (supabaseClient) {
+      try {
+        const { error } = await supabaseClient
+          .from("instacar_configuracoes_sistema")
+          .upsert(
+            {
+              chave: "n8n_webhook_url",
+              valor: webhook || null,
+              tipo: "url",
+              descricao: "URL do webhook do N8N para disparos manuais de campanhas",
+              categoria: "n8n",
+              sensivel: false,
+              ativo: true,
+            },
+            {
+              onConflict: "chave",
+            }
+          );
+
+        if (error) {
+          logger.error("Erro ao salvar webhook no Supabase:", error);
+          mostrarAlerta(
+            "Erro ao salvar no banco de dados. Salvando apenas localmente.",
+            "warning"
+          );
+        } else {
+          logger.log("Webhook salvo no Supabase com sucesso");
+        }
+      } catch (error) {
+        logger.error("Erro inesperado ao salvar webhook no Supabase:", error);
+        mostrarAlerta(
+          "Erro ao salvar no banco de dados. Salvando apenas localmente.",
+          "warning"
+        );
+      }
+    }
+
+    // Salvar no localStorage (fallback e compatibilidade)
     if (webhook) {
       localStorage.setItem("n8nWebhookUrl", webhook);
     } else {
@@ -1504,8 +1591,9 @@
   // Agora as configurações são carregadas automaticamente
 
   // Carregar configurações no modal (apenas N8N, Uazapi é gerenciado via instâncias)
-  function carregarConfiguracoesNoModal() {
-    const config = carregarConfiguracoesDoLocalStorage();
+  // ATUALIZADO: Agora busca do Supabase primeiro
+  async function carregarConfiguracoesNoModal() {
+    const config = await carregarConfiguracoesDoLocalStorage();
     if (!config || !config.n8nWebhookUrl) {
       mostrarAlerta("Nenhuma configuração salva encontrada", "error");
       return;
@@ -1523,8 +1611,9 @@
   }
 
   // Exportar configurações como JSON (apenas N8N, Uazapi é gerenciado via instâncias)
-  function exportarConfiguracoes() {
-    const config = carregarConfiguracoesDoLocalStorage();
+  // ATUALIZADO: Agora busca do Supabase primeiro
+  async function exportarConfiguracoes() {
+    const config = await carregarConfiguracoesDoLocalStorage();
     if (!config || !config.n8nWebhookUrl) {
       mostrarAlerta(
         "Nenhuma configuração para exportar (apenas N8N Webhook). Instâncias Uazapi são gerenciadas no Supabase.",
@@ -1557,17 +1646,18 @@
   }
 
   // Importar configurações de JSON
+  // ATUALIZADO: Agora salva no Supabase também
   function importarConfiguracoes() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json";
 
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         try {
           const config = JSON.parse(event.target.result);
 
@@ -1582,7 +1672,37 @@
             return;
           }
 
-          // Salvar no localStorage (apenas N8N, Uazapi agora é gerenciado via instâncias no Supabase)
+          // Salvar no Supabase (se conectado)
+          if (config.n8nWebhookUrl && supabaseClient) {
+            try {
+              const { error } = await supabaseClient
+                .from("instacar_configuracoes_sistema")
+                .upsert(
+                  {
+                    chave: "n8n_webhook_url",
+                    valor: config.n8nWebhookUrl,
+                    tipo: "url",
+                    descricao: "URL do webhook do N8N para disparos manuais de campanhas",
+                    categoria: "n8n",
+                    sensivel: false,
+                    ativo: true,
+                  },
+                  {
+                    onConflict: "chave",
+                  }
+                );
+
+              if (error) {
+                logger.error("Erro ao salvar webhook no Supabase:", error);
+              } else {
+                logger.log("Webhook importado e salvo no Supabase com sucesso");
+              }
+            } catch (error) {
+              logger.error("Erro inesperado ao salvar webhook no Supabase:", error);
+            }
+          }
+
+          // Salvar no localStorage (fallback e compatibilidade)
           if (config.n8nWebhookUrl)
             localStorage.setItem("n8nWebhookUrl", config.n8nWebhookUrl);
 
@@ -1615,13 +1735,43 @@
   }
 
   // Limpar todas as configurações (apenas N8N, Supabase vem de variáveis de ambiente, Uazapi é gerenciado no Supabase)
-  function limparConfiguracoes() {
+  // ATUALIZADO: Agora limpa do Supabase também
+  async function limparConfiguracoes() {
     if (
       !confirm(
         "Tem certeza que deseja limpar as configurações salvas? (N8N Webhook)\n\nNota: Instâncias Uazapi são gerenciadas no Supabase e não serão removidas."
       )
     ) {
       return;
+    }
+
+    // Limpar do Supabase (se conectado)
+    if (supabaseClient) {
+      try {
+        const { error } = await supabaseClient
+          .from("instacar_configuracoes_sistema")
+          .update({
+            valor: null,
+            ativo: false,
+          })
+          .eq("chave", "n8n_webhook_url");
+
+        if (error) {
+          logger.error("Erro ao limpar webhook do Supabase:", error);
+          mostrarAlerta(
+            "Erro ao limpar do banco de dados. Limpando apenas localmente.",
+            "warning"
+          );
+        } else {
+          logger.log("Webhook removido do Supabase com sucesso");
+        }
+      } catch (error) {
+        logger.error("Erro inesperado ao limpar webhook do Supabase:", error);
+        mostrarAlerta(
+          "Erro ao limpar do banco de dados. Limpando apenas localmente.",
+          "warning"
+        );
+      }
     }
 
     // Não remover Supabase (vem de variáveis de ambiente)
@@ -2804,8 +2954,8 @@
         tamanho_lote:
           parseInt(document.getElementById("tamanho_lote").value) || 50,
         horario_inicio:
-          document.getElementById("horario_inicio").value || "09:00:00",
-        horario_fim: document.getElementById("horario_fim").value || "18:00:00",
+          (document.getElementById("horario_inicio").value || "09:00") + ":00",
+        horario_fim: (document.getElementById("horario_fim").value || "18:00") + ":00",
         processar_finais_semana: document.getElementById(
           "processar_finais_semana"
         ).checked,
@@ -2850,6 +3000,33 @@
         configuracoes_empresa_sobrescritas: obterConfiguracoesSobrescritas(),
         ativo: true,
       };
+
+      // Validação de horários (permitir horários que cruzam a meia-noite)
+      // Obter valores diretamente dos inputs (formato HH:MM)
+      const horarioInicioInput = document.getElementById("horario_inicio").value || "09:00";
+      const horarioFimInput = document.getElementById("horario_fim").value || "18:00";
+      
+      // Converter para minutos para comparação (formato HH:MM)
+      const [hInicio, mInicio] = horarioInicioInput.split(':').map(Number);
+      const [hFim, mFim] = horarioFimInput.split(':').map(Number);
+      const minutosInicio = hInicio * 60 + mInicio;
+      const minutosFim = hFim * 60 + mFim;
+      
+      // Verificar se horários são iguais (não permitido)
+      if (minutosInicio === minutosFim) {
+        mostrarAlerta(
+          "Horário de início e fim não podem ser iguais. Por favor, ajuste os horários.",
+          "error"
+        );
+        return;
+      }
+      
+      // Se horário fim < horário início, significa que cruza a meia-noite (permitido)
+      const cruzaMeiaNoite = minutosFim < minutosInicio;
+      if (cruzaMeiaNoite) {
+        // Mostrar aviso informativo (não é erro, apenas informação)
+        console.log(`Campanha configurada para cruzar a meia-noite: ${horarioInicioInput} até ${horarioFimInput} (dia seguinte)`);
+      }
 
       // Validação adicional antes de enviar
       const validacaoTeste = parseTelefonesTextarea(
@@ -3115,11 +3292,8 @@
         }
       }
 
-      // 6. OBTER WEBHOOK URL
-      let webhookUrl =
-        localStorage.getItem("n8nWebhookUrl") ||
-        window.INSTACAR_CONFIG?.n8nWebhookUrl ||
-        null;
+      // 6. OBTER WEBHOOK URL (busca do Supabase primeiro)
+      let webhookUrl = await obterWebhookN8N();
 
       if (!webhookUrl) {
         mostrarAlerta(
@@ -3662,11 +3836,8 @@
         throw new Error("Execução não encontrada");
       }
 
-      // Obter webhook URL
-      let webhookUrl =
-        localStorage.getItem("n8nWebhookUrl") ||
-        window.INSTACAR_CONFIG?.n8nWebhookUrl ||
-        null;
+      // Obter webhook URL (busca do Supabase primeiro)
+      let webhookUrl = await obterWebhookN8N();
 
       if (!webhookUrl) {
         mostrarAlerta(
@@ -4783,9 +4954,9 @@
   }
 
   // Inicializar quando DOM estiver pronto
-  function inicializarApp() {
-    // Carregar configurações automaticamente (localStorage > config.js)
-    const savedConfig = carregarConfiguracoesDoLocalStorage();
+  async function inicializarApp() {
+    // Carregar configurações automaticamente (Supabase > localStorage > config.js)
+    const savedConfig = await carregarConfiguracoesDoLocalStorage();
 
     // Atualizar config global com valores do localStorage ou config.js
     if (!window.INSTACAR_CONFIG) {
@@ -7120,8 +7291,8 @@
       return;
     }
 
-    const config = carregarConfiguracoesDoLocalStorage();
-    if (!config.n8nWebhookUrl) {
+    const config = await carregarConfiguracoesDoLocalStorage();
+    if (!config || !config.n8nWebhookUrl) {
       mostrarAlerta(
         "Configure o webhook N8N nas configurações primeiro!",
         "error"

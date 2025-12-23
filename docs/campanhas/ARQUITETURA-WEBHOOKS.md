@@ -59,8 +59,13 @@ const response = await fetch(webhookUrl, {
 
 **Webhook chamado:**
 
-- URL: Configurada em `localStorage.getItem("n8nWebhookUrl")` ou `window.INSTACAR_CONFIG.n8nWebhookUrl`
+- URL: Buscada automaticamente com prioridade:
+  1. Supabase (banco de dados) - `instacar_configuracoes_sistema.chave = 'n8n_webhook_url'`
+  2. localStorage - `localStorage.getItem("n8nWebhookUrl")`
+  3. config.js - `window.INSTACAR_CONFIG.n8nWebhookUrl`
 - Path: `/campanha` (completo: `https://seu-n8n.com/webhook/campanha`)
+
+> **Nota:** Desde Dezembro 2025, o webhook é salvo no banco de dados Supabase. Veja `docs/interface-web/CHANGELOG-webhook-banco-dados-2025-12.md` para detalhes.
 
 ### 2. Disparador de Campanhas Agendadas
 
@@ -215,10 +220,13 @@ if (!campanhaId && !execucaoId) {
 
 **Valor:** `https://seu-n8n.com/webhook/campanha`
 
-**Armazenamento:**
+**Armazenamento (prioridade):**
 
-- `localStorage.getItem("n8nWebhookUrl")`
-- Ou `window.INSTACAR_CONFIG.n8nWebhookUrl`
+1. **Supabase** - `instacar_configuracoes_sistema` (banco de dados)
+2. `localStorage.getItem("n8nWebhookUrl")` (fallback)
+3. `window.INSTACAR_CONFIG.n8nWebhookUrl` (fallback)
+
+> **Nota:** O webhook é automaticamente sincronizado com o banco de dados ao salvar. Veja `docs/interface-web/CHANGELOG-webhook-banco-dados-2025-12.md` para detalhes.
 
 ### Workflow: Disparador Agendadas
 
