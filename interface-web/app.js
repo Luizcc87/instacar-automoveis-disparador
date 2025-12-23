@@ -1353,6 +1353,9 @@
     // Atualizar select no formulário de campanha
     const selectCampanha = document.getElementById("whatsapp_api_id");
     if (selectCampanha) {
+      // Salvar valor atual antes de limpar (se houver)
+      const valorAtual = selectCampanha.value;
+      
       selectCampanha.innerHTML =
         '<option value="">Selecione uma instância...</option>';
 
@@ -1362,15 +1365,44 @@
         selectCampanha.disabled = true;
       } else {
         selectCampanha.disabled = false;
-        ativas.forEach((instancia) => {
+        
+        // Ordenar instâncias: connected primeiro, depois por nome
+        const instanciasOrdenadas = [...ativas].sort((a, b) => {
+          // Prioridade 1: Status de conexão (connected primeiro)
+          const statusA = a.status_conexao === 'connected' ? 0 : 1;
+          const statusB = b.status_conexao === 'connected' ? 0 : 1;
+          if (statusA !== statusB) {
+            return statusA - statusB;
+          }
+          // Prioridade 2: Ordenar por nome
+          return (a.nome || '').localeCompare(b.nome || '');
+        });
+        
+        instanciasOrdenadas.forEach((instancia) => {
           const option = document.createElement("option");
           option.value = instancia.id;
           const tipoApiLabel = instancia.tipo_api
             ? `[${instancia.tipo_api.toUpperCase()}]`
             : "";
-          option.textContent = `${tipoApiLabel} ${instancia.nome} (${instancia.base_url})`;
+          
+          // Adicionar indicador de status
+          let statusLabel = '';
+          if (instancia.status_conexao === 'connected') {
+            statusLabel = ' ✅ Conectada';
+          } else if (instancia.status_conexao === 'disconnected') {
+            statusLabel = ' ⚠️ Desconectada';
+          } else if (instancia.status_conexao) {
+            statusLabel = ` (${instancia.status_conexao})`;
+          }
+          
+          option.textContent = `${tipoApiLabel} ${instancia.nome}${statusLabel} - ${instancia.base_url}`;
           selectCampanha.appendChild(option);
         });
+        
+        // Restaurar valor anterior se ainda existir nas opções
+        if (valorAtual && Array.from(selectCampanha.options).some(opt => opt.value === valorAtual)) {
+          selectCampanha.value = valorAtual;
+        }
       }
     }
   }
@@ -1940,10 +1972,10 @@
       : "130-150s (aleatorizado)";
     const prioridade = campanha.prioridade || 5;
     const dataInicio = campanha.data_inicio
-      ? new Date(campanha.data_inicio).toLocaleDateString("pt-BR")
+      ? new Date(campanha.data_inicio).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
       : null;
     const dataFim = campanha.data_fim
-      ? new Date(campanha.data_fim).toLocaleDateString("pt-BR")
+      ? new Date(campanha.data_fim).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
       : null;
     const podeDisparar = campanha.ativo && campanha.status === "ativa";
     
@@ -2026,10 +2058,10 @@
       }>
             ${botaoLabel}
           </button>
-          <button onclick="verExecucoes('${
+          <button onclick="verEnviosCampanha('${
             campanha.id
           }')" class="btn-secondary" style="padding: 6px 12px; font-size: 12px">
-            📋 Histórico
+            📨 Ver Envios
           </button>
           <button onclick="abrirDashboardCampanha('${
             campanha.id
@@ -2067,9 +2099,9 @@
           }')" class="${botaoClass}" style="${botaoStyle}" ${!podeDisparar ? "disabled" : ""}>
             ${botaoLabel}
           </button>
-          <button onclick="verExecucoes('${
+          <button onclick="verEnviosCampanha('${
             campanha.id
-          }')" class="btn-secondary">Histórico</button>
+          }')" class="btn-secondary">📨 Ver Envios</button>
           <button onclick="abrirDashboardCampanha('${
             campanha.id
           }')" class="btn-secondary">📊 Dashboard</button>
@@ -2658,6 +2690,8 @@
     document.getElementById("formCampanha").reset();
     document.getElementById("campanhaId").value = "";
     document.getElementById("whatsapp_api_id").value = "";
+    // Definir valor padrão do intervalo (130 = base para aleatorização)
+    document.getElementById("intervalo_envios_segundos").value = 130;
 
     // Limpar seleção de clientes e histórico de envios
     clientesSelecionados.clear();
@@ -2757,8 +2791,9 @@
         data.limite_envios_dia || 200;
       document.getElementById("intervalo_minimo_dias").value =
         data.intervalo_minimo_dias || 30;
+      // Se intervalo_envios_segundos for null, mostrar 130 (padrão para aleatorização)
       document.getElementById("intervalo_envios_segundos").value =
-        data.intervalo_envios_segundos || "";
+        data.intervalo_envios_segundos || 130;
       document.getElementById("prioridade").value = data.prioridade || 5;
       document.getElementById("prompt_ia").value = data.prompt_ia || "";
       document.getElementById("template_mensagem").value =
@@ -2844,8 +2879,35 @@
 
       // Carregar instâncias e selecionar a correta
       await carregarInstanciasParaSelect();
+      
+      // Definir valor após carregar instâncias (garantir que as opções já existam)
       if (data.whatsapp_api_id) {
-        document.getElementById("whatsapp_api_id").value = data.whatsapp_api_id;
+        const selectWhatsapp = document.getElementById("whatsapp_api_id");
+        if (selectWhatsapp) {
+          // Verificar se a opção existe antes de definir
+          const opcaoExiste = Array.from(selectWhatsapp.options).some(
+            opt => opt.value === data.whatsapp_api_id
+          );
+          
+          if (opcaoExiste) {
+            selectWhatsapp.value = data.whatsapp_api_id;
+            console.log('✅ Instância WhatsApp selecionada:', data.whatsapp_api_id);
+          } else {
+            console.warn('⚠️ Instância WhatsApp não encontrada nas opções:', data.whatsapp_api_id);
+            // Tentar novamente após um pequeno delay (caso haja problema de timing)
+            setTimeout(() => {
+              const opcaoExisteAgora = Array.from(selectWhatsapp.options).some(
+                opt => opt.value === data.whatsapp_api_id
+              );
+              if (opcaoExisteAgora) {
+                selectWhatsapp.value = data.whatsapp_api_id;
+                console.log('✅ Instância WhatsApp selecionada (retry):', data.whatsapp_api_id);
+              } else {
+                console.error('❌ Instância WhatsApp não encontrada após retry:', data.whatsapp_api_id);
+              }
+            }, 100);
+          }
+        }
       }
 
       // Carregar instâncias para select admin também
@@ -3178,6 +3240,13 @@
       ).value;
       const prioridadeInput = document.getElementById("prioridade").value;
 
+      // Se o intervalo for 130 (padrão), salvar como null para manter aleatorização
+      const intervaloEnvios = intervaloEnviosInput
+        ? parseInt(intervaloEnviosInput)
+        : null;
+      const intervaloEnviosFinal =
+        intervaloEnvios === 130 ? null : intervaloEnvios;
+
       const dados = {
         nome: document.getElementById("nome").value,
         descricao: document.getElementById("descricao").value,
@@ -3190,15 +3259,41 @@
         intervalo_minimo_dias:
           parseInt(document.getElementById("intervalo_minimo_dias").value) ||
           30,
-        intervalo_envios_segundos: intervaloEnviosInput
-          ? parseInt(intervaloEnviosInput)
-          : null,
+        intervalo_envios_segundos: intervaloEnviosFinal,
         prioridade: prioridadeInput ? parseInt(prioridadeInput) : 5,
         prompt_ia: document.getElementById("prompt_ia").value,
         template_mensagem:
           document.getElementById("template_mensagem").value || null,
-        whatsapp_api_id:
-          document.getElementById("whatsapp_api_id").value || null,
+        whatsapp_api_id: (() => {
+          const selectWhatsapp = document.getElementById("whatsapp_api_id");
+          const valor = selectWhatsapp ? selectWhatsapp.value : null;
+          
+          // Validação e log
+          if (selectWhatsapp) {
+            const opcaoSelecionada = selectWhatsapp.options[selectWhatsapp.selectedIndex];
+            console.log('📱 Instância WhatsApp selecionada:', {
+              valor: valor,
+              texto: opcaoSelecionada ? opcaoSelecionada.textContent : 'N/A',
+              todasOpcoes: Array.from(selectWhatsapp.options).map(opt => ({
+                value: opt.value,
+                text: opt.textContent,
+                selected: opt.selected
+              }))
+            });
+            
+            // Validar se o valor é um UUID válido
+            if (valor && valor.trim() !== '') {
+              const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+              if (!uuidRegex.test(valor)) {
+                console.error('❌ whatsapp_api_id inválido (não é UUID):', valor);
+                mostrarAlerta('Instância WhatsApp selecionada é inválida. Por favor, selecione novamente.', 'error');
+                return null;
+              }
+            }
+          }
+          
+          return valor || null;
+        })(),
         usar_veiculos: document.getElementById("usar_veiculos").checked,
         usar_vendedor: document.getElementById("usar_vendedor").checked,
         tamanho_lote:
@@ -3470,7 +3565,7 @@
         mostrarAlerta(
           `Campanha inicia em ${new Date(
             campanha.data_inicio
-          ).toLocaleDateString("pt-BR")}`,
+          ).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
           "error"
         );
         return;
@@ -3479,7 +3574,7 @@
         mostrarAlerta(
           `Campanha encerrou em ${new Date(
             campanha.data_fim
-          ).toLocaleDateString("pt-BR")}`,
+          ).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
           "error"
         );
         return;
@@ -3752,22 +3847,49 @@
         });
       }
 
-      const totalEnviados = (execucoes || []).reduce(
-        (sum, e) => sum + (e.total_enviado || 0),
-        0
-      );
-      const totalErros = execucoes.reduce(
-        (sum, e) => sum + (e.total_erros || 0),
-        0
-      );
-      const totalDuplicados = execucoes.reduce(
-        (sum, e) => sum + (e.total_duplicados || 0),
-        0
-      );
-      const totalSemWhatsapp = execucoes.reduce(
-        (sum, e) => sum + (e.total_sem_whatsapp || 0),
-        0
-      );
+      // Calcular estatísticas a partir do histórico de envios (mais confiável que contadores das execuções)
+      const { data: historicoEstatisticas, error: errorHistoricoStats } = await supabaseClient
+        .from("instacar_historico_envios")
+        .select("status_envio")
+        .eq("campanha_id", campanhaId);
+
+      let totalEnviados = 0;
+      let totalErros = 0;
+      let totalDuplicados = 0;
+      let totalSemWhatsapp = 0;
+
+      if (!errorHistoricoStats && historicoEstatisticas) {
+        historicoEstatisticas.forEach((envio) => {
+          if (envio.status_envio === "enviado") {
+            totalEnviados++;
+          } else if (envio.status_envio === "erro") {
+            totalErros++;
+          } else if (envio.status_envio === "duplicado") {
+            totalDuplicados++;
+          } else if (envio.status_envio === "bloqueado" || envio.status_envio === "sem_whatsapp") {
+            totalSemWhatsapp++;
+          }
+        });
+      } else {
+        // Fallback: usar contadores das execuções se histórico não disponível
+        totalEnviados = (execucoes || []).reduce(
+          (sum, e) => sum + (e.total_enviado || 0),
+          0
+        );
+        totalErros = execucoes.reduce(
+          (sum, e) => sum + (e.total_erros || 0),
+          0
+        );
+        totalDuplicados = execucoes.reduce(
+          (sum, e) => sum + (e.total_duplicados || 0),
+          0
+        );
+        totalSemWhatsapp = execucoes.reduce(
+          (sum, e) => sum + (e.total_sem_whatsapp || 0),
+          0
+        );
+      }
+
       const totalGeral =
         totalEnviados + totalErros + totalDuplicados + totalSemWhatsapp;
       const taxaSucesso =
@@ -3953,12 +4075,12 @@
                                   botoesAcoes += `<button onclick="verHistoricoExecucao('${exec.id}', '${campanhaId}')" class="btn-secondary" style="padding: 4px 8px; font-size: 11px; margin-top: 4px; display: block; width: 100%;">📨 Ver Envios</button>`;
                                   
                                   // Formatação de data/hora
-                                  const dataFormatada = new Date(exec.data_execucao).toLocaleDateString("pt-BR");
+                                  const dataFormatada = new Date(exec.data_execucao).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
                                   const horarioInicio = exec.horario_inicio
-                                    ? new Date(exec.horario_inicio).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })
+                                    ? new Date(exec.horario_inicio).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit', timeZone: "America/Sao_Paulo" })
                                     : "N/A";
                                   const horarioFim = exec.horario_fim
-                                    ? new Date(exec.horario_fim).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })
+                                    ? new Date(exec.horario_fim).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit', timeZone: "America/Sao_Paulo" })
                                     : null;
                                   
                                   return `
@@ -4075,7 +4197,7 @@
         try {
           // Buscar execução atual (em_andamento ou pausada de hoje)
           const hojeStr = new Date().toISOString().split("T")[0];
-          const { data: execucaoAtual, error: errorExecucaoAtual } = await supabaseClient
+          let { data: execucaoAtual, error: errorExecucaoAtual } = await supabaseClient
             .from("instacar_campanhas_execucoes")
             .select("id")
             .eq("campanha_id", campanhaId)
@@ -4087,7 +4209,7 @@
 
           if (!execucaoAtual) {
             // Se não há execução atual, buscar última execução concluída
-            const { data: ultimaExecucao, error: errorUltima } = await supabaseClient
+            let { data: ultimaExecucao, error: errorUltima } = await supabaseClient
               .from("instacar_campanhas_execucoes")
               .select("id")
               .eq("campanha_id", campanhaId)
@@ -4096,11 +4218,42 @@
               .maybeSingle(); // Usar maybeSingle() em vez de single() para evitar erro 406 quando não há resultados
 
             if (errorUltima || !ultimaExecucao) {
-              document.getElementById("enviosIndividuais").innerHTML = 
-                '<div style="text-align: center; padding: 20px; color: #999;">Nenhuma execução encontrada</div>';
-              return;
+              // FALLBACK: Buscar execução via histórico de envios (quando campanha_id está incorreto na execução)
+              console.log("⚠️ Execução não encontrada por campanha_id. Buscando via histórico de envios...");
+              const { data: historicoEnvios, error: errorHistorico } = await supabaseClient
+                .from("instacar_historico_envios")
+                .select("execucao_id")
+                .eq("campanha_id", campanhaId)
+                .not("execucao_id", "is", null)
+                .order("timestamp_envio", { ascending: false })
+                .limit(1);
+
+              if (!errorHistorico && historicoEnvios && historicoEnvios.length > 0) {
+                const execucaoIdEncontrado = historicoEnvios[0].execucao_id;
+                console.log("✅ Execução encontrada via histórico:", execucaoIdEncontrado);
+                
+                // Buscar dados completos da execução
+                const { data: execucaoCompleta, error: errorCompleta } = await supabaseClient
+                  .from("instacar_campanhas_execucoes")
+                  .select("id")
+                  .eq("id", execucaoIdEncontrado)
+                  .maybeSingle();
+
+                if (!errorCompleta && execucaoCompleta) {
+                  execucaoAtual = { id: execucaoCompleta.id };
+                } else {
+                  document.getElementById("enviosIndividuais").innerHTML = 
+                    '<div style="text-align: center; padding: 20px; color: #999;">Nenhuma execução encontrada</div>';
+                  return;
+                }
+              } else {
+                document.getElementById("enviosIndividuais").innerHTML = 
+                  '<div style="text-align: center; padding: 20px; color: #999;">Nenhuma execução encontrada</div>';
+                return;
+              }
+            } else {
+              execucaoAtual = { id: ultimaExecucao.id };
             }
-            execucaoAtual = { id: ultimaExecucao.id };
           }
 
           // Buscar últimos 50 envios desta execução
@@ -4151,7 +4304,7 @@
             }
 
             const timestamp = envio.timestamp_envio 
-              ? new Date(envio.timestamp_envio).toLocaleString("pt-BR")
+              ? new Date(envio.timestamp_envio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
               : "N/A";
 
             const mensagemPreview = envio.mensagem_enviada 
@@ -4227,23 +4380,49 @@
               return;
             }
             
-            // Recalcular métricas
-            const totalEnviados = execucoesAtualizadas.reduce(
-              (sum, e) => sum + (e.total_enviado || 0),
-              0
-            );
-            const totalErros = execucoesAtualizadas.reduce(
-              (sum, e) => sum + (e.total_erros || 0),
-              0
-            );
-            const totalDuplicados = execucoesAtualizadas.reduce(
-              (sum, e) => sum + (e.total_duplicados || 0),
-              0
-            );
-            const totalSemWhatsapp = execucoesAtualizadas.reduce(
-              (sum, e) => sum + (e.total_sem_whatsapp || 0),
-              0
-            );
+            // Recalcular métricas a partir do histórico de envios (mais confiável)
+            const { data: historicoStats, error: errorHistoricoStats } = await supabaseClient
+              .from("instacar_historico_envios")
+              .select("status_envio")
+              .eq("campanha_id", campanhaId);
+
+            let totalEnviados = 0;
+            let totalErros = 0;
+            let totalDuplicados = 0;
+            let totalSemWhatsapp = 0;
+
+            if (!errorHistoricoStats && historicoStats) {
+              historicoStats.forEach((envio) => {
+                if (envio.status_envio === "enviado") {
+                  totalEnviados++;
+                } else if (envio.status_envio === "erro") {
+                  totalErros++;
+                } else if (envio.status_envio === "duplicado") {
+                  totalDuplicados++;
+                } else if (envio.status_envio === "bloqueado" || envio.status_envio === "sem_whatsapp") {
+                  totalSemWhatsapp++;
+                }
+              });
+            } else {
+              // Fallback: usar contadores das execuções se histórico não disponível
+              totalEnviados = execucoesAtualizadas.reduce(
+                (sum, e) => sum + (e.total_enviado || 0),
+                0
+              );
+              totalErros = execucoesAtualizadas.reduce(
+                (sum, e) => sum + (e.total_erros || 0),
+                0
+              );
+              totalDuplicados = execucoesAtualizadas.reduce(
+                (sum, e) => sum + (e.total_duplicados || 0),
+                0
+              );
+              totalSemWhatsapp = execucoesAtualizadas.reduce(
+                (sum, e) => sum + (e.total_sem_whatsapp || 0),
+                0
+              );
+            }
+
             const totalGeral = totalEnviados + totalErros + totalDuplicados + totalSemWhatsapp;
             const taxaSucesso = totalGeral > 0 ? ((totalEnviados / totalGeral) * 100).toFixed(2) : 0;
             
@@ -4275,7 +4454,7 @@
                   </div>
                   <div style="background: #f9fafb; padding: 15px; border-radius: 5px;">
                     <div style="font-size: 14px; font-weight: bold; color: #666;">🔄 Atualizado</div>
-                    <div style="color: #999; font-size: 12px;">${new Date().toLocaleTimeString("pt-BR")}</div>
+                    <div style="color: #999; font-size: 12px;">${new Date().toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo" })}</div>
                   </div>
                 `;
               }
@@ -4312,7 +4491,7 @@
                             <tr>
                               <td style="padding: 10px; border-bottom: 1px solid #eee;">${new Date(
                                 exec.data_execucao
-                              ).toLocaleDateString("pt-BR")}</td>
+                              ).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}</td>
                               <td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="status ${
                                 exec.status_execucao
                               }">${exec.status_execucao}</span></td>
@@ -4327,7 +4506,7 @@
                               }</td>
                               <td style="padding: 10px; border-bottom: 1px solid #eee;">${
                                 exec.horario_inicio
-                                  ? new Date(exec.horario_inicio).toLocaleString("pt-BR")
+                                  ? new Date(exec.horario_inicio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
                                   : "N/A"
                               }</td>
                               <td style="padding: 10px; border-bottom: 1px solid #eee;">${botoesAcoes}</td>
@@ -4366,6 +4545,21 @@
                     .limit(1)
                     .maybeSingle(); // Usar maybeSingle() em vez de single() para evitar erro 406
                   execucaoId = ultimaExecucao?.id;
+                  
+                  // FALLBACK: Buscar via histórico de envios se não encontrou
+                  if (!execucaoId) {
+                    const { data: historicoEnvios } = await supabaseClient
+                      .from("instacar_historico_envios")
+                      .select("execucao_id")
+                      .eq("campanha_id", campanhaIdAtual)
+                      .not("execucao_id", "is", null)
+                      .order("timestamp_envio", { ascending: false })
+                      .limit(1);
+                    
+                    if (historicoEnvios && historicoEnvios.length > 0) {
+                      execucaoId = historicoEnvios[0].execucao_id;
+                    }
+                  }
                 }
 
                 if (execucaoId) {
@@ -4401,7 +4595,7 @@
                         statusIcon = "🚫";
                       }
                       const timestamp = envio.timestamp_envio 
-                        ? new Date(envio.timestamp_envio).toLocaleString("pt-BR")
+                        ? new Date(envio.timestamp_envio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
                         : "N/A";
                       const mensagemPreview = envio.mensagem_enviada 
                         ? (envio.mensagem_enviada.length > 80 
@@ -4525,7 +4719,7 @@
         <div id="modalHistoricoExecucao" class="modal active">
           <div class="modal-content" style="max-width: 1000px; max-height: 90vh;">
             <div class="modal-header">
-              <h2>📨 Histórico de Envios - Execução ${new Date(execucao.data_execucao).toLocaleDateString("pt-BR")}</h2>
+              <h2>📨 Histórico de Envios - Execução ${new Date(execucao.data_execucao).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}</h2>
               <button onclick="fecharModalHistoricoExecucao()" class="close-btn">&times;</button>
             </div>
             <div class="modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
@@ -4551,8 +4745,8 @@
               <div style="background: #f9fafb; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
                 <p style="margin: 0; color: #666; font-size: 13px;">
                   <strong>Status:</strong> ${execucao.status_execucao} | 
-                  <strong>Início:</strong> ${execucao.horario_inicio ? new Date(execucao.horario_inicio).toLocaleString("pt-BR") : "N/A"} | 
-                  <strong>Fim:</strong> ${execucao.horario_fim ? new Date(execucao.horario_fim).toLocaleString("pt-BR") : "Em andamento..."}
+                  <strong>Início:</strong> ${execucao.horario_inicio ? new Date(execucao.horario_inicio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "N/A"} | 
+                  <strong>Fim:</strong> ${execucao.horario_fim ? new Date(execucao.horario_fim).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Em andamento..."}
                 </p>
               </div>
 
@@ -4579,7 +4773,7 @@
                         }
 
                         const timestamp = envio.timestamp_envio 
-                          ? new Date(envio.timestamp_envio).toLocaleString("pt-BR")
+                          ? new Date(envio.timestamp_envio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
                           : "N/A";
 
                         const mensagemCompleta = envio.mensagem_enviada || "Sem mensagem";
@@ -4825,45 +5019,382 @@
   }
 
   // Ver execuções da campanha
-  async function verExecucoes(id) {
+  /**
+   * Abre modal com histórico de envios de uma campanha
+   * @param {string} campanhaId - ID da campanha
+   */
+  async function verEnviosCampanha(campanhaId) {
     if (!supabaseClient) {
       mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
       return;
     }
 
     try {
-      const { data, error } = await supabaseClient
-        .from("instacar_campanhas_execucoes")
-        .select("*")
-        .eq("campanha_id", id)
-        .order("data_execucao", { ascending: false })
-        .limit(10);
+      // Buscar dados da campanha
+      const { data: campanha, error: errorCampanha } = await supabaseClient
+        .from("instacar_campanhas")
+        .select("nome")
+        .eq("id", campanhaId)
+        .single();
 
-      if (error) throw error;
+      if (errorCampanha) throw errorCampanha;
 
-      if (data.length === 0) {
-        alert("Nenhuma execução encontrada para esta campanha.");
-        return;
+      // Buscar histórico de envios da campanha (sem limite para ter todos os dados)
+      const { data: envios, error: errorEnvios } = await supabaseClient
+        .from("instacar_historico_envios")
+        .select(`
+          *,
+          instacar_clientes_envios (
+            nome_cliente,
+            telefone
+          )
+        `)
+        .eq("campanha_id", campanhaId)
+        .order("timestamp_envio", { ascending: false });
+
+      if (errorEnvios) throw errorEnvios;
+
+      // Calcular estatísticas
+      const totalEnvios = envios?.length || 0;
+      const enviados = envios?.filter(e => e.status_envio === "enviado").length || 0;
+      const erros = envios?.filter(e => e.status_envio === "erro").length || 0;
+      const bloqueados = envios?.filter(e => e.status_envio === "bloqueado" || e.status_envio === "sem_whatsapp").length || 0;
+
+      // Criar modal usando a mesma estrutura do verHistoricoExecucao
+      const modalHtml = `
+        <div id="modalEnviosCampanha" class="modal active" data-campanha-id="${campanhaId}">
+          <div class="modal-content" style="max-width: 1000px; max-height: 90vh;">
+            <div class="modal-header">
+              <h2>📨 Histórico de Envios - ${campanha?.nome || "Campanha"}</h2>
+              <button onclick="fecharModalEnviosCampanha()" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
+              ${envios && envios.length > 0 ? `
+                <!-- Estatísticas -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                  <div style="background: #e3f2fd; padding: 15px; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #2196F3;" id="statTotalEnvios">${totalEnvios}</div>
+                    <div style="color: #666; font-size: 12px;">Total de Envios</div>
+                  </div>
+                  <div style="background: #e8f5e9; padding: 15px; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #4caf50;" id="statEnviados">${enviados}</div>
+                    <div style="color: #666; font-size: 12px;">Enviados</div>
+                  </div>
+                  <div style="background: #ffebee; padding: 15px; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #f44336;" id="statErros">${erros}</div>
+                    <div style="color: #666; font-size: 12px;">Erros</div>
+                  </div>
+                  <div style="background: #fff3e0; padding: 15px; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #ff9800;" id="statBloqueados">${bloqueados}</div>
+                    <div style="color: #666; font-size: 12px;">Bloqueados</div>
+                  </div>
+                </div>
+
+                <!-- Filtros e Ordenação -->
+                <div style="background: #f9fafb; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                  <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px;">
+                    <label style="font-weight: 500; color: #666; font-size: 13px;">Filtros:</label>
+                    <select id="filtroStatusEnvios" onchange="filtrarEnviosCampanha()" style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px;">
+                      <option value="">Todos os Status</option>
+                      <option value="enviado">✅ Enviado</option>
+                      <option value="erro">❌ Erro</option>
+                      <option value="bloqueado">🚫 Bloqueado</option>
+                      <option value="sem_whatsapp">📵 Sem WhatsApp</option>
+                    </select>
+                    <input 
+                      type="text" 
+                      id="buscaEnvios" 
+                      placeholder="🔍 Buscar por nome do cliente..." 
+                      onkeyup="filtrarEnviosCampanha()"
+                      style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; flex: 1; min-width: 200px;"
+                    />
+                    <input 
+                      type="text" 
+                      id="buscaTelefoneEnvios" 
+                      placeholder="📱 Buscar por telefone..." 
+                      onkeyup="filtrarEnviosCampanha()"
+                      style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; min-width: 180px;"
+                    />
+                  </div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                    <label style="font-weight: 500; color: #666; font-size: 13px;">Ordenar por:</label>
+                    <select id="ordenacaoEnvios" onchange="filtrarEnviosCampanha()" style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px;">
+                      <option value="timestamp_desc">📅 Data/Hora (Mais Recente)</option>
+                      <option value="timestamp_asc">📅 Data/Hora (Mais Antigo)</option>
+                      <option value="cliente_asc">👤 Cliente (A-Z)</option>
+                      <option value="cliente_desc">👤 Cliente (Z-A)</option>
+                      <option value="status_asc">✅ Status (A-Z)</option>
+                      <option value="status_desc">✅ Status (Z-A)</option>
+                      <option value="telefone_asc">📱 Telefone (Crescente)</option>
+                      <option value="telefone_desc">📱 Telefone (Decrescente)</option>
+                    </select>
+                    <span style="color: #666; font-size: 12px; margin-left: auto;" id="contadorEnviosFiltrados">
+                      Mostrando ${totalEnvios} de ${totalEnvios} envios
+                    </span>
+                  </div>
+                </div>
+
+                <h3 style="margin-top: 20px; margin-bottom: 15px;">Lista de Envios</h3>
+                <div id="listaEnviosCampanha" style="background: white; border: 1px solid #ddd; border-radius: 4px; padding: 10px; max-height: 500px; overflow-y: auto;">
+                  <!-- Será preenchido por filtrarEnviosCampanha() -->
+                </div>
+              ` : `
+                <div style="text-align: center; padding: 40px; color: #999;">
+                  <div style="font-size: 48px; margin-bottom: 15px;">📭</div>
+                  <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">Nenhum envio encontrado</div>
+                  <div style="font-size: 14px;">Esta campanha ainda não teve envios registrados.</div>
+                </div>
+              `}
+            </div>
+            <div class="modal-footer">
+              <button onclick="fecharModalEnviosCampanha()" class="btn-secondary">Fechar</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Remover modal anterior se existir
+      const modalAnterior = document.getElementById("modalEnviosCampanha");
+      if (modalAnterior) {
+        modalAnterior.remove();
       }
 
-      let mensagem = "Últimas execuções:\n\n";
-      data.forEach((exec) => {
-        mensagem += `Data: ${new Date(exec.data_execucao).toLocaleDateString(
-          "pt-BR"
-        )}\n`;
-        mensagem += `Enviados: ${exec.total_enviado || 0}\n`;
-        mensagem += `Erros: ${exec.total_erros || 0}\n`;
-        mensagem += `Status: ${exec.status_execucao}\n`;
-        mensagem += `Trigger: ${exec.trigger_tipo}\n`;
-        mensagem += "---\n";
-      });
+      // Adicionar modal ao DOM
+      document.body.insertAdjacentHTML("beforeend", modalHtml);
 
-      alert(mensagem);
+      // Armazenar dados no modal para acesso das funções de filtro
+      const modal = document.getElementById("modalEnviosCampanha");
+      if (modal && envios) {
+        modal.dataset.envios = JSON.stringify(envios);
+      }
+
+      // Renderizar lista inicial
+      if (envios && envios.length > 0) {
+        filtrarEnviosCampanha();
+      }
     } catch (error) {
-      mostrarAlerta("Erro ao carregar execuções: " + error.message, "error");
+      mostrarAlerta("Erro ao carregar envios: " + error.message, "error");
       console.error(error);
     }
   }
+
+  /**
+   * Filtra e ordena os envios no modal
+   */
+  function filtrarEnviosCampanha() {
+    const modal = document.getElementById("modalEnviosCampanha");
+    if (!modal) return;
+
+    const enviosJson = modal.dataset.envios;
+    if (!enviosJson) return;
+
+    const envios = JSON.parse(enviosJson);
+    const filtroStatus = document.getElementById("filtroStatusEnvios")?.value || "";
+    const buscaNome = document.getElementById("buscaEnvios")?.value.toLowerCase() || "";
+    const buscaTelefone = document.getElementById("buscaTelefoneEnvios")?.value.toLowerCase() || "";
+    const ordenacao = document.getElementById("ordenacaoEnvios")?.value || "timestamp_desc";
+
+    // Aplicar filtros
+    let enviosFiltrados = envios.filter((envio) => {
+      const cliente = envio.instacar_clientes_envios;
+      const nomeCliente = (cliente?.nome_cliente || "").toLowerCase();
+      const telefone = (envio.telefone || cliente?.telefone || "").toLowerCase();
+
+      // Filtro por status
+      if (filtroStatus && envio.status_envio !== filtroStatus) {
+        return false;
+      }
+
+      // Filtro por nome do cliente
+      if (buscaNome && !nomeCliente.includes(buscaNome)) {
+        return false;
+      }
+
+      // Filtro por telefone
+      if (buscaTelefone && !telefone.includes(buscaTelefone)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Aplicar ordenação
+    enviosFiltrados.sort((a, b) => {
+      const clienteA = a.instacar_clientes_envios;
+      const clienteB = b.instacar_clientes_envios;
+      const nomeA = clienteA?.nome_cliente || "";
+      const nomeB = clienteB?.nome_cliente || "";
+
+      const telefoneA = (a.telefone || clienteA?.telefone || "").toLowerCase();
+      const telefoneB = (b.telefone || clienteB?.telefone || "").toLowerCase();
+
+      switch (ordenacao) {
+        case "timestamp_desc":
+          return new Date(b.timestamp_envio || 0) - new Date(a.timestamp_envio || 0);
+        case "timestamp_asc":
+          return new Date(a.timestamp_envio || 0) - new Date(b.timestamp_envio || 0);
+        case "cliente_asc":
+          return nomeA.localeCompare(nomeB);
+        case "cliente_desc":
+          return nomeB.localeCompare(nomeA);
+        case "status_asc":
+          return (a.status_envio || "").localeCompare(b.status_envio || "");
+        case "status_desc":
+          return (b.status_envio || "").localeCompare(a.status_envio || "");
+        case "telefone_asc":
+          return telefoneA.localeCompare(telefoneB);
+        case "telefone_desc":
+          return telefoneB.localeCompare(telefoneA);
+        default:
+          return 0;
+      }
+    });
+
+    // Recalcular estatísticas dos envios filtrados
+    const totalFiltrado = enviosFiltrados.length;
+    const enviadosFiltrado = enviosFiltrados.filter(e => e.status_envio === "enviado").length;
+    const errosFiltrado = enviosFiltrados.filter(e => e.status_envio === "erro").length;
+    const bloqueadosFiltrado = enviosFiltrados.filter(e => e.status_envio === "bloqueado" || e.status_envio === "sem_whatsapp").length;
+
+    // Atualizar estatísticas no DOM
+    const statTotal = document.getElementById("statTotalEnvios");
+    const statEnviados = document.getElementById("statEnviados");
+    const statErros = document.getElementById("statErros");
+    const statBloqueados = document.getElementById("statBloqueados");
+
+    if (statTotal) statTotal.textContent = totalFiltrado;
+    if (statEnviados) statEnviados.textContent = enviadosFiltrado;
+    if (statErros) statErros.textContent = errosFiltrado;
+    if (statBloqueados) statBloqueados.textContent = bloqueadosFiltrado;
+
+    // Atualizar contador
+    const contador = document.getElementById("contadorEnviosFiltrados");
+    if (contador) {
+      contador.textContent = `Mostrando ${enviosFiltrados.length} de ${envios.length} envios`;
+    }
+
+    // Renderizar lista (mesmo formato do verHistoricoExecucao)
+    const listaContainer = document.getElementById("listaEnviosCampanha");
+    if (!listaContainer) return;
+
+    if (enviosFiltrados.length === 0) {
+      listaContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #999;">
+          <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">Nenhum envio encontrado</div>
+          <div style="font-size: 14px;">Tente ajustar os filtros de busca.</div>
+        </div>
+      `;
+      return;
+    }
+
+    listaContainer.innerHTML = enviosFiltrados.map((envio) => {
+      const cliente = envio.instacar_clientes_envios;
+      const nomeCliente = cliente?.nome_cliente || "N/A";
+      const telefone = envio.telefone || cliente?.telefone || "N/A";
+      const timestamp = envio.timestamp_envio 
+        ? new Date(envio.timestamp_envio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
+        : "N/A";
+      
+      let statusColor = "#999";
+      let statusIcon = "⏳";
+      if (envio.status_envio === "enviado") {
+        statusColor = "#4caf50";
+        statusIcon = "✅";
+      } else if (envio.status_envio === "erro") {
+        statusColor = "#f44336";
+        statusIcon = "❌";
+      } else if (envio.status_envio === "bloqueado") {
+        statusColor = "#ff9800";
+        statusIcon = "🚫";
+      } else if (envio.status_envio === "sem_whatsapp") {
+        statusColor = "#ff9800";
+        statusIcon = "📵";
+      }
+
+      const mensagemCompleta = envio.mensagem_enviada || "Sem mensagem";
+      const mensagemId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const isLonga = mensagemCompleta.length > 200;
+
+      return `
+        <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: start;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <span style="font-size: 18px;">${statusIcon}</span>
+              <strong style="color: ${statusColor}; font-size: 14px;">${envio.status_envio?.toUpperCase() || "N/A"}</strong>
+              <span style="color: #999; font-size: 11px;">${timestamp}</span>
+            </div>
+            <div style="margin-bottom: 4px;">
+              <strong style="font-size: 14px;">${nomeCliente}</strong>
+              <span style="color: #666; font-size: 12px; margin-left: 8px;">${telefone}</span>
+            </div>
+            <div style="color: #666; font-size: 13px; margin-top: 6px; padding: 10px; background: #f5f5f5; border-radius: 4px; white-space: pre-wrap; line-height: 1.5; word-wrap: break-word; max-width: 100%;">
+              ${isLonga ? `
+                <div id="${mensagemId}-preview">
+                  ${mensagemCompleta.substring(0, 200)}...
+                  <button onclick="expandirMensagem('${mensagemId}')" style="margin-top: 8px; padding: 4px 8px; background: #2196F3; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Ver mensagem completa</button>
+                </div>
+                <div id="${mensagemId}-completa" style="display: none;">
+                  ${mensagemCompleta}
+                  <button onclick="colapsarMensagem('${mensagemId}')" style="margin-top: 8px; padding: 4px 8px; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Ocultar</button>
+                </div>
+              ` : mensagemCompleta}
+            </div>
+            ${envio.mensagem_erro ? `
+              <div style="color: #f44336; font-size: 11px; margin-top: 6px; padding: 6px; background: #ffebee; border-radius: 4px;">
+                ⚠️ <strong>Erro:</strong> ${envio.mensagem_erro}
+              </div>
+            ` : ""}
+            ${envio.tipo_envio && envio.tipo_envio !== "normal" ? `
+              <div style="margin-top: 6px;">
+                <span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;">
+                  ${envio.tipo_envio === "teste" ? "🧪 TESTE" : envio.tipo_envio === "debug" ? "🔍 DEBUG" : envio.tipo_envio.toUpperCase()}
+                </span>
+              </div>
+            ` : ""}
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  /**
+   * Expande mensagem completa
+   */
+  function expandirMensagem(mensagemId) {
+    const preview = document.getElementById(`${mensagemId}-preview`);
+    const completa = document.getElementById(`${mensagemId}-completa`);
+    if (preview) preview.style.display = 'none';
+    if (completa) completa.style.display = 'block';
+  }
+
+  /**
+   * Colapsa mensagem para preview
+   */
+  function colapsarMensagem(mensagemId) {
+    const preview = document.getElementById(`${mensagemId}-preview`);
+    const completa = document.getElementById(`${mensagemId}-completa`);
+    if (preview) preview.style.display = 'block';
+    if (completa) completa.style.display = 'none';
+  }
+
+  // Expor funções globalmente
+  window.filtrarEnviosCampanha = filtrarEnviosCampanha;
+  window.expandirMensagem = expandirMensagem;
+  window.colapsarMensagem = colapsarMensagem;
+
+  /**
+   * Fecha o modal de envios da campanha
+   */
+  function fecharModalEnviosCampanha() {
+    const modal = document.getElementById("modalEnviosCampanha");
+    if (modal) {
+      modal.remove();
+    }
+  }
+
+  // Expor função globalmente
+  window.verEnviosCampanha = verEnviosCampanha;
+  window.fecharModalEnviosCampanha = fecharModalEnviosCampanha;
 
   // ============================================================================
   // Gerenciamento de Conexão WhatsApp (QR Code)
@@ -5727,7 +6258,6 @@
   window.renderizarListaClientesSelecao = renderizarListaClientesSelecao;
   window.toggleAtivo = toggleAtivo;
   window.dispararCampanha = dispararCampanha;
-  window.verExecucoes = verExecucoes;
   window.abrirDashboardCampanha = abrirDashboardCampanha;
   window.fecharModalDashboard = fecharModalDashboard;
   window.pausarExecucao = pausarExecucao;
@@ -6293,10 +6823,11 @@
     const intervaloInputValue = intervaloInput ? intervaloInput.value : "";
     const tamanhoLote = parseInt(tamanhoLoteInput?.value) || 50;
 
-    // Se intervalo não configurado, usar padrão (média de 140s)
-    const intervaloMedio = intervaloInputValue
+    // Se intervalo não configurado ou for 130 (padrão), usar média de 140s (aleatorização 130-150)
+    const intervaloValor = intervaloInputValue
       ? parseInt(intervaloInputValue)
-      : 140;
+      : 130;
+    const intervaloMedio = intervaloValor === 130 ? 140 : intervaloValor;
 
     // Estimativa de contatos (pode ser ajustado)
     const totalContatosEstimado = 2000; // ou buscar de execução anterior
@@ -8056,7 +8587,7 @@
         // Mostrar última campanha (simplificado - apenas indicar se existe)
         const ultimaCampanha = cliente.ultima_campanha_id
           ? cliente.ultima_campanha_data
-            ? new Date(cliente.ultima_campanha_data).toLocaleDateString("pt-BR")
+            ? new Date(cliente.ultima_campanha_data).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
             : "Sim"
           : "Nenhuma";
 
@@ -9336,6 +9867,7 @@
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: "America/Sao_Paulo",
       });
     } catch (e) {
       return String(data);
