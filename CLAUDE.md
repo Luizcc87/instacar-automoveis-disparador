@@ -14,7 +14,7 @@ Este é um sistema automatizado de disparo de mensagens via WhatsApp para a Inst
 - **OpenAI GPT-4**: Geração de mensagens personalizadas
 - **Google Sheets**: Fonte de dados dos clientes (9 planilhas)
 
-**Versão Atual:** 2.7 (Dezembro 2025 - dashboard aprimorado com histórico de execuções e busca alternativa via histórico de envios)
+**Versão Atual:** 2.7 (Dezembro 2025 - dashboard aprimorado com histórico de execuções e busca alternativa via histórico de envios, correção do filtro de clientes já enviados com normalização de telefones)
 
 ## Arquitetura
 
@@ -518,6 +518,17 @@ Melhorias no dashboard de campanhas para visualização completa de execuções:
    - Garante que execuções sejam encontradas mesmo com dados inconsistentes
 
 📖 **Changelog completo**: [docs/interface-web/CHANGELOG-dashboard-historico-execucoes-2025-12.md](docs/interface-web/CHANGELOG-dashboard-historico-execucoes-2025-12.md)
+
+### Versão 2.7.1 (Dezembro 2025 - Correção Filtro Clientes Já Enviados)
+
+Correção do filtro "Mostrar apenas clientes que ainda não receberam mensagens nesta campanha":
+
+- **Problema**: Clientes que já receberam mensagens não apareciam marcados visualmente
+- **Causa**: Telefones não eram normalizados antes da comparação entre histórico e lista
+- **Solução**: Normalização de telefones implementada em `carregarClientesSelecionadosCampanha()` e `renderizarListaClientesSelecao()`
+- **Resultado**: Clientes já enviados aparecem corretamente com badge "📨 Já enviado" e fundo azul
+
+📖 **Changelog completo**: [docs/interface-web/CHANGELOG-correcao-filtro-clientes-enviados-2025-12.md](docs/interface-web/CHANGELOG-correcao-filtro-clientes-enviados-2025-12.md)
 
 ### Versão 2.5 (Dezembro 2025 - Painel de Estimativas e Configuração Avançada de Horários)
 

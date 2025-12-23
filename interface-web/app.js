@@ -2190,6 +2190,8 @@
   // Variável global para armazenar lista de clientes elegíveis
   let clientesElegiveis = [];
   let clientesSelecionados = new Set();
+  let clientesJaEnviados = new Set(); // Clientes que já receberam mensagens da campanha atual (por ID)
+  let telefonesJaEnviados = new Set(); // Telefones que já receberam mensagens da campanha atual
 
   /**
    * Carrega clientes elegíveis para seleção na campanha
@@ -2275,12 +2277,37 @@
     const busca =
       document.getElementById("buscaClientesSelecao")?.value.toLowerCase() ||
       "";
-    const clientesFiltrados = clientesElegiveis.filter(
+    const filtroApenasNaoEnviados = document.getElementById("filtroApenasNaoEnviados")?.checked || false;
+    
+    let clientesFiltrados = clientesElegiveis.filter(
       (c) =>
         !busca ||
         (c.nome_cliente || "").toLowerCase().includes(busca) ||
         (c.telefone || "").includes(busca)
     );
+
+    // Aplicar filtro de "apenas não enviados" se ativo
+    if (filtroApenasNaoEnviados) {
+      const totalAntes = clientesFiltrados.length;
+      clientesFiltrados = clientesFiltrados.filter((c) => {
+        // Verificar por ID E por telefone (caso cliente_id seja null no histórico)
+        const jaEnviadoPorId = clientesJaEnviados.has(c.id);
+        // Normalizar telefone do cliente antes de comparar
+        const telefoneClienteNormalizado = normalizarTelefone(c.telefone || "");
+        const jaEnviadoPorTelefone = telefoneClienteNormalizado ? telefonesJaEnviados.has(telefoneClienteNormalizado) : false;
+        const jaEnviado = jaEnviadoPorId || jaEnviadoPorTelefone;
+        
+        if (jaEnviado) {
+          console.log(`  ❌ Cliente ${c.nome_cliente} (ID: ${c.id}, Tel: ${c.telefone}, Normalizado: ${telefoneClienteNormalizado}) já recebeu mensagem - removido do filtro`);
+        }
+        
+        return !jaEnviado;
+      });
+      const totalDepois = clientesFiltrados.length;
+      console.log(`🔍 Filtro "apenas não enviados" ativo: ${totalAntes} → ${totalDepois} clientes`);
+      console.log(`🔍 Clientes já enviados (IDs):`, Array.from(clientesJaEnviados));
+      console.log(`🔍 Telefones já enviados:`, Array.from(telefonesJaEnviados));
+    }
 
     // Ordenar clientes filtrados
     const ordenacaoCampo = document.getElementById("ordenacaoCampoSelecao")?.value || "nome_cliente";
@@ -2324,12 +2351,35 @@
     let html = "";
     clientesFiltrados.forEach((cliente) => {
       const isSelected = clientesSelecionados.has(cliente.id);
+      // Verificar se já recebeu mensagem por ID ou por telefone
+      const jaEnviadoPorId = clientesJaEnviados.has(cliente.id);
+      // Normalizar telefone do cliente antes de comparar
+      const telefoneClienteOriginal = cliente.telefone || "";
+      const telefoneClienteNormalizado = normalizarTelefone(telefoneClienteOriginal);
+      const jaEnviadoPorTelefone = telefoneClienteNormalizado ? telefonesJaEnviados.has(telefoneClienteNormalizado) : false;
+      const jaEnviado = jaEnviadoPorId || jaEnviadoPorTelefone;
+      
+      // Debug: log apenas para clientes que deveriam estar marcados mas não estão
+      if (telefoneClienteNormalizado && telefonesJaEnviados.has(telefoneClienteNormalizado) && !jaEnviado) {
+        console.log(`⚠️ Cliente ${cliente.nome_cliente} (Tel: ${telefoneClienteOriginal}, Normalizado: ${telefoneClienteNormalizado}) deveria estar marcado como enviado!`);
+      }
+      
       // Todos os clientes aqui já são 'valid', mas mantemos o badge para consistência
       const statusBadge =
         '<span style="color: #4caf50; font-size: 10px;">✅ Válido</span>';
+      
+      // Badge indicando que já recebeu mensagem
+      const badgeJaEnviado = jaEnviado
+        ? '<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; margin-left: 6px;">📨 Já enviado</span>'
+        : '';
+
+      // Estilo do label se já foi enviado
+      const labelStyle = jaEnviado
+        ? 'display: flex; align-items: flex-start; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; gap: 8px; background: #f0f7ff; border-left: 3px solid #2196F3;'
+        : 'display: flex; align-items: flex-start; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; gap: 8px';
 
       html += `
-        <label style="display: flex; align-items: flex-start; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; gap: 8px">
+        <label style="${labelStyle}">
           <input
             type="checkbox"
             data-cliente-id="${cliente.id}"
@@ -2338,9 +2388,10 @@
             style="margin-top: 2px; flex-shrink: 0; width: 18px; height: 18px; cursor: pointer"
           />
           <span style="flex: 1; min-width: 0">
-            <div style="font-weight: 600; margin-bottom: 4px; word-break: break-word">${
-              cliente.nome_cliente || "-"
-            }</div>
+            <div style="font-weight: 600; margin-bottom: 4px; word-break: break-word; display: flex; align-items: center;">
+              ${cliente.nome_cliente || "-"}
+              ${badgeJaEnviado}
+            </div>
             <div style="color: #666; font-size: 13px; margin-bottom: 2px">${
               cliente.telefone
             }</div>
@@ -2428,23 +2479,120 @@
   async function carregarClientesSelecionadosCampanha(campanhaId) {
     if (!supabaseClient || !campanhaId) {
       clientesSelecionados.clear();
+      clientesJaEnviados.clear();
+      telefonesJaEnviados.clear();
       return;
     }
 
     try {
-      const { data, error } = await supabaseClient
+      // Buscar clientes selecionados manualmente
+      const { data: selecionados, error: errorSelecionados } = await supabaseClient
         .from("instacar_campanhas_clientes")
         .select("cliente_id")
         .eq("campanha_id", campanhaId);
 
-      if (error) throw error;
+      if (errorSelecionados) throw errorSelecionados;
 
-      clientesSelecionados = new Set((data || []).map((r) => r.cliente_id));
+      clientesSelecionados = new Set((selecionados || []).map((r) => r.cliente_id));
+
+      // Buscar clientes que já receberam mensagens desta campanha
+      const { data: historico, error: errorHistorico } = await supabaseClient
+        .from("instacar_historico_envios")
+        .select("cliente_id, telefone")
+        .eq("campanha_id", campanhaId)
+        .eq("status_envio", "enviado");
+
+      if (errorHistorico) {
+        console.error("Erro ao buscar histórico de envios:", errorHistorico);
+        clientesJaEnviados.clear();
+      } else {
+        console.log(`📊 Histórico encontrado: ${historico?.length || 0} envios para campanha ${campanhaId}`);
+        
+        // Criar Set com clientes que já receberam mensagens
+        const idsEnviados = new Set();
+        const telefonesEnviados = new Set();
+        
+        (historico || []).forEach((h) => {
+          if (h.cliente_id) {
+            idsEnviados.add(h.cliente_id);
+          }
+          if (h.telefone) {
+            // Normalizar telefone antes de adicionar ao Set
+            const telefoneOriginal = h.telefone;
+            const telefoneNormalizado = normalizarTelefone(h.telefone);
+            if (telefoneNormalizado) {
+              telefonesEnviados.add(telefoneNormalizado);
+              if (telefoneOriginal !== telefoneNormalizado) {
+                console.log(`📞 Telefone normalizado: ${telefoneOriginal} → ${telefoneNormalizado}`);
+              }
+            }
+          }
+        });
+
+        console.log(`📊 IDs encontrados no histórico: ${idsEnviados.size}, Telefones: ${telefonesEnviados.size}`);
+        console.log(`📊 Telefones normalizados coletados:`, Array.from(telefonesEnviados));
+
+        // Sempre buscar por telefone também (mesmo que tenha cliente_id)
+        // Isso garante que clientes com cliente_id null sejam encontrados
+        if (telefonesEnviados.size > 0) {
+          const telefonesArray = Array.from(telefonesEnviados);
+          console.log(`🔍 Buscando clientes por telefone (${telefonesArray.length} telefones):`, telefonesArray);
+          
+          // Normalizar telefones antes de buscar (garantir formato consistente)
+          const telefonesNormalizados = telefonesArray.map(t => normalizarTelefone(t)).filter(t => t);
+          console.log(`🔍 Telefones normalizados para busca:`, telefonesNormalizados);
+          
+          // Buscar clientes que têm qualquer um desses telefones (buscar por telefones normalizados E originais)
+          // Nota: Supabase pode ter telefones em formato diferente, então buscamos ambos
+          const telefonesParaBusca = [...new Set([...telefonesArray, ...telefonesNormalizados])];
+          const { data: clientesPorTelefone, error: errorTelefone } = await supabaseClient
+            .from("instacar_clientes_envios")
+            .select("id, telefone")
+            .in("telefone", telefonesParaBusca);
+
+          if (errorTelefone) {
+            console.error("Erro ao buscar clientes por telefone:", errorTelefone);
+          } else if (clientesPorTelefone) {
+            console.log(`✅ Encontrados ${clientesPorTelefone.length} clientes por telefone`);
+            clientesPorTelefone.forEach((c) => {
+              idsEnviados.add(c.id);
+              console.log(`  - Cliente ID: ${c.id}, Telefone: ${c.telefone}`);
+            });
+          } else {
+            console.log(`⚠️ Nenhum cliente encontrado por telefone. Verificando se telefones estão normalizados...`);
+            // Verificar se os telefones no histórico estão no mesmo formato dos clientes
+            const { data: todosClientes, error: errorTodos } = await supabaseClient
+              .from("instacar_clientes_envios")
+              .select("id, telefone")
+              .limit(5);
+            
+            if (!errorTodos && todosClientes) {
+              console.log(`📋 Exemplo de telefones na tabela clientes:`, todosClientes.map(c => c.telefone));
+              console.log(`📋 Telefones do histórico:`, telefonesArray);
+            }
+          }
+        }
+
+        clientesJaEnviados = idsEnviados;
+        telefonesJaEnviados = telefonesEnviados; // Armazenar telefones também
+        console.log(`✅ Total de clientes que já receberam mensagens: ${idsEnviados.size}`);
+        console.log(`✅ IDs finais:`, Array.from(idsEnviados));
+        console.log(`✅ Telefones finais:`, Array.from(telefonesEnviados));
+        
+        // Marcar automaticamente os clientes que já receberam mensagens
+        idsEnviados.forEach((id) => {
+          clientesSelecionados.add(id);
+        });
+
+        console.log(`✅ ${idsEnviados.size} clientes já receberam mensagens desta campanha e foram marcados automaticamente`);
+      }
+
       renderizarListaClientesSelecao();
       atualizarContadorSelecao();
     } catch (error) {
       console.error("Erro ao carregar clientes selecionados:", error);
       clientesSelecionados.clear();
+      clientesJaEnviados.clear();
     }
   }
 
@@ -2511,9 +2659,16 @@
     document.getElementById("campanhaId").value = "";
     document.getElementById("whatsapp_api_id").value = "";
 
-    // Limpar seleção de clientes
+    // Limpar seleção de clientes e histórico de envios
     clientesSelecionados.clear();
+    clientesJaEnviados.clear();
+    telefonesJaEnviados.clear();
     document.getElementById("buscaClientesSelecao").value = "";
+    // Limpar filtro de "apenas não enviados"
+    const filtroCheckbox = document.getElementById("filtroApenasNaoEnviados");
+    if (filtroCheckbox) {
+      filtroCheckbox.checked = false;
+    }
 
     // Carregar instâncias para o select
     await carregarInstanciasParaSelect();
@@ -2704,6 +2859,11 @@
 
       // Limpar busca e carregar clientes para seleção
       document.getElementById("buscaClientesSelecao").value = "";
+      // Limpar filtro de "apenas não enviados" ao editar
+      const filtroCheckbox = document.getElementById("filtroApenasNaoEnviados");
+      if (filtroCheckbox) {
+        filtroCheckbox.checked = false;
+      }
       await carregarClientesParaSelecao();
       await carregarClientesSelecionadosCampanha(data.id);
 
