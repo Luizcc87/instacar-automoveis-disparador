@@ -2485,6 +2485,44 @@
   }
 
   // Editar campanha
+  /**
+   * Normaliza formato de hora para HH:MM:SS
+   * Aceita HH:MM ou HH:MM:SS e retorna sempre HH:MM:SS
+   * Evita duplicar segundos se já existirem
+   * @param {string} hora - Hora no formato HH:MM ou HH:MM:SS
+   * @returns {string|null} Hora normalizada no formato HH:MM:SS ou null se inválido
+   */
+  function normalizarHora(hora) {
+    if (!hora) return null;
+    
+    // Remover espaços
+    const horaLimpa = hora.trim();
+    
+    // Se vazio após limpar, retornar null
+    if (!horaLimpa) return null;
+    
+    // Dividir por ':'
+    const partes = horaLimpa.split(':');
+    
+    // Se já tem 3 partes (HH:MM:SS), retornar como está (já está no formato correto)
+    if (partes.length === 3) {
+      return horaLimpa;
+    }
+    
+    // Se tem 2 partes (HH:MM), adicionar :00
+    if (partes.length === 2) {
+      return horaLimpa + ':00';
+    }
+    
+    // Se tem mais de 3 partes (HH:MM:SS:XX), pegar apenas as 3 primeiras
+    if (partes.length > 3) {
+      return partes.slice(0, 3).join(':');
+    }
+    
+    // Formato inválido (menos de 2 partes), retornar null
+    return null;
+  }
+
   async function editarCampanha(id) {
     if (!supabaseClient) {
       mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
@@ -2953,19 +2991,22 @@
         usar_vendedor: document.getElementById("usar_vendedor").checked,
         tamanho_lote:
           parseInt(document.getElementById("tamanho_lote").value) || 50,
-        horario_inicio:
-          (document.getElementById("horario_inicio").value || "09:00") + ":00",
-        horario_fim: (document.getElementById("horario_fim").value || "18:00") + ":00",
+        horario_inicio: normalizarHora(
+          document.getElementById("horario_inicio").value || "09:00"
+        ),
+        horario_fim: normalizarHora(
+          document.getElementById("horario_fim").value || "18:00"
+        ),
         processar_finais_semana: document.getElementById(
           "processar_finais_semana"
         ).checked,
         // NOVOS CAMPOS - Intervalo de Almoço
         pausar_almoco: document.getElementById("pausar_almoco")?.checked || false,
         horario_almoco_inicio: document.getElementById("pausar_almoco")?.checked
-          ? (document.getElementById("horario_almoco_inicio")?.value || "12:00:00")
+          ? normalizarHora(document.getElementById("horario_almoco_inicio")?.value || "12:00")
           : null,
         horario_almoco_fim: document.getElementById("pausar_almoco")?.checked
-          ? (document.getElementById("horario_almoco_fim")?.value || "13:00:00")
+          ? normalizarHora(document.getElementById("horario_almoco_fim")?.value || "13:00")
           : null,
         // NOVO CAMPO - Configuração por Dia da Semana
         configuracao_dias_semana: salvarConfiguracaoDiasSemana(),
@@ -11091,8 +11132,8 @@ Máximo de 3 parágrafos.</code></pre>
         const habilitado = checkbox.checked;
         configuracao[dia] = {
           habilitado: habilitado,
-          horario_inicio: habilitado && inputInicio.value ? inputInicio.value : null,
-          horario_fim: habilitado && inputFim.value ? inputFim.value : null,
+          horario_inicio: habilitado && inputInicio.value ? normalizarHora(inputInicio.value) : null,
+          horario_fim: habilitado && inputFim.value ? normalizarHora(inputFim.value) : null,
         };
       }
     });
