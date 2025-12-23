@@ -6703,6 +6703,63 @@
    * Verifica WhatsApp em lote
    * @param {Array<string>} telefones - Array de telefones para verificar
    */
+  /**
+   * Atualiza o indicador de progresso da verificação
+   * @param {number} processados - Quantidade de clientes processados
+   * @param {number} total - Total de clientes a processar
+   * @param {number} loteAtual - Lote atual sendo processado
+   * @param {number} totalLotes - Total de lotes
+   */
+  function atualizarProgressoVerificacao(processados, total, loteAtual, totalLotes) {
+    const progressoDiv = document.getElementById("progressoVerificacaoWhatsApp");
+    const barraProgresso = document.getElementById("barraProgressoVerificacao");
+    const statusTexto = document.getElementById("statusVerificacaoTexto");
+    const contador = document.getElementById("contadorVerificacao");
+    const tempoEstimado = document.getElementById("tempoEstimadoVerificacao");
+
+    if (!progressoDiv || !barraProgresso || !statusTexto || !contador) {
+      return;
+    }
+
+    // Mostrar indicador
+    progressoDiv.style.display = "block";
+
+    // Calcular porcentagem
+    const porcentagem = total > 0 ? Math.round((processados / total) * 100) : 0;
+    barraProgresso.style.width = `${porcentagem}%`;
+    barraProgresso.textContent = `${porcentagem}%`;
+
+    // Atualizar status
+    statusTexto.textContent = `Processando lote ${loteAtual} de ${totalLotes}...`;
+    contador.textContent = `${processados} / ${total} processados`;
+
+    // Calcular tempo estimado (assumindo ~2 segundos por lote)
+    if (loteAtual < totalLotes) {
+      const lotesRestantes = totalLotes - loteAtual;
+      const segundosRestantes = lotesRestantes * 2; // ~2s por lote (API + delay)
+      const minutos = Math.floor(segundosRestantes / 60);
+      const segundos = segundosRestantes % 60;
+      
+      if (minutos > 0) {
+        tempoEstimado.textContent = `⏱️ ~${minutos}m ${segundos}s restantes`;
+      } else {
+        tempoEstimado.textContent = `⏱️ ~${segundos}s restantes`;
+      }
+    } else {
+      tempoEstimado.textContent = "⏱️ Finalizando...";
+    }
+  }
+
+  /**
+   * Esconde o indicador de progresso
+   */
+  function esconderProgressoVerificacao() {
+    const progressoDiv = document.getElementById("progressoVerificacaoWhatsApp");
+    if (progressoDiv) {
+      progressoDiv.style.display = "none";
+    }
+  }
+
   async function verificarWhatsAppLote(telefones, instanciaId = null) {
     if (!supabaseClient) {
       mostrarAlerta("Conecte ao Supabase primeiro!", "error");
@@ -6728,11 +6785,26 @@
       lotes.push(telefones.slice(i, i + 50));
     }
 
+    const totalLotes = lotes.length;
+    const totalTelefones = telefones.length;
     const resultados = [];
     let processados = 0;
 
-    for (const lote of lotes) {
+    // Mostrar indicador de progresso inicial
+    atualizarProgressoVerificacao(0, totalTelefones, 0, totalLotes);
+
+    for (let indiceLote = 0; indiceLote < lotes.length; indiceLote++) {
+      const lote = lotes[indiceLote];
+      
       try {
+        // Atualizar progresso antes de processar lote
+        atualizarProgressoVerificacao(
+          processados,
+          totalTelefones,
+          indiceLote + 1,
+          totalLotes
+        );
+
         const response = await fetch(`${UAZAPI_BASE_URL}/chat/check`, {
           method: "POST",
           headers: {
@@ -6751,11 +6823,26 @@
         resultados.push(...resultadosLote);
 
         // Atualizar Supabase em batch
-        const updates = resultadosLote.map((r) => ({
-          telefone:
-            r.query || r.jid?.split("@")[0] || lote[resultados.indexOf(r)],
-          status_whatsapp: r.isInWhatsapp ? "valid" : "invalid",
-        }));
+        const updates = resultadosLote.map((r, idx) => {
+          // Tentar extrair telefone de diferentes formatos de resposta da API
+          // A API pode retornar: r.query, r.jid (formato: 5511999999999@s.whatsapp.net), ou r.number
+          let telefone = r.query || r.number;
+          
+          // Se não encontrou, tentar extrair do jid
+          if (!telefone && r.jid) {
+            telefone = r.jid.split("@")[0];
+          }
+          
+          // Se ainda não encontrou, usar o telefone do lote original
+          if (!telefone) {
+            telefone = lote[idx];
+          }
+          
+          return {
+            telefone: telefone,
+            status_whatsapp: r.isInWhatsapp ? "valid" : "invalid",
+          };
+        });
 
         await supabaseClient
           .from("instacar_clientes_envios")
@@ -6763,21 +6850,42 @@
 
         processados += lote.length;
 
+        // Atualizar progresso após processar lote
+        atualizarProgressoVerificacao(
+          processados,
+          totalTelefones,
+          indiceLote + 1,
+          totalLotes
+        );
+
         // Delay entre lotes para evitar rate limiting
-        if (lotes.indexOf(lote) < lotes.length - 1) {
+        if (indiceLote < lotes.length - 1) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       } catch (error) {
         console.error("Erro ao verificar WhatsApp:", error);
-        mostrarAlerta(`Erro ao verificar lote: ${error.message}`, "error");
+        mostrarAlerta(`Erro ao verificar lote ${indiceLote + 1}: ${error.message}`, "error");
+        // Continuar com próximo lote mesmo se houver erro
       }
     }
 
+    // Esconder indicador de progresso
+    esconderProgressoVerificacao();
+
+    // Mostrar resultado final
+    const validos = resultados.filter((r) => r.isInWhatsapp === true).length;
+    const invalidos = resultados.filter((r) => r.isInWhatsapp === false).length;
+
     mostrarAlerta(
-      `Verificação concluída! ${processados} números processados.`,
+      `✅ Verificação concluída!\n\n` +
+      `📊 ${processados} números processados\n` +
+      `✅ ${validos} válidos\n` +
+      `❌ ${invalidos} inválidos`,
       "success"
     );
-    carregarListaClientes(paginaAtualClientes); // Atualizar lista mantendo página atual
+
+    // Atualizar lista mantendo página atual
+    carregarListaClientes(paginaAtualClientes);
   }
 
   // Variáveis de paginação (expostas globalmente para acesso via HTML)
