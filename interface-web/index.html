@@ -184,6 +184,48 @@
         line-height: 1.5;
       }
 
+      /* Estilos para opções pré-definidas de intervalo */
+      .intervalo-preset-option {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 4px;
+        transition: background 0.2s;
+        margin-bottom: 0;
+        border: 1px solid transparent;
+      }
+
+      .intervalo-preset-option input[type="radio"] {
+        width: auto;
+        margin-right: 8px;
+        cursor: pointer;
+        margin: 0 8px 0 0;
+      }
+
+      .intervalo-preset-option span {
+        flex: 1;
+      }
+
+      .intervalo-preset-option:hover {
+        background: #f3f4f6;
+      }
+
+      .intervalo-preset-option input[type="radio"]:checked + span {
+        font-weight: 600;
+      }
+
+      .intervalo-preset-option:has(input[type="radio"]:checked),
+      .intervalo-preset-option.selected {
+        background: #e0e7ff;
+        border-color: #667eea;
+      }
+
+      .intervalo-preset-option:has(input[type="radio"]:checked):hover,
+      .intervalo-preset-option.selected:hover {
+        background: #d1d5f9;
+      }
+
       button {
         background: #667eea;
         color: white;
@@ -2571,17 +2613,64 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Intervalo Entre Envios (segundos) - Opcional</label>
-              <input
-                type="number"
-                id="intervalo_envios_segundos"
-                min="1"
-                max="300"
-                value="130"
-                placeholder="130-150 (padrão aleatorizado)"
-              />
-              <small style="color: #666">
-                Valor base com variação aleatória de ±10s por disparo (para não parecer automação). Deixe 130 para padrão aleatorizado (130-150s) ou configure outro valor que será variado entre -10s e +10s.
+              <label>Atraso Inteligente Entre Mensagens - Opcional</label>
+              
+              <!-- Opções pré-definidas -->
+              <div style="margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
+                <div style="margin-bottom: 8px; font-size: 13px; color: #666; font-weight: 500;">
+                  Selecionar intervalo pré-definido:
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <label class="intervalo-preset-option">
+                    <input type="radio" name="intervalo_preset" value="muito_curto" />
+                    <span><strong>Muito curto:</strong> 1-5s</span>
+                  </label>
+                  <label class="intervalo-preset-option">
+                    <input type="radio" name="intervalo_preset" value="curto" />
+                    <span><strong>Curto:</strong> 5-20s</span>
+                  </label>
+                  <label class="intervalo-preset-option">
+                    <input type="radio" name="intervalo_preset" value="medio" />
+                    <span><strong>Médio:</strong> 20-50s</span>
+                  </label>
+                  <label class="intervalo-preset-option">
+                    <input type="radio" name="intervalo_preset" value="longo" />
+                    <span><strong>Longo:</strong> 50-120s</span>
+                  </label>
+                  <label class="intervalo-preset-option">
+                    <input type="radio" name="intervalo_preset" value="muito_longo" />
+                    <span><strong>Muito longo:</strong> 120-300s</span>
+                  </label>
+                  <label class="intervalo-preset-option">
+                    <input type="radio" name="intervalo_preset" value="padrao" checked />
+                    <span><strong>Padrão (recomendado):</strong> 130-150s aleatorizado</span>
+                  </label>
+                  <label class="intervalo-preset-option">
+                    <input type="radio" name="intervalo_preset" value="personalizado" />
+                    <span><strong>Personalizado:</strong> Digite valor abaixo</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Campo numérico personalizado -->
+              <div style="margin-top: 12px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #666;">
+                  Valor personalizado (segundos):
+                </label>
+                <input
+                  type="number"
+                  id="intervalo_envios_segundos"
+                  min="1"
+                  max="300"
+                  value="130"
+                  placeholder="130 (padrão aleatorizado)"
+                  style="width: 100%;"
+                />
+              </div>
+
+              <small style="color: #666; display: block; margin-top: 8px;">
+                Valor base com variação aleatória de ±10s por disparo (para não parecer automação). 
+                Selecione uma opção acima ou digite um valor personalizado. Valor padrão (130) usa aleatorização 130-150s.
               </small>
             </div>
 

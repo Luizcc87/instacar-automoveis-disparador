@@ -2719,10 +2719,135 @@
 
     document.getElementById("modalCampanha").classList.add("active");
 
+    // Configurar intervalos pré-definidos
+    configurarIntervalosPredefinidos();
+
     // Adicionar tooltips após um pequeno delay para garantir que o DOM está pronto
     setTimeout(() => {
       adicionarTooltipsFormularioCampanha();
     }, 100);
+  }
+
+  /**
+   * Configura os event listeners para opções pré-definidas de intervalo
+   */
+  function configurarIntervalosPredefinidos() {
+    const intervaloInput = document.getElementById("intervalo_envios_segundos");
+    const radioButtons = document.querySelectorAll('input[name="intervalo_preset"]');
+
+    if (!intervaloInput || radioButtons.length === 0) return;
+
+    // Mapeamento de opções pré-definidas para valores médios
+    const opcoesIntervalo = {
+      muito_curto: 3,      // 1-5s, média ~3s
+      curto: 12,          // 5-20s, média ~12s
+      medio: 35,          // 20-50s, média ~35s
+      longo: 85,          // 50-120s, média ~85s
+      muito_longo: 210,   // 120-300s, média ~210s
+      padrao: 130,        // 130-150s aleatorizado (valor base)
+      personalizado: null // Usa valor do campo
+    };
+
+    // Quando uma opção pré-definida for selecionada
+    radioButtons.forEach(radio => {
+      radio.addEventListener("change", function() {
+        const valor = opcoesIntervalo[this.value];
+        if (valor !== null) {
+          intervaloInput.value = valor;
+          // Atualizar estimativas se a função existir
+          if (typeof atualizarEstimativas === 'function') {
+            atualizarEstimativas();
+          }
+        }
+        // Atualizar classes CSS para compatibilidade
+        atualizarClassesIntervaloPreset();
+      });
+    });
+
+    // Atualizar classes CSS inicialmente
+    atualizarClassesIntervaloPreset();
+
+    // Quando o campo numérico for alterado manualmente
+    intervaloInput.addEventListener("input", function() {
+      const valor = parseInt(this.value) || 0;
+      
+      // Verificar qual opção corresponde ao valor
+      let opcaoSelecionada = null;
+      
+      if (valor >= 1 && valor <= 5) {
+        opcaoSelecionada = "muito_curto";
+      } else if (valor > 5 && valor <= 20) {
+        opcaoSelecionada = "curto";
+      } else if (valor > 20 && valor <= 50) {
+        opcaoSelecionada = "medio";
+      } else if (valor > 50 && valor <= 120) {
+        opcaoSelecionada = "longo";
+      } else if (valor > 120 && valor <= 300) {
+        opcaoSelecionada = "muito_longo";
+      } else if (valor === 130) {
+        opcaoSelecionada = "padrao";
+      } else {
+        opcaoSelecionada = "personalizado";
+      }
+
+      // Marcar a opção correspondente
+      const radioCorrespondente = document.querySelector(`input[name="intervalo_preset"][value="${opcaoSelecionada}"]`);
+      if (radioCorrespondente) {
+        radioCorrespondente.checked = true;
+        atualizarClassesIntervaloPreset();
+      }
+    });
+  }
+
+  /**
+   * Atualiza classes CSS das opções pré-definidas para compatibilidade
+   */
+  function atualizarClassesIntervaloPreset() {
+    const radioButtons = document.querySelectorAll('input[name="intervalo_preset"]');
+    radioButtons.forEach(radio => {
+      const label = radio.closest('.intervalo-preset-option');
+      if (label) {
+        if (radio.checked) {
+          label.classList.add('selected');
+        } else {
+          label.classList.remove('selected');
+        }
+      }
+    });
+  }
+
+  /**
+   * Seleciona a opção pré-definida correspondente ao valor do intervalo
+   */
+  function selecionarOpcaoIntervalo(valor) {
+    if (!valor) {
+      valor = 130; // Padrão
+    }
+
+    const valorNum = parseInt(valor);
+    let opcaoSelecionada = "padrao";
+
+    if (valorNum >= 1 && valorNum <= 5) {
+      opcaoSelecionada = "muito_curto";
+    } else if (valorNum > 5 && valorNum <= 20) {
+      opcaoSelecionada = "curto";
+    } else if (valorNum > 20 && valorNum <= 50) {
+      opcaoSelecionada = "medio";
+    } else if (valorNum > 50 && valorNum <= 120) {
+      opcaoSelecionada = "longo";
+    } else if (valorNum > 120 && valorNum <= 300) {
+      opcaoSelecionada = "muito_longo";
+    } else if (valorNum === 130) {
+      opcaoSelecionada = "padrao";
+    } else {
+      opcaoSelecionada = "personalizado";
+    }
+
+    const radioCorrespondente = document.querySelector(`input[name="intervalo_preset"][value="${opcaoSelecionada}"]`);
+    if (radioCorrespondente) {
+      radioCorrespondente.checked = true;
+      atualizarClassesIntervaloPreset();
+    }
   }
 
   // Editar campanha
@@ -2792,8 +2917,10 @@
       document.getElementById("intervalo_minimo_dias").value =
         data.intervalo_minimo_dias || 30;
       // Se intervalo_envios_segundos for null, mostrar 130 (padrão para aleatorização)
-      document.getElementById("intervalo_envios_segundos").value =
-        data.intervalo_envios_segundos || 130;
+      const intervaloValor = data.intervalo_envios_segundos || 130;
+      document.getElementById("intervalo_envios_segundos").value = intervaloValor;
+      // Selecionar opção pré-definida correspondente
+      selecionarOpcaoIntervalo(intervaloValor);
       document.getElementById("prioridade").value = data.prioridade || 5;
       document.getElementById("prompt_ia").value = data.prompt_ia || "";
       document.getElementById("template_mensagem").value =
@@ -2974,6 +3101,9 @@
 
       // Atualizar estimativas após carregar dados
       setTimeout(atualizarEstimativas, 100);
+
+      // Configurar intervalos pré-definidos
+      configurarIntervalosPredefinidos();
 
       document.getElementById("modalCampanha").classList.add("active");
 
