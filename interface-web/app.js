@@ -2919,8 +2919,19 @@
       // Se intervalo_envios_segundos for null, mostrar 130 (padrão para aleatorização)
       const intervaloValor = data.intervalo_envios_segundos || 130;
       document.getElementById("intervalo_envios_segundos").value = intervaloValor;
-      // Selecionar opção pré-definida correspondente
-      selecionarOpcaoIntervalo(intervaloValor);
+      
+      // Selecionar opção pré-definida: usar tipo_intervalo se disponível, senão inferir do valor
+      if (data.tipo_intervalo) {
+        const radioCorrespondente = document.querySelector(`input[name="intervalo_preset"][value="${data.tipo_intervalo}"]`);
+        if (radioCorrespondente) {
+          radioCorrespondente.checked = true;
+          atualizarClassesIntervaloPreset();
+        }
+      } else {
+        // Fallback: selecionar baseado no valor (compatibilidade com campanhas antigas)
+        selecionarOpcaoIntervalo(intervaloValor);
+      }
+      
       document.getElementById("prioridade").value = data.prioridade || 5;
       document.getElementById("prompt_ia").value = data.prompt_ia || "";
       document.getElementById("template_mensagem").value =
@@ -3370,12 +3381,36 @@
       ).value;
       const prioridadeInput = document.getElementById("prioridade").value;
 
+      // Obter tipo de intervalo selecionado (opção pré-definida)
+      const tipoIntervaloRadio = document.querySelector('input[name="intervalo_preset"]:checked');
+      const tipoIntervalo = tipoIntervaloRadio ? tipoIntervaloRadio.value : null;
+
       // Se o intervalo for 130 (padrão), salvar como null para manter aleatorização
       const intervaloEnvios = intervaloEnviosInput
         ? parseInt(intervaloEnviosInput)
         : null;
-      const intervaloEnviosFinal =
-        intervaloEnvios === 130 ? null : intervaloEnvios;
+      
+      // Se for opção pré-definida (não personalizado), salvar tipo e null no valor fixo
+      let intervaloEnviosFinal = null;
+      let tipoIntervaloFinal = null;
+      
+      if (tipoIntervalo === "personalizado") {
+        // Personalizado: usar valor do campo
+        intervaloEnviosFinal = intervaloEnvios;
+        tipoIntervaloFinal = "personalizado";
+      } else if (tipoIntervalo === "padrao") {
+        // Padrão: null para manter aleatorização 130-150s
+        intervaloEnviosFinal = null;
+        tipoIntervaloFinal = "padrao";
+      } else if (tipoIntervalo && tipoIntervalo !== "personalizado") {
+        // Opção pré-definida: salvar tipo para usar range completo
+        intervaloEnviosFinal = null; // Não usar valor fixo, usar range
+        tipoIntervaloFinal = tipoIntervalo;
+      } else {
+        // Fallback: se não houver seleção, usar valor do campo ou null
+        intervaloEnviosFinal = intervaloEnvios === 130 ? null : intervaloEnvios;
+        tipoIntervaloFinal = intervaloEnvios ? "personalizado" : null;
+      }
 
       const dados = {
         nome: document.getElementById("nome").value,
@@ -3390,6 +3425,7 @@
           parseInt(document.getElementById("intervalo_minimo_dias").value) ||
           30,
         intervalo_envios_segundos: intervaloEnviosFinal,
+        tipo_intervalo: tipoIntervaloFinal,
         prioridade: prioridadeInput ? parseInt(prioridadeInput) : 5,
         prompt_ia: document.getElementById("prompt_ia").value,
         template_mensagem:
