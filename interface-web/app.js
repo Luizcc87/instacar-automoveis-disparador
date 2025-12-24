@@ -2525,7 +2525,9 @@
 
       if (errorSelecionados) throw errorSelecionados;
 
-      clientesSelecionados = new Set((selecionados || []).map((r) => r.cliente_id));
+      // Inicializar seleção vazia - não carregar clientes selecionados anteriormente
+      // O usuário deve selecionar manualmente os clientes desejados
+      clientesSelecionados = new Set();
 
       // Buscar clientes que já receberam mensagens desta campanha
       const { data: historico, error: errorHistorico } = await supabaseClient
@@ -2611,12 +2613,8 @@
         console.log(`✅ IDs finais:`, Array.from(idsEnviados));
         console.log(`✅ Telefones finais:`, Array.from(telefonesEnviados));
         
-        // Marcar automaticamente os clientes que já receberam mensagens
-        idsEnviados.forEach((id) => {
-          clientesSelecionados.add(id);
-        });
-
-        console.log(`✅ ${idsEnviados.size} clientes já receberam mensagens desta campanha e foram marcados automaticamente`);
+        // NÃO marcar automaticamente os clientes já enviados
+        // Eles serão filtrados pela checkbox "Mostrar apenas clientes que ainda não receberam mensagens"
       }
 
       renderizarListaClientesSelecao();
@@ -2698,10 +2696,10 @@
     clientesJaEnviados.clear();
     telefonesJaEnviados.clear();
     document.getElementById("buscaClientesSelecao").value = "";
-    // Limpar filtro de "apenas não enviados"
+    // Marcar checkbox "apenas não enviados" por padrão (para não exibir clientes já enviados)
     const filtroCheckbox = document.getElementById("filtroApenasNaoEnviados");
     if (filtroCheckbox) {
-      filtroCheckbox.checked = false;
+      filtroCheckbox.checked = true;
     }
 
     // Carregar instâncias para o select
@@ -3059,10 +3057,10 @@
 
       // Limpar busca e carregar clientes para seleção
       document.getElementById("buscaClientesSelecao").value = "";
-      // Limpar filtro de "apenas não enviados" ao editar
+      // Marcar checkbox "apenas não enviados" por padrão (para não exibir clientes já enviados)
       const filtroCheckbox = document.getElementById("filtroApenasNaoEnviados");
       if (filtroCheckbox) {
-        filtroCheckbox.checked = false;
+        filtroCheckbox.checked = true;
       }
       await carregarClientesParaSelecao();
       await carregarClientesSelecionadosCampanha(data.id);
