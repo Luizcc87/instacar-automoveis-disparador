@@ -6762,6 +6762,35 @@
 
     const diasNecessarios = Math.ceil(totalLotes / lotesPorDia);
 
+    // Calcular tempo total previsto para concluir todos os envios
+    // Tempo total = número de clientes × intervalo médio entre envios
+    const tempoTotalSegundos = quantidadeClientes * intervaloEnviosSegundos;
+    const tempoTotalHoras = tempoTotalSegundos / 3600;
+    const tempoTotalDias = tempoTotalHoras / 24;
+    
+    // Formatar tempo total de forma legível
+    let tempoTotalFormatado = "";
+    if (tempoTotalDias >= 1) {
+      const dias = Math.floor(tempoTotalDias);
+      const horasRestantes = Math.floor((tempoTotalDias - dias) * 24);
+      if (horasRestantes > 0) {
+        tempoTotalFormatado = `${dias} dia${dias > 1 ? 's' : ''} e ${horasRestantes} hora${horasRestantes > 1 ? 's' : ''}`;
+      } else {
+        tempoTotalFormatado = `${dias} dia${dias > 1 ? 's' : ''}`;
+      }
+    } else if (tempoTotalHoras >= 1) {
+      const horas = Math.floor(tempoTotalHoras);
+      const minutosRestantes = Math.floor((tempoTotalHoras - horas) * 60);
+      if (minutosRestantes > 0) {
+        tempoTotalFormatado = `${horas} hora${horas > 1 ? 's' : ''} e ${minutosRestantes} minuto${minutosRestantes > 1 ? 's' : ''}`;
+      } else {
+        tempoTotalFormatado = `${horas} hora${horas > 1 ? 's' : ''}`;
+      }
+    } else {
+      const minutos = Math.floor(tempoTotalHoras * 60);
+      tempoTotalFormatado = `${minutos} minuto${minutos > 1 ? 's' : ''}`;
+    }
+
     // Verificar compatibilidade
     const compativel = horasDisponiveis >= tempoNecessarioPorDiaHoras;
     const margem = horasDisponiveis - tempoNecessarioPorDiaHoras;
@@ -6775,6 +6804,9 @@
       lotesDepoisAlmoco: lotesDepoisAlmoco,
       diasNecessarios: diasNecessarios,
       tempoNecessarioPorDiaHoras: tempoNecessarioPorDiaHoras,
+      tempoTotalSegundos: tempoTotalSegundos,
+      tempoTotalHoras: tempoTotalHoras,
+      tempoTotalFormatado: tempoTotalFormatado,
       horasDisponiveis: horasDisponiveis,
       duracaoAlmocoHoras: duracaoAlmocoHoras,
       compativel: compativel,
@@ -7177,6 +7209,11 @@
           <strong style="color: #111827; font-weight: 600;">🕐 Horário Disponível:</strong><br>
           <span style="color: #2196F3;">${estimativasCompletas.horasDisponiveis.toFixed(1)}h (${horarioInicio} - ${horarioFim}${pausarAlmoco ? `, menos ${estimativasCompletas.duracaoAlmocoHoras.toFixed(1)}h de almoço` : ""})</span>
         </div>
+        <div style="grid-column: 1 / -1; margin-top: 10px; padding: 12px; background: #e3f2fd; border-radius: 6px; border-left: 4px solid #2196F3;">
+          <strong style="color: #111827; font-weight: 600; display: block; margin-bottom: 5px;">⏳ Tempo Total Previsto para Concluir:</strong>
+          <span style="color: #1976d2; font-size: 18px; font-weight: 600;">${estimativasCompletas.tempoTotalFormatado}</span>
+          <small style="color: #666; display: block; margin-top: 5px;">Baseado em ${estimativasCompletas.totalClientes.toLocaleString()} clientes × ${(estimativasCompletas.intervaloEnviosSegundos / 60).toFixed(1)} min de intervalo médio</small>
+        </div>
       </div>
       <div style="margin-top: 15px; padding: 10px; background: ${corStatus}20; border-left: 4px solid ${corStatus}; border-radius: 4px;">
         <strong style="color: ${corStatus};">${textoStatus}</strong>
@@ -7215,7 +7252,7 @@
 
     // Atualizar estimativa de lotes (compatibilidade)
     if (estimativasLoteDiv) {
-      estimativasLoteDiv.textContent = `Com ${quantidadeClientes.toLocaleString()} clientes: ${estimativasCompletas.totalLotes} lotes de ${tamanhoLote} = ${estimativasCompletas.diasNecessarios} dias úteis (${estimativasCompletas.lotesPorDia} lotes/dia)`;
+      estimativasLoteDiv.textContent = `Com ${quantidadeClientes.toLocaleString()} clientes: ${estimativasCompletas.totalLotes} lotes de ${tamanhoLote} = ${estimativasCompletas.diasNecessarios} dias úteis (${estimativasCompletas.lotesPorDia} lotes/dia) | Tempo total previsto: ${estimativasCompletas.tempoTotalFormatado}`;
     }
   }
 
