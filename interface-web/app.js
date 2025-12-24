@@ -2754,10 +2754,10 @@
         const valor = opcoesIntervalo[this.value];
         if (valor !== null) {
           intervaloInput.value = valor;
-          // Atualizar estimativas se a função existir
-          if (typeof atualizarEstimativas === 'function') {
-            atualizarEstimativas();
-          }
+        }
+        // Atualizar estimativas sempre que opção mudar (usa range completo)
+        if (typeof atualizarEstimativas === 'function') {
+          atualizarEstimativas();
         }
         // Atualizar classes CSS para compatibilidade
         atualizarClassesIntervaloPreset();
@@ -6974,6 +6974,42 @@
   }
 
   /**
+   * Calcula o intervalo médio baseado na opção pré-definida ou valor personalizado
+   * @param {string|null} tipoIntervalo - Tipo de intervalo pré-definido
+   * @param {string} intervaloInputValue - Valor do campo numérico (se personalizado)
+   * @returns {number} Intervalo médio em segundos
+   */
+  function calcularIntervaloMedio(tipoIntervalo, intervaloInputValue) {
+    // Ranges para opções pré-definidas (mesmos do workflow N8N)
+    const rangesIntervalo = {
+      muito_curto: { min: 1, max: 5 },
+      curto: { min: 5, max: 20 },
+      medio: { min: 20, max: 50 },
+      longo: { min: 50, max: 120 },
+      muito_longo: { min: 120, max: 300 },
+      padrao: { min: 130, max: 150 }
+    };
+
+    // Se for opção pré-definida, calcular média do range
+    if (tipoIntervalo && tipoIntervalo !== 'personalizado' && rangesIntervalo[tipoIntervalo]) {
+      const range = rangesIntervalo[tipoIntervalo];
+      return (range.min + range.max) / 2; // Média do range
+    }
+
+    // Se for personalizado ou não especificado, usar valor do campo
+    const intervaloValor = intervaloInputValue ? parseInt(intervaloInputValue) : 130;
+    
+    // Se for 130 (padrão), usar média de 130-150s = 140s
+    if (intervaloValor === 130 && (!tipoIntervalo || tipoIntervalo === 'padrao')) {
+      return 140;
+    }
+
+    // Para valores personalizados, considerar variação de ±10s
+    // Média seria o próprio valor (variação se cancela na média)
+    return intervaloValor;
+  }
+
+  /**
    * Atualiza estimativas de tempo e lotes
    */
   function atualizarEstimativas() {
@@ -6989,11 +7025,12 @@
     const intervaloInputValue = intervaloInput ? intervaloInput.value : "";
     const tamanhoLote = parseInt(tamanhoLoteInput?.value) || 50;
 
-    // Se intervalo não configurado ou for 130 (padrão), usar média de 140s (aleatorização 130-150)
-    const intervaloValor = intervaloInputValue
-      ? parseInt(intervaloInputValue)
-      : 130;
-    const intervaloMedio = intervaloValor === 130 ? 140 : intervaloValor;
+    // Obter opção pré-definida selecionada
+    const tipoIntervaloRadio = document.querySelector('input[name="intervalo_preset"]:checked');
+    const tipoIntervalo = tipoIntervaloRadio ? tipoIntervaloRadio.value : null;
+
+    // Calcular intervalo médio baseado na opção selecionada
+    const intervaloMedio = calcularIntervaloMedio(tipoIntervalo, intervaloInputValue);
 
     // Estimativa de contatos (pode ser ajustado)
     const totalContatosEstimado = 2000; // ou buscar de execução anterior
