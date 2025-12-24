@@ -52,20 +52,27 @@ document.getElementById("intervalo_envios_segundos").value =
 
 ### Integração com Workflow N8N
 
-O workflow N8N já possui lógica para tratar valores `null`:
+O workflow N8N possui lógica para tratar valores `null` e aplicar variação aleatória:
 
 ```javascript
-// Calcular intervalo entre envios
+// Calcular intervalo entre envios com variação aleatória
 const intervaloFixo = campanha.intervalo_envios_segundos;
 let intervalo = 130; // Padrão
 
 if (intervaloFixo) {
-  intervalo = intervaloFixo; // Valor fixo
+  // Valor fixo configurado: aplicar variação aleatória de ±10s
+  // Garante que não pareça automação, variando entre -10s e +10s do valor base
+  const variacao = Math.floor(Math.random() * 21) - 10; // -10 a +10
+  intervalo = intervaloFixo + variacao;
+  // Garantir valor mínimo de 1 segundo
+  intervalo = Math.max(1, intervalo);
 } else {
-  // Aleatorizado: 130-150s
+  // Padrão: aleatorizado entre 130-150s
   intervalo = 130 + Math.floor(Math.random() * 21);
 }
 ```
+
+**Importante:** Qualquer valor configurado terá variação aleatória de ±10s para evitar detecção de automação pelo WhatsApp.
 
 ### Estimativas de Tempo
 
@@ -81,7 +88,16 @@ const intervaloMedio = intervaloValor === 130 ? 140 : intervaloValor;
 
 O campo agora possui texto de ajuda mais claro:
 
-> "Valor base para aleatorização (130-150s). Deixe 130 para usar padrão aleatorizado ou configure valor fixo para controle preciso."
+> "Valor base com variação aleatória de ±10s por disparo (para não parecer automação). Deixe 130 para padrão aleatorizado (130-150s) ou configure outro valor que será variado entre -10s e +10s."
+
+## 🎲 Variação Aleatória de ±10s
+
+**Nova funcionalidade:** Qualquer valor configurado no campo de intervalo terá uma variação aleatória de ±10 segundos aplicada a cada disparo. Isso ajuda a evitar que o WhatsApp detecte padrões de automação.
+
+**Exemplos:**
+- Valor configurado: `140s` → Intervalo real: `130s` a `150s` (aleatório)
+- Valor configurado: `200s` → Intervalo real: `190s` a `210s` (aleatório)
+- Valor configurado: `50s` → Intervalo real: `40s` a `60s` (aleatório, mínimo garantido: 1s)
 
 ---
 

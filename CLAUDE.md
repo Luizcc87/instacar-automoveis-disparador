@@ -111,6 +111,9 @@ Trigger Manual → Buscar Campanha do Supabase
 1. **Período de warm-up (primeiros 7 dias):** máximo de 50 mensagens/dia
 2. **Produção:** máximo de 200 mensagens/dia
 3. **Intervalo entre mensagens:** 130-150 segundos (aleatorizado: base + random(0, variação))
+   - **Valores configurados:** Aplicam variação aleatória de ±10s por disparo para evitar detecção de automação
+   - **Valor padrão (130):** Aleatorizado entre 130-150s
+   - **Valores fixos:** Variam entre -10s e +10s do valor configurado (mínimo garantido: 1s)
 
 **Janela de operação:** 9h-18h, apenas dias úteis (configurável no trigger)
 
