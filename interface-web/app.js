@@ -7067,15 +7067,31 @@
 
     // Obter quantidade de clientes
     let quantidadeClientes = 0;
+    
+    // Prioridade 1: Campo de quantidade manual (se preenchido)
     if (quantidadeClientesInput && quantidadeClientesInput.value) {
       quantidadeClientes = parseInt(quantidadeClientesInput.value);
-    } else if (contadorClientesSelecionados) {
+    } 
+    // Prioridade 2: Número de clientes selecionados (se houver seleção)
+    else if (typeof clientesSelecionados !== 'undefined' && clientesSelecionados.size > 0) {
+      quantidadeClientes = clientesSelecionados.size;
+    }
+    // Prioridade 3: Tentar obter do contador visual (fallback)
+    else if (contadorClientesSelecionados) {
       const textoContador = contadorClientesSelecionados.textContent || "";
-      const match = textoContador.match(/(\d+)\s+clientes?/i);
+      const match = textoContador.match(/(\d+)\s+de\s+(\d+)\s+clientes?/i);
       if (match) {
+        // Pegar o primeiro número (clientes selecionados)
         quantidadeClientes = parseInt(match[1]);
+      } else {
+        // Tentar formato alternativo
+        const matchAlt = textoContador.match(/(\d+)\s+clientes?/i);
+        if (matchAlt) {
+          quantidadeClientes = parseInt(matchAlt[1]);
+        }
       }
     }
+    // Prioridade 4: Usar total estimado (fallback final)
     if (quantidadeClientes === 0) {
       quantidadeClientes = totalContatosEstimado;
     }
