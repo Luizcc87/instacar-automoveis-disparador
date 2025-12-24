@@ -3423,7 +3423,6 @@
           parseInt(document.getElementById("intervalo_minimo_dias").value) ||
           30,
         intervalo_envios_segundos: intervaloEnviosFinal,
-        tipo_intervalo: tipoIntervaloFinal,
         prioridade: prioridadeInput ? parseInt(prioridadeInput) : 5,
         prompt_ia: document.getElementById("prompt_ia").value,
         template_mensagem:
@@ -3620,11 +3619,17 @@
         let result;
         let campanhaIdFinal = id;
         
+        // Tentar salvar com tipo_intervalo primeiro
+        let dadosParaSalvar = { ...dados };
+        if (tipoIntervaloFinal !== null) {
+          dadosParaSalvar.tipo_intervalo = tipoIntervaloFinal;
+        }
+        
         if (id) {
           // Atualizar campanha existente
           result = await supabaseClient
             .from("instacar_campanhas")
-            .update(dados)
+            .update(dadosParaSalvar)
             .eq("id", id)
             .select("id")
             .single();
@@ -3632,12 +3637,37 @@
           // Criar nova campanha - IMPORTANTE: usar .select() para retornar o ID
           result = await supabaseClient
             .from("instacar_campanhas")
-            .insert([dados])
+            .insert([dadosParaSalvar])
             .select("id")
             .single();
         }
 
-        if (result.error) throw result.error;
+        // Se erro relacionado a coluna não encontrada, tentar sem tipo_intervalo
+        if (result.error) {
+          const errorMessage = result.error.message || "";
+          if (errorMessage.includes("tipo_intervalo") || errorMessage.includes("schema cache")) {
+            console.warn("⚠️ Coluna tipo_intervalo não encontrada. Salvando sem esse campo. Execute a migração SQL para habilitar ranges de intervalo.");
+            // Remover tipo_intervalo e tentar novamente
+            delete dadosParaSalvar.tipo_intervalo;
+            
+            if (id) {
+              result = await supabaseClient
+                .from("instacar_campanhas")
+                .update(dadosParaSalvar)
+                .eq("id", id)
+                .select("id")
+                .single();
+            } else {
+              result = await supabaseClient
+                .from("instacar_campanhas")
+                .insert([dadosParaSalvar])
+                .select("id")
+                .single();
+            }
+          }
+          
+          if (result.error) throw result.error;
+        }
 
         // Obter ID da campanha (novo ou existente)
         if (result.data && result.data.id) {
