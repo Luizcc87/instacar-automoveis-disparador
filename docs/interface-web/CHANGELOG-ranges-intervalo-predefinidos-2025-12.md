@@ -145,10 +145,27 @@ if (tipoIntervalo && tipoIntervalo !== 'personalizado' && rangesIntervalo[tipoIn
 
 **IMPORTANTE:** Execute a migração SQL antes de usar esta funcionalidade:
 
-```bash
-# No Editor SQL do Supabase
-docs/supabase/migracao-tipo-intervalo-range.sql
+```sql
+-- No Editor SQL do Supabase
+-- Arquivo: docs/supabase/migracao-tipo-intervalo-range.sql
 ```
+
+### Verificar se a Migração foi Executada
+
+Execute a query para verificar se a coluna existe:
+
+```sql
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'instacar_campanhas' 
+  AND column_name = 'tipo_intervalo';
+```
+
+Se retornar a linha com `tipo_intervalo` e `text`, a migração foi executada com sucesso.
+
+### Status da Migração
+
+✅ **Migração testada e confirmada funcionando** (Dezembro 2025)
 
 Campanhas existentes continuarão funcionando, mas usarão o comportamento antigo até serem editadas e salvas novamente.
 

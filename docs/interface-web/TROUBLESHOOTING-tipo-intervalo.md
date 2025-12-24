@@ -42,7 +42,27 @@ WHERE table_name = 'instacar_campanhas'
   AND column_name = 'tipo_intervalo';
 ```
 
+**Resultado esperado após migração:**
+- `column_name`: `tipo_intervalo`
+- `data_type`: `text`
+
 Se retornar vazio, a coluna não existe e a migração precisa ser executada.
+
+### Verificar Campanhas com tipo_intervalo
+
+Para verificar se as campanhas estão sendo salvas corretamente:
+
+```sql
+SELECT id, nome, tipo_intervalo, intervalo_envios_segundos 
+FROM instacar_campanhas 
+ORDER BY created_at DESC 
+LIMIT 5;
+```
+
+**Exemplo de resultado esperado:**
+- Campanha com opção pré-definida: `tipo_intervalo: "longo"`, `intervalo_envios_segundos: null`
+- Campanha personalizada: `tipo_intervalo: "personalizado"`, `intervalo_envios_segundos: 200`
+- Campanha padrão: `tipo_intervalo: "padrao"`, `intervalo_envios_segundos: null`
 
 ## Benefícios da Migração
 
