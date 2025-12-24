@@ -2662,7 +2662,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Calcular intervalo entre envios\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst intervaloFixo = campanha.intervalo_envios_segundos;\n\nlet intervalo = 130; // Padrão\n\nif (intervaloFixo) {\n  intervalo = intervaloFixo;\n} else {\n  // Aleatorizado: 130-150s\n  intervalo = 130 + Math.floor(Math.random() * 21);\n}\n\nreturn [{\n  json: {\n    ...$json,\n    intervaloSegundos: intervalo\n  }\n}];"
+        "jsCode": "// Calcular intervalo entre envios com variação aleatória\nconst campanha = $('Combinar Campanha Execução').first().json;\nconst intervaloFixo = campanha.intervalo_envios_segundos;\n\nlet intervalo = 130; // Padrão\n\nif (intervaloFixo) {\n  // Valor fixo configurado: aplicar variação aleatória de ±10s\n  // Garante que não pareça automação, variando entre -10s e +10s do valor base\n  const variacao = Math.floor(Math.random() * 21) - 10; // -10 a +10\n  intervalo = intervaloFixo + variacao;\n  // Garantir valor mínimo de 1 segundo\n  intervalo = Math.max(1, intervalo);\n} else {\n  // Padrão: aleatorizado entre 130-150s\n  intervalo = 130 + Math.floor(Math.random() * 21);\n}\n\nreturn [{\n  json: {\n    ...$json,\n    intervaloSegundos: intervalo\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
