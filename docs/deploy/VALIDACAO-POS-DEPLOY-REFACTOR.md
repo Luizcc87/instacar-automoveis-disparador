@@ -147,3 +147,8 @@ _Use este espaço para anotações durante os testes_
 **Data:** _________________  
 **Versão Testada:** `layout-refactor` (commit: `686c46e`)
 
+## 📚 Documentação Relacionada
+
+- [Guia Completo de Deploy](DEPLOY-BRANCH-LAYOUT-REFACTOR.md)
+- [Guia de Versionamento](GUIA-VERSIONAMENTO-BRANCHES-TAGS.md)
+

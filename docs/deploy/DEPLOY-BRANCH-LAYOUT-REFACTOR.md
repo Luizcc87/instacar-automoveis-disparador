@@ -172,7 +172,8 @@ git push origin rollback-v1
 
 ## 📚 Documentação Relacionada
 
-- [Guia de Versionamento](../deploy/GUIA-VERSIONAMENTO-BRANCHES-TAGS.md)
-- [Deploy Cloudflare Pages](../deploy/cloudflare-pages.md)
-- [Cloudflare Access](../deploy/cloudflare-access.md)
+- [Guia de Versionamento](GUIA-VERSIONAMENTO-BRANCHES-TAGS.md)
+- [Validação Pós-Deploy](VALIDACAO-POS-DEPLOY-REFACTOR.md)
+- [Deploy Cloudflare Pages](cloudflare-pages.md)
+- [Cloudflare Access](cloudflare-access.md)
 
