@@ -81,12 +81,12 @@ Write-Host "OPÇÃO 1 - Deploy Preview (Recomendado):" -ForegroundColor Cyan
 Write-Host "   1. Acesse: https://dash.cloudflare.com/[ACCOUNT-ID]/workers-and-pages/create/pages" -ForegroundColor White
 Write-Host "   2. Crie novo projeto: instacar-campanhas-refactor" -ForegroundColor White
 Write-Host "   3. Configure Production branch: layout-refactor" -ForegroundColor White
-Write-Host "   4. Build command: cd interface-web && npm install && npm run inject-env" -ForegroundColor White
+Write-Host "   4. Build command: cd interface-web; npm install; npm run inject-env" -ForegroundColor White
 Write-Host "   5. Build output: interface-web" -ForegroundColor White
 Write-Host ""
 Write-Host "OPÇÃO 2 - Alterar Branch de Produção:" -ForegroundColor Cyan
 Write-Host "   1. Acesse projeto existente no Cloudflare Pages" -ForegroundColor White
-Write-Host "   2. Settings > Builds & deployments" -ForegroundColor White
+Write-Host "   2. Settings > Builds and deployments" -ForegroundColor White
 Write-Host "   3. Altere Production branch para: layout-refactor" -ForegroundColor White
 Write-Host "   4. Salve e aguarde deploy automático" -ForegroundColor White
 Write-Host ""
