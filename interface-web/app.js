@@ -48,6 +48,77 @@
     },
   };
 
+  // ============================================================================
+  // Função auxiliar: Formatar timestamp do Supabase para timezone de São Paulo
+  // ============================================================================
+  // O Supabase armazena timestamps em UTC. Esta função garante que o valor
+  // seja interpretado como UTC antes de converter para "America/Sao_Paulo"
+  // ============================================================================
+  function formatarTimestampSP(timestamp) {
+    if (!timestamp) return "N/A";
+    
+    try {
+      let timestampStr = String(timestamp).trim();
+      
+      // Se o timestamp já tem timezone explícito (Z ou +/-), usar diretamente
+      const temTimezone = timestampStr.includes('Z') || timestampStr.match(/[+-]\d{2}:\d{2}$/);
+      
+      let date;
+      
+      if (!temTimezone) {
+        // Se não tem timezone, o Supabase armazena em UTC
+        // Precisamos forçar interpretação como UTC
+        // Normalizar formato: substituir espaço por T se necessário
+        timestampStr = timestampStr.replace(' ', 'T');
+        
+        // Extrair componentes da data/hora
+        const match = timestampStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{3})?$/);
+        
+        if (match) {
+          // Usar Date.UTC para criar data em UTC explicitamente
+          const [, year, month, day, hour, minute, second, millis] = match;
+          const ms = millis ? parseFloat(millis) * 1000 : 0;
+          date = new Date(Date.UTC(
+            parseInt(year, 10),
+            parseInt(month, 10) - 1, // Mês é 0-indexed
+            parseInt(day, 10),
+            parseInt(hour, 10),
+            parseInt(minute, 10),
+            parseInt(second, 10),
+            ms
+          ));
+        } else {
+          // Fallback: adicionar Z e tentar parse normal
+          timestampStr = timestampStr + 'Z';
+          date = new Date(timestampStr);
+        }
+      } else {
+        // Já tem timezone, usar diretamente
+        date = new Date(timestampStr);
+      }
+      
+      // Verificar se a data é válida
+      if (isNaN(date.getTime())) {
+        console.warn("Timestamp inválido:", timestamp, "->", timestampStr);
+        return "N/A";
+      }
+      
+      // Formatar para timezone de São Paulo
+      return date.toLocaleString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    } catch (error) {
+      console.error("Erro ao formatar timestamp:", error, timestamp);
+      return "N/A";
+    }
+  }
+
   // Conectar ao Supabase
   function conectarSupabase() {
     let url = "";
@@ -143,14 +214,32 @@
         throw new Error(errorMsg);
       }
 
-      // Criar nova instância apenas se necessário
+      // Verificar se já existe uma instância com as mesmas credenciais
+      // Se existir e as credenciais forem as mesmas, reutilizar
+      if (supabaseClient && supabaseConfig && supabaseConfig.url === url && supabaseConfig.key === key) {
+        // Já existe uma instância válida, apenas garantir que está exposta globalmente
+        window.supabaseClient = supabaseClient;
+        return;
+      }
+
+      // Criar nova instância apenas se necessário (singleton)
+      // Limpar instância anterior se existir
+      if (supabaseClient) {
+        // Não há método de cleanup explícito no Supabase, mas podemos limpar a referência
+        supabaseClient = null;
+      }
+
       supabaseClient = supabaseLib.createClient(url, key, {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
           detectSessionInUrl: false,
+          storageKey: 'instacar-supabase-auth', // Chave única para evitar conflitos
         },
       });
+
+      // Expor globalmente para outros scripts (singleton)
+      window.supabaseClient = supabaseClient;
 
       // Armazenar configuração atual
       supabaseConfig = { url, key };
@@ -1885,7 +1974,12 @@
     const container = document.getElementById("campanhasContainer");
     if (!container) return;
 
-    container.innerHTML = "<p>Carregando campanhas...</p>";
+    // Estado de carregamento com design system
+    container.innerHTML = `
+      <div class="card-elevated" style="padding: 2rem; text-align: center; grid-column: 1 / -1;">
+        <p style="color: hsl(var(--muted-foreground)); margin: 0;">Carregando campanhas...</p>
+      </div>
+    `;
 
     try {
       const { data, error } = await supabaseClient
@@ -1896,25 +1990,48 @@
       if (error) throw error;
 
       if (data.length === 0) {
-        container.innerHTML =
-          "<p>Nenhuma campanha encontrada. Crie uma nova campanha!</p>";
+        container.innerHTML = `
+          <div class="card-elevated" style="padding: 2rem; text-align: center; grid-column: 1 / -1;">
+            <p style="color: hsl(var(--muted-foreground)); margin: 0;">
+              ${document.getElementById("buscaCampanhas")?.value ? "Nenhuma campanha encontrada" : "Nenhuma campanha cadastrada"}
+            </p>
+          </div>
+        `;
         return;
       }
 
       container.innerHTML = "";
-      const wrapper = document.createElement("div");
-      wrapper.className =
-        modoVisualizacaoCampanhas === "grid"
-          ? "campanhas-grid"
-          : "campanhas-list";
+      
+      // Verificar se é modo grid ou list
+      const isGridMode = modoVisualizacaoCampanhas === "grid";
+      
+      // Se for modo grid, o container já tem o grid CSS aplicado
+      // Se for modo list, criar wrapper com layout de lista
+      let wrapper;
+      if (isGridMode) {
+        // Modo grid: usar o container diretamente (já tem grid CSS)
+        wrapper = container;
+      } else {
+        // Modo list: criar wrapper com layout de lista
+        wrapper = document.createElement("div");
+        wrapper.className = "campanhas-list";
+        wrapper.style.cssText = "display: flex; flex-direction: column; gap: 1rem;";
+      }
 
       // Buscar execuções pendentes para todas as campanhas
       const hojeStr = new Date().toISOString().split("T")[0];
       const { data: execucoesPendentes } = await supabaseClient
         .from("instacar_campanhas_execucoes")
-        .select("id, campanha_id, status_execucao, pausa_manual, total_enviado")
+        .select("id, campanha_id, status_execucao, pausa_manual, total_enviado, total_contatos_elegiveis, contatos_processados")
         .eq("data_execucao", hojeStr)
         .in("status_execucao", ["pausada", "em_andamento"]);
+      
+      // Buscar execuções ativas para calcular progresso
+      const { data: execucoesAtivas } = await supabaseClient
+        .from("instacar_campanhas_execucoes")
+        .select("campanha_id, total_enviado, total_contatos_elegiveis, contatos_processados")
+        .eq("status_execucao", "em_andamento")
+        .order("created_at", { ascending: false });
 
       // Criar mapa de execuções pendentes por campanha
       const execucoesPorCampanha = {};
@@ -1927,13 +2044,38 @@
         });
       }
 
+      // Criar mapa de execuções ativas por campanha (para progresso)
+      const execucoesAtivasPorCampanha = {};
+      if (execucoesAtivas) {
+        execucoesAtivas.forEach((exec) => {
+          if (!execucoesAtivasPorCampanha[exec.campanha_id]) {
+            execucoesAtivasPorCampanha[exec.campanha_id] = exec;
+          }
+        });
+      }
+
+      // Verificar se é o container do dashboard
+      const isDashboardContainer = container.id === "campanhasContainer" && 
+        container.closest(".card")?.querySelector(".card-title")?.textContent === "Campanhas em Andamento";
+      
       data.forEach((campanha) => {
         const execucoes = execucoesPorCampanha[campanha.id] || [];
-        const card = criarCardCampanha(campanha, modoVisualizacaoCampanhas, execucoes);
-        wrapper.appendChild(card);
+        const execucaoAtiva = execucoesAtivasPorCampanha[campanha.id];
+        
+        // Se for dashboard, usar formato simplificado
+        if (isDashboardContainer && campanha.status === "ativa" && campanha.ativo) {
+          const card = criarCardCampanhaDashboard(campanha, execucaoAtiva);
+          wrapper.appendChild(card);
+        } else if (!isDashboardContainer) {
+          const card = criarCardCampanha(campanha, modoVisualizacaoCampanhas, execucoes);
+          wrapper.appendChild(card);
+        }
       });
 
-      container.appendChild(wrapper);
+      // Se criou wrapper (modo list), adicionar ao container
+      if (wrapper !== container) {
+        container.appendChild(wrapper);
+      }
 
       // Garantir que os botões de toggle estão no estado correto
       const btnGrid = document.getElementById("viewToggleGrid");
@@ -1949,10 +2091,314 @@
         }
       }
     } catch (error) {
-      container.innerHTML = `<p style="color: red;">Erro ao carregar campanhas: ${error.message}</p>`;
+      container.innerHTML = `
+        <div class="card-elevated" style="padding: 2rem; text-align: center; grid-column: 1 / -1;">
+          <p style="color: hsl(var(--destructive)); margin: 0;">Erro ao carregar campanhas: ${error.message}</p>
+        </div>
+      `;
       console.error(error);
     }
   }
+
+  // Criar card de campanha para dashboard (formato simplificado)
+  /**
+   * Carrega campanhas ativas para o dashboard
+   */
+  async function carregarCampanhasDashboard() {
+    if (!supabaseClient && !window.supabaseClient) {
+      console.warn("Supabase não está disponível. Aguardando conexão...");
+      setTimeout(() => {
+        if (supabaseClient || window.supabaseClient) {
+          carregarCampanhasDashboard();
+        }
+      }, 2000);
+      return;
+    }
+
+    const supabase = supabaseClient || window.supabaseClient;
+    const container = document.getElementById("campanhasContainer");
+    if (!container) return;
+
+    try {
+      // Buscar apenas campanhas ativas
+      const { data: campanhas, error } = await supabase
+        .from("instacar_campanhas")
+        .select("*")
+        .eq("status", "ativa")
+        .eq("ativo", true)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      if (!campanhas || campanhas.length === 0) {
+        container.innerHTML = '<p style="font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin: 0;">Nenhuma campanha ativa no momento.</p>';
+        return;
+      }
+
+      // Buscar execuções ativas para calcular progresso
+      const { data: execucoesAtivas } = await supabase
+        .from("instacar_campanhas_execucoes")
+        .select("campanha_id, total_enviado, total_contatos_elegiveis, contatos_processados")
+        .eq("status_execucao", "em_andamento")
+        .order("created_at", { ascending: false });
+
+      // Criar mapa de execuções por campanha
+      const execucoesPorCampanha = {};
+      if (execucoesAtivas) {
+        execucoesAtivas.forEach(exec => {
+          if (!execucoesPorCampanha[exec.campanha_id]) {
+            execucoesPorCampanha[exec.campanha_id] = exec;
+          }
+        });
+      }
+
+      container.innerHTML = "";
+      campanhas.forEach((campanha, index) => {
+        const execucaoAtiva = execucoesPorCampanha[campanha.id] || null;
+        const card = criarCardCampanhaDashboard(campanha, execucaoAtiva);
+        // Remover margin-bottom do último card
+        if (index === campanhas.length - 1) {
+          card.style.marginBottom = "0";
+        }
+        container.appendChild(card);
+      });
+
+    } catch (error) {
+      console.error("Erro ao carregar campanhas do dashboard:", error);
+      container.innerHTML = '<p style="font-size: 0.875rem; color: hsl(var(--destructive)); margin: 0;">Erro ao carregar campanhas.</p>';
+    }
+  }
+
+  // Expor função globalmente
+  window.carregarCampanhasDashboard = carregarCampanhasDashboard;
+  
+  // Função para abrir detalhes da campanha
+  window.abrirDetalhesCampanha = function(campanhaId) {
+    abrirDashboardCampanha(campanhaId);
+  };
+  
+  // Função para toggle status (ativa/pausada)
+  window.toggleStatusCampanha = async function(campanhaId, statusAtual) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+    
+    const novoStatus = statusAtual === "ativa" ? "pausada" : "ativa";
+    
+    try {
+      const { error } = await supabaseClient
+        .from("instacar_campanhas")
+        .update({ status: novoStatus })
+        .eq("id", campanhaId);
+      
+      if (error) throw error;
+      
+      mostrarAlerta(
+        `Campanha ${novoStatus === "ativa" ? "ativada" : "pausada"} com sucesso!`,
+        "success"
+      );
+      carregarCampanhas();
+    } catch (error) {
+      mostrarAlerta("Erro ao alterar status: " + error.message, "error");
+      console.error(error);
+    }
+  };
+  
+  // Função para excluir campanha
+  window.excluirCampanha = async function(campanhaId) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte-se ao Supabase primeiro", "error");
+      return;
+    }
+    
+    if (!confirm("Tem certeza que deseja excluir esta campanha? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabaseClient
+        .from("instacar_campanhas")
+        .update({ ativo: false })
+        .eq("id", campanhaId);
+      
+      if (error) throw error;
+      
+      mostrarAlerta("Campanha excluída com sucesso!", "success");
+      carregarCampanhas();
+    } catch (error) {
+      mostrarAlerta("Erro ao excluir campanha: " + error.message, "error");
+      console.error(error);
+    }
+  };
+  
+  // Expor função toggleDropdownMenu globalmente
+  window.toggleDropdownMenu = toggleDropdownMenu;
+
+  function criarCardCampanhaDashboard(campanha, execucaoAtiva = null) {
+    const card = document.createElement("div");
+    card.className = "campanha-dashboard-card animate-fade-in";
+    card.style.cssText = "margin-bottom: 1.25rem; padding: 0;";
+    
+    const totalEnviados = execucaoAtiva?.total_enviado || 0;
+    const totalElegiveis = execucaoAtiva?.total_contatos_elegiveis || 0;
+    const processados = execucaoAtiva?.contatos_processados || totalEnviados;
+    const progress = totalElegiveis > 0 ? Math.min((processados / totalElegiveis) * 100, 100) : 0;
+    
+    // Configuração de status (seguindo padrão CampaignProgress.tsx)
+    const statusConfig = {
+      ativa: { label: "Ativa", className: "bg-success/10 text-success border-success/20" },
+      pausada: { label: "Pausada", className: "bg-warning/10 text-warning border-warning/20" },
+      concluida: { label: "Concluída", className: "bg-muted text-muted-foreground border-muted" },
+      agendada: { label: "Agendada", className: "bg-info/10 text-info border-info/20" }
+    };
+    const config = statusConfig[campanha.status] || statusConfig.ativa;
+    
+    // Helper para aplicar estilos do badge
+    function getStatusBadgeStyles(className) {
+      const styles = {
+        "bg-success/10 text-success border-success/20": "background: hsl(var(--success) / 0.1); color: hsl(var(--success)); border-color: hsl(var(--success) / 0.2);",
+        "bg-warning/10 text-warning border-warning/20": "background: hsl(var(--warning) / 0.1); color: hsl(var(--warning)); border-color: hsl(var(--warning) / 0.2);",
+        "bg-muted text-muted-foreground border-muted": "background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); border-color: hsl(var(--muted));",
+        "bg-info/10 text-info border-info/20": "background: hsl(var(--info) / 0.1); color: hsl(var(--info)); border-color: hsl(var(--info) / 0.2);"
+      };
+      return styles[className] || styles["bg-success/10 text-success border-success/20"];
+    }
+    
+    const badgeStyles = getStatusBadgeStyles(config.className);
+    
+    card.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
+          <p style="font-weight: 500; font-size: 0.9375rem; color: hsl(var(--foreground)); margin: 0; flex: 1; min-width: 0;">${campanha.nome || "Sem nome"}</p>
+          <span class="status-badge" style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.625rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; border: 1px solid; ${badgeStyles}; white-space: nowrap; flex-shrink: 0;">
+            ${config.label}
+          </span>
+        </div>
+        <div style="width: 100%; height: 10px; background: hsl(var(--muted)); border-radius: 5px; overflow: hidden; position: relative;">
+          <div style="width: ${progress}%; height: 100%; background: hsl(var(--primary)); transition: width 0.3s ease; border-radius: 5px;"></div>
+        </div>
+        <p style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin: 0; line-height: 1.4;">
+          ${processados.toLocaleString()} de ${totalElegiveis.toLocaleString()} enviados
+        </p>
+      </div>
+    `;
+    
+    return card;
+  }
+
+  // Helper para obter ícone SVG (padronizado com instacar-insights)
+  function getIconSVG(iconName, size = 20) {
+    const icons = {
+      send: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>`,
+      play: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+      </svg>`,
+      pause: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="6" y="4" width="4" height="16"></rect>
+        <rect x="14" y="4" width="4" height="16"></rect>
+      </svg>`,
+      check: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>`,
+      x: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>`,
+      moreVertical: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block; color: inherit;">
+        <circle cx="12" cy="12" r="2.5" fill="currentColor"></circle>
+        <circle cx="12" cy="5" r="2.5" fill="currentColor"></circle>
+        <circle cx="12" cy="19" r="2.5" fill="currentColor"></circle>
+      </svg>`,
+      eye: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>`,
+      edit: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+      </svg>`,
+      trash: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+      </svg>`,
+      search: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>`,
+      filter: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+      </svg>`,
+      upload: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
+      </svg>`,
+      plus: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>`,
+      phone: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+      </svg>`,
+      mail: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+        <polyline points="22,6 12,13 2,6"></polyline>
+      </svg>`,
+      ban: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+      </svg>`,
+      checkCircle: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>`,
+      xCircle: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>`,
+      helpCircle: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>`
+    };
+    return icons[iconName] || icons.send;
+  }
+  
+  // Função para toggle do dropdown menu
+  function toggleDropdownMenu(menuId, event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    // Fechar todos os outros dropdowns
+    document.querySelectorAll('.dropdown-content.show').forEach(menu => {
+      if (menu.id !== menuId) {
+        menu.classList.remove('show');
+      }
+    });
+    
+    // Toggle do menu atual
+    const menu = document.getElementById(menuId);
+    if (menu) {
+      menu.classList.toggle('show');
+    }
+  }
+  
+  // Fechar dropdowns ao clicar fora
+  document.addEventListener('click', function(event) {
+    if (!event.target.closest('.dropdown-menu')) {
+      document.querySelectorAll('.dropdown-content.show').forEach(menu => {
+        menu.classList.remove('show');
+      });
+    }
+  });
 
   // Criar card de campanha
   function criarCardCampanha(campanha, modo = "grid", execucoesPendentes = []) {
@@ -2071,42 +2517,102 @@
         </div>
       `;
     } else {
-      // Visualização em blocos (grid - layout original)
+      // Visualização em blocos (grid - design instacar-insights)
+      card.className = "card-elevated hover-lift animate-fade-in";
+      card.style.cssText = "padding: 1.25rem;"; // p-5 equivalente
+      
+      // Configuração de status badges (com ícones SVG padronizados)
+      const statusConfig = {
+        ativa: { label: "Ativa", className: "status-success", icon: getIconSVG('play', 12) },
+        pausada: { label: "Pausada", className: "status-warning", icon: getIconSVG('pause', 12) },
+        concluida: { label: "Concluída", className: "status-info", icon: getIconSVG('check', 12) },
+        cancelada: { label: "Cancelada", className: "status-error", icon: getIconSVG('x', 12) }
+      };
+      const config = statusConfig[statusClass] || statusConfig.pausada;
+      
       card.innerHTML = `
-        <h3>${campanha.nome || "Sem nome"}</h3>
-        <span class="periodo">${periodo}</span>
-        <span class="status ${statusClass}">${status}</span>
-        <p class="descricao">${descricao}</p>
-        <div style="margin-bottom: 10px; font-size: 12px; color: #666;">
-          <div>Limite/dia: ${limiteDia}</div>
-          <div>Intervalo mínimo: ${intervaloMinimo} dias</div>
-          <div>⏱️ Tempo entre envios: ${tempoEnvios}</div>
-          <div>📊 Prioridade: ${prioridade}/10</div>
-          ${dataInicio ? `<div>Início: ${dataInicio}</div>` : ""}
-          ${dataFim ? `<div>Fim: ${dataFim}</div>` : ""}
+        <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 1rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="padding: 0.5rem; border-radius: 0.5rem; background: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); display: flex; align-items: center; justify-content: center;">
+              ${getIconSVG('send', 20)}
         </div>
-        <div class="actions">
-          <button onclick="editarCampanha('${campanha.id}')">Editar</button>
-          <button onclick="toggleAtivo('${
-            campanha.id
-          }', ${!campanha.ativo})" class="${
-        campanha.ativo ? "btn-danger" : "btn-success"
-      }">
-            ${campanha.ativo ? "Desativar" : "Ativar"}
-          </button>
-          <button onclick="dispararCampanha('${
-            campanha.id
-          }')" class="${botaoClass}" style="${botaoStyle}" ${!podeDisparar ? "disabled" : ""}>
-            ${botaoLabel}
-          </button>
-          <button onclick="verEnviosCampanha('${
-            campanha.id
-          }')" class="btn-secondary">📨 Ver Envios</button>
-          <button onclick="abrirDashboardCampanha('${
-            campanha.id
-          }')" class="btn-secondary">📊 Dashboard</button>
+            <div>
+              <h3 style="font-weight: 600; color: hsl(var(--foreground)); margin: 0 0 0.25rem 0; font-size: 1rem;">${campanha.nome || "Sem nome"}</h3>
+              <p style="font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin: 0;">${periodo}</p>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="status-badge ${config.className}">
+              ${config.icon}
+              ${config.label}
+            </span>
+            <div class="dropdown-menu" style="position: relative;">
+              <button onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('dropdown-campanha-${campanha.id}', event)" 
+                      class="dropdown-trigger-btn">
+                ${getIconSVG('moreVertical', 16)}
+              </button>
+              <div id="dropdown-campanha-${campanha.id}" class="dropdown-content">
+                <button class="dropdown-item" onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('dropdown-campanha-${campanha.id}'); if(typeof window.abrirDetalhesCampanha === 'function') window.abrirDetalhesCampanha('${campanha.id}')">
+                  ${getIconSVG('eye', 16)}
+                  Ver detalhes
+                </button>
+                ${campanha.ativo && campanha.status === "ativa" ? `
+                  <button class="dropdown-item" onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('dropdown-campanha-${campanha.id}'); if(typeof window.dispararCampanha === 'function') window.dispararCampanha('${campanha.id}')">
+                    ${getIconSVG('send', 16)}
+                    Disparar
+                  </button>
+                ` : ""}
+                <button class="dropdown-item" onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('dropdown-campanha-${campanha.id}'); editarCampanha('${campanha.id}')">
+                  ${getIconSVG('edit', 16)}
+                  Editar
+                </button>
+                ${(statusClass === "ativa" || statusClass === "pausada") ? `
+                  <button class="dropdown-item" onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('dropdown-campanha-${campanha.id}'); if(typeof window.toggleStatusCampanha === 'function') window.toggleStatusCampanha('${campanha.id}', '${statusClass}')">
+                    ${statusClass === "ativa" ? getIconSVG('pause', 16) : getIconSVG('play', 16)}
+                    ${statusClass === "ativa" ? "Pausar" : "Retomar"}
+                  </button>
+                ` : ""}
+                <button class="dropdown-item destructive" onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('dropdown-campanha-${campanha.id}'); if(typeof window.excluirCampanha === 'function') window.excluirCampanha('${campanha.id}')">
+                  ${getIconSVG('trash', 16)}
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        ${descricao && descricao !== "Sem descrição" ? `
+          <p style="font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin-bottom: 1rem; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+            ${descricao}
+          </p>
+        ` : ""}
+        
+        <div style="display: flex; align-items: center; justify-between; padding-top: 0.75rem; border-top: 1px solid hsl(var(--border));">
+          <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.75rem; color: hsl(var(--muted-foreground)); flex-wrap: wrap;">
+            <span style="display: flex; align-items: center; gap: 0.25rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              ${dataInicio ? new Date(campanha.data_inicio).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Sem data"}
+            </span>
+            <span style="display: flex; align-items: center; gap: 0.25rem;">
+              Limite: ${limiteDia}/dia
+            </span>
+          </div>
+          <span style="font-size: 0.75rem; color: hsl(var(--muted-foreground)); white-space: nowrap;">
+            ${new Date(campanha.created_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+          </span>
         </div>
       `;
+      
+      // Adicionar menu dropdown de ações (simulado com onclick no botão)
+      card.onclick = function(e) {
+        if (e.target.closest('button')) return; // Não fazer nada se clicou no botão
+        // Pode adicionar ação de abrir detalhes aqui
+      };
     }
 
     return card;
@@ -2319,6 +2825,7 @@
     );
 
     // Aplicar filtro de "apenas não enviados" se ativo
+    let clientesOcultadosPeloFiltro = 0;
     if (filtroApenasNaoEnviados) {
       const totalAntes = clientesFiltrados.length;
       clientesFiltrados = clientesFiltrados.filter((c) => {
@@ -2330,6 +2837,7 @@
         const jaEnviado = jaEnviadoPorId || jaEnviadoPorTelefone;
         
         if (jaEnviado) {
+          clientesOcultadosPeloFiltro++;
           console.log(`  ❌ Cliente ${c.nome_cliente} (ID: ${c.id}, Tel: ${c.telefone}, Normalizado: ${telefoneClienteNormalizado}) já recebeu mensagem - removido do filtro`);
         }
         
@@ -2339,6 +2847,12 @@
       console.log(`🔍 Filtro "apenas não enviados" ativo: ${totalAntes} → ${totalDepois} clientes`);
       console.log(`🔍 Clientes já enviados (IDs):`, Array.from(clientesJaEnviados));
       console.log(`🔍 Telefones já enviados:`, Array.from(telefonesJaEnviados));
+      
+      // Atualizar mensagem do filtro com contador
+      atualizarMensagemFiltroApenasNaoEnviados(clientesOcultadosPeloFiltro, totalDepois);
+    } else {
+      // Resetar mensagem quando filtro desmarcado
+      atualizarMensagemFiltroApenasNaoEnviados(0, clientesFiltrados.length);
     }
 
     // Ordenar clientes filtrados
@@ -2434,6 +2948,9 @@
     });
 
     container.innerHTML = html;
+    
+    // Atualizar contador após renderizar (para refletir total correto com/sem filtro)
+    atualizarContadorSelecao();
   }
 
   /**
@@ -2449,19 +2966,193 @@
   }
 
   /**
-   * Atualiza contador de clientes selecionados
+   * Atualiza contador de clientes selecionados e mostra informações sobre clientes já enviados
    */
   function atualizarContadorSelecao() {
     const contador = document.getElementById("contadorClientesSelecionados");
     if (contador) {
       const total = clientesSelecionados.size;
-      const totalElegiveis = clientesElegiveis.length;
+      
+      // Verificar se o filtro está ativo para mostrar o total correto
+      const filtroApenasNaoEnviados = document.getElementById("filtroApenasNaoEnviados")?.checked || false;
+      let totalElegiveis = clientesElegiveis.length;
+      
+      if (filtroApenasNaoEnviados) {
+        // Se filtro ativo, contar apenas clientes que não receberam mensagens
+        const clientesVisiveis = clientesElegiveis.filter((c) => {
+          const jaEnviadoPorId = clientesJaEnviados.has(c.id);
+          const telefoneClienteNormalizado = normalizarTelefone(c.telefone || "");
+          const jaEnviadoPorTelefone = telefoneClienteNormalizado ? telefonesJaEnviados.has(telefoneClienteNormalizado) : false;
+          return !(jaEnviadoPorId || jaEnviadoPorTelefone);
+        });
+        totalElegiveis = clientesVisiveis.length;
+      }
+      
       contador.textContent = `${total} de ${totalElegiveis} clientes selecionados`;
       
       // Atualizar estimativas quando a seleção mudar
       if (typeof atualizarEstimativas === 'function') {
         setTimeout(atualizarEstimativas, 100);
       }
+    }
+    
+    // Atualizar contador de clientes já enviados
+    atualizarContadorClientesJaEnviados();
+  }
+  
+  /**
+   * Atualiza a mensagem do filtro "apenas não enviados" com contador de clientes ocultados
+   */
+  function atualizarMensagemFiltroApenasNaoEnviados(clientesOcultados, clientesVisiveis) {
+    const filtroCheckbox = document.getElementById("filtroApenasNaoEnviados");
+    if (!filtroCheckbox) return;
+    
+    // Encontrar o elemento de mensagem do filtro (small abaixo do checkbox)
+    const filtroContainer = filtroCheckbox.closest("div");
+    if (!filtroContainer) return;
+    
+    // Buscar ou criar elemento de contador
+    let contadorFiltro = document.getElementById("contadorFiltroApenasNaoEnviados");
+    if (!contadorFiltro) {
+      contadorFiltro = document.createElement("div");
+      contadorFiltro.id = "contadorFiltroApenasNaoEnviados";
+      contadorFiltro.style.marginTop = "8px";
+      contadorFiltro.style.marginLeft = "26px";
+      contadorFiltro.style.padding = "8px 12px";
+      contadorFiltro.style.borderRadius = "4px";
+      contadorFiltro.style.fontSize = "12px";
+      filtroContainer.appendChild(contadorFiltro);
+    }
+    
+    // Obter total de registros (igual à dashboard) se disponível
+    const totalRegistrosEnviados = window.totalRegistrosEnviadosCampanha || 0;
+    const textoRegistros = totalRegistrosEnviados > 0 && totalRegistrosEnviados !== clientesOcultados
+      ? ` <small style="color: #666;">(Dashboard: ${totalRegistrosEnviados} registros enviados)</small>`
+      : '';
+    
+    if (filtroCheckbox.checked && clientesOcultados > 0) {
+      contadorFiltro.style.display = "block";
+      contadorFiltro.style.background = "#fff3cd";
+      contadorFiltro.style.border = "1px solid #ffc107";
+      contadorFiltro.style.color = "#856404";
+      contadorFiltro.innerHTML = 
+        `<strong>ℹ️ Filtro ativo:</strong> ${clientesOcultados.toLocaleString()} cliente(s) que já receberam mensagens foram ocultados. ` +
+        `Exibindo ${clientesVisiveis.toLocaleString()} cliente(s) que ainda não receberam mensagens.${textoRegistros}`;
+    } else if (filtroCheckbox.checked) {
+      contadorFiltro.style.display = "block";
+      contadorFiltro.style.background = "#e3f2fd";
+      contadorFiltro.style.border = "1px solid #2196F3";
+      contadorFiltro.style.color = "#1976d2";
+      contadorFiltro.innerHTML = 
+        `<strong>✅ Filtro ativo:</strong> Todos os ${clientesVisiveis.toLocaleString()} cliente(s) exibidos ainda não receberam mensagens desta campanha.${textoRegistros}`;
+    } else {
+      contadorFiltro.style.display = "none";
+    }
+  }
+  
+  /**
+   * Atualiza o contador e informações sobre clientes já enviados
+   * IMPORTANTE: Conta apenas clientes que estão na lista de elegíveis E que já receberam mensagens
+   */
+  function atualizarContadorClientesJaEnviados() {
+    const contadorDiv = document.getElementById("contadorClientesJaEnviados");
+    const textoContador = document.getElementById("textoContadorJaEnviados");
+    
+    if (!contadorDiv || !textoContador) return;
+    
+    // Contar clientes únicos que já receberam mensagens
+    // IMPORTANTE: A dashboard conta registros do histórico (pode ter múltiplos por cliente)
+    // O contador deve contar apenas clientes ELEGÍVEIS que já receberam (não todos os IDs do histórico)
+    // Um cliente pode estar em ambos os Sets (por ID e por telefone), então precisamos contar únicos
+    const clientesUnicosJaEnviados = new Set();
+    
+    // Contar apenas clientes que estão na lista de elegíveis E que já receberam mensagens
+    // Isso garante que o contador e o filtro usem a mesma lógica
+    clientesElegiveis.forEach(cliente => {
+      // Verificar por ID
+      const jaEnviadoPorId = clientesJaEnviados.has(cliente.id);
+      
+      // Verificar por telefone (caso cliente_id seja null no histórico)
+      let jaEnviadoPorTelefone = false;
+      if (cliente.telefone) {
+        const telefoneNormalizado = normalizarTelefone(cliente.telefone);
+        if (telefoneNormalizado && telefonesJaEnviados.has(telefoneNormalizado)) {
+          jaEnviadoPorTelefone = true;
+        }
+      }
+      
+      // Se recebeu por ID ou por telefone, adicionar ao Set
+      if (jaEnviadoPorId || jaEnviadoPorTelefone) {
+        clientesUnicosJaEnviados.add(cliente.id);
+      }
+    });
+    
+    const totalJaEnviados = clientesUnicosJaEnviados.size;
+    
+    // Obter total de registros (igual à dashboard) se disponível
+    const totalRegistrosEnviados = window.totalRegistrosEnviadosCampanha || totalJaEnviados;
+    const totalClientesUnicosNoHistorico = window.totalClientesUnicosEnviadosCampanha || totalJaEnviados;
+    
+    // Log para debug
+    console.log(`📊 Contador: ${totalJaEnviados} clientes elegíveis já receberam mensagens (de ${clientesElegiveis.length} elegíveis)`);
+    console.log(`📊 Total de registros enviados (dashboard): ${totalRegistrosEnviados}`);
+    console.log(`📊 Breakdown: ${clientesJaEnviados.size} IDs no histórico, ${telefonesJaEnviados.size} telefones únicos no histórico`);
+    console.log(`📊 Clientes únicos no histórico (pode incluir não elegíveis): ${totalClientesUnicosNoHistorico}`);
+    console.log(`📊 Nota: Contador conta apenas clientes elegíveis (mesma lógica do filtro)`);
+    
+    const totalElegiveis = clientesElegiveis.length;
+    const totalNovos = totalElegiveis - totalJaEnviados;
+    
+    if (totalJaEnviados > 0) {
+      contadorDiv.style.display = "block";
+      
+      // Verificar quantos clientes já enviados estão selecionados
+      const clientesJaEnviadosSelecionados = Array.from(clientesSelecionados).filter(id => 
+        clientesJaEnviados.has(id) || 
+        (() => {
+          const cliente = clientesElegiveis.find(c => c.id === id);
+          if (cliente && cliente.telefone) {
+            const telefoneNormalizado = normalizarTelefone(cliente.telefone);
+            return telefoneNormalizado && telefonesJaEnviados.has(telefoneNormalizado);
+          }
+          return false;
+        })()
+      ).length;
+      
+      const totalSelecionados = clientesSelecionados.size;
+      
+      // Mostrar diferença entre registros e clientes únicos se houver
+      const diferencaRegistros = totalRegistrosEnviados - totalJaEnviados;
+      const diferencaClientesHistorico = totalClientesUnicosNoHistorico - totalJaEnviados;
+      
+      let textoDiferenca = ` <small style="color: #666;">(Dashboard: ${totalRegistrosEnviados} registros`;
+      if (diferencaRegistros > 0) {
+        textoDiferenca += ` - alguns clientes receberam múltiplas mensagens`;
+      }
+      if (diferencaClientesHistorico > 0) {
+        textoDiferenca += ` - ${diferencaClientesHistorico} cliente(s) do histórico não está(ão) mais elegível(is)`;
+      }
+      textoDiferenca += `)</small>`;
+      
+      if (clientesJaEnviadosSelecionados > 0) {
+        textoContador.innerHTML = 
+          `<strong>${clientesJaEnviadosSelecionados} cliente(s) já enviado(s) selecionado(s)</strong> de ${totalSelecionados} selecionados. ` +
+          `Estes serão pulados automaticamente pelo sistema durante a execução. ` +
+          `Total de clientes elegíveis já enviados: ${totalJaEnviados} de ${totalElegiveis} (${totalNovos} novos disponíveis)${textoDiferenca}.`;
+        contadorDiv.style.background = "#fff3cd";
+        contadorDiv.style.border = "1px solid #ffc107";
+        contadorDiv.style.color = "#856404";
+      } else {
+        textoContador.innerHTML = 
+          `${totalJaEnviados} de ${totalElegiveis} clientes elegíveis já receberam mensagens desta campanha ` +
+          `(${totalNovos} novos disponíveis)${textoDiferenca}. ` +
+          `O sistema sempre valida no backend antes de enviar.`;
+        contadorDiv.style.background = "#e3f2fd";
+        contadorDiv.style.border = "1px solid #2196F3";
+        contadorDiv.style.color = "#1976d2";
+      }
+    } else {
+      contadorDiv.style.display = "none";
     }
   }
 
@@ -2530,6 +3221,7 @@
       clientesSelecionados = new Set();
 
       // Buscar clientes que já receberam mensagens desta campanha
+      // IMPORTANTE: Buscar registros únicos por telefone OU cliente_id para evitar duplicatas
       const { data: historico, error: errorHistorico } = await supabaseClient
         .from("instacar_historico_envios")
         .select("cliente_id, telefone")
@@ -2563,7 +3255,15 @@
           }
         });
 
+        // IMPORTANTE: A dashboard conta TODOS os registros do histórico (pode ter múltiplos por cliente)
+        // Armazenar total de registros para exibir no contador (igual à dashboard)
+        const totalRegistrosHistorico = historico?.length || 0;
+        window.totalRegistrosEnviadosCampanha = totalRegistrosHistorico;
+        window.totalClientesUnicosEnviadosCampanha = idsEnviados.size;
+        
         console.log(`📊 IDs encontrados no histórico: ${idsEnviados.size}, Telefones: ${telefonesEnviados.size}`);
+        console.log(`📊 Total de registros no histórico (igual à dashboard): ${totalRegistrosHistorico}`);
+        console.log(`📊 Total de clientes únicos: ${idsEnviados.size}`);
         console.log(`📊 Telefones normalizados coletados:`, Array.from(telefonesEnviados));
 
         // Sempre buscar por telefone também (mesmo que tenha cliente_id)
@@ -2609,7 +3309,21 @@
 
         clientesJaEnviados = idsEnviados;
         telefonesJaEnviados = telefonesEnviados; // Armazenar telefones também
-        console.log(`✅ Total de clientes que já receberam mensagens: ${idsEnviados.size}`);
+        
+        // IMPORTANTE: A dashboard conta TODOS os registros do histórico com status_envio = 'enviado'
+        // O contador deve mostrar o mesmo número para consistência
+        // Mas para o filtro, usamos clientes únicos (não queremos mostrar o mesmo cliente múltiplas vezes)
+        // Nota: totalRegistrosHistorico já foi declarado acima (linha 3228)
+        const totalClientesUnicos = idsEnviados.size; // Total de clientes únicos (para filtro)
+        const totalTelefonesUnicos = telefonesEnviados.size;
+        
+        // Armazenar total de registros para exibir no contador (igual à dashboard)
+        // Nota: window.totalRegistrosEnviadosCampanha já foi definido acima (linha 3229)
+        window.totalClientesUnicosEnviadosCampanha = totalClientesUnicos;
+        
+        console.log(`✅ Total de registros no histórico (igual à dashboard): ${window.totalRegistrosEnviadosCampanha}`);
+        console.log(`✅ Total de clientes únicos (por ID): ${totalClientesUnicos}`);
+        console.log(`✅ Total de telefones únicos: ${totalTelefonesUnicos}`);
         console.log(`✅ IDs finais:`, Array.from(idsEnviados));
         console.log(`✅ Telefones finais:`, Array.from(telefonesEnviados));
         
@@ -2619,6 +3333,11 @@
 
       renderizarListaClientesSelecao();
       atualizarContadorSelecao();
+      
+      // Atualizar contador de clientes já enviados após carregar histórico
+      setTimeout(() => {
+        atualizarContadorClientesJaEnviados();
+      }, 100);
     } catch (error) {
       console.error("Erro ao carregar clientes selecionados:", error);
       clientesSelecionados.clear();
@@ -2628,8 +3347,9 @@
 
   /**
    * Salva seleção de clientes para uma campanha
+   * Valida se há clientes já enviados na seleção e alerta o usuário
    */
-  async function salvarSelecaoClientesCampanha(campanhaId) {
+  async function salvarSelecaoClientesCampanha(campanhaId, mostrarAlertaDuplicatas = true) {
     if (!supabaseClient || !campanhaId) {
       console.error('salvarSelecaoClientesCampanha: supabaseClient ou campanhaId não fornecido', { supabaseClient: !!supabaseClient, campanhaId });
       return;
@@ -2637,6 +3357,90 @@
 
     try {
       console.log(`Salvando seleção de clientes para campanha ${campanhaId}. Total selecionados: ${clientesSelecionados.size}`);
+      
+      // VALIDAÇÃO: Verificar se há clientes já enviados na seleção
+      if (mostrarAlertaDuplicatas && clientesSelecionados.size > 0 && (clientesJaEnviados.size > 0 || telefonesJaEnviados.size > 0)) {
+        const clientesSelecionadosArray = Array.from(clientesSelecionados);
+        const clientesJaEnviadosNaSelecao = [];
+        
+        // Verificar por ID
+        clientesSelecionadosArray.forEach((clienteId) => {
+          if (clientesJaEnviados.has(clienteId)) {
+            const cliente = clientesElegiveis.find(c => c.id === clienteId);
+            if (cliente) {
+              clientesJaEnviadosNaSelecao.push({
+                id: clienteId,
+                nome: cliente.nome_cliente || 'Sem nome',
+                telefone: cliente.telefone || 'Sem telefone'
+              });
+            }
+          }
+        });
+        
+        // Verificar por telefone (caso cliente_id seja null no histórico)
+        clientesSelecionadosArray.forEach((clienteId) => {
+          const cliente = clientesElegiveis.find(c => c.id === clienteId);
+          if (cliente && cliente.telefone) {
+            const telefoneNormalizado = normalizarTelefone(cliente.telefone);
+            if (telefoneNormalizado && telefonesJaEnviados.has(telefoneNormalizado)) {
+              // Só adicionar se não estiver já na lista (evitar duplicata)
+              if (!clientesJaEnviadosNaSelecao.find(c => c.id === clienteId)) {
+                clientesJaEnviadosNaSelecao.push({
+                  id: clienteId,
+                  nome: cliente.nome_cliente || 'Sem nome',
+                  telefone: cliente.telefone || 'Sem telefone'
+                });
+              }
+            }
+          }
+        });
+        
+        // Se encontrou clientes já enviados, alertar usuário
+        if (clientesJaEnviadosNaSelecao.length > 0) {
+          const totalSelecionados = clientesSelecionados.size;
+          const totalJaEnviados = clientesJaEnviadosNaSelecao.length;
+          const totalNovos = totalSelecionados - totalJaEnviados;
+          
+          const mensagem = 
+            `⚠️ Atenção: ${totalJaEnviados} de ${totalSelecionados} clientes selecionados já receberam mensagens desta campanha.\n\n` +
+            `📊 Resumo:\n` +
+            `• Clientes novos: ${totalNovos}\n` +
+            `• Clientes já enviados: ${totalJaEnviados}\n\n` +
+            `ℹ️ O sistema sempre valida no backend antes de enviar, então estes clientes serão pulados automaticamente.\n\n` +
+            `Deseja continuar e salvar a seleção mesmo assim?`;
+          
+          const continuar = confirm(mensagem);
+          
+          if (!continuar) {
+            console.log('Salvamento cancelado pelo usuário devido a clientes já enviados na seleção');
+            return false; // Retorna false para indicar que não salvou
+          }
+          
+          // Opção: Remover automaticamente clientes já enviados
+          const removerAutomaticamente = confirm(
+            `Deseja remover automaticamente os ${totalJaEnviados} clientes já enviados da seleção?\n\n` +
+            `(Apenas os ${totalNovos} clientes novos serão salvos)`
+          );
+          
+          if (removerAutomaticamente) {
+            // Remover clientes já enviados da seleção
+            clientesJaEnviadosNaSelecao.forEach(cliente => {
+              clientesSelecionados.delete(cliente.id);
+            });
+            
+            console.log(`Removidos ${clientesJaEnviadosNaSelecao.length} clientes já enviados da seleção. Restam ${clientesSelecionados.size} clientes.`);
+            
+            // Atualizar interface
+            renderizarListaClientesSelecao();
+            atualizarContadorSelecao();
+            
+            mostrarAlerta(
+              `${totalJaEnviados} clientes já enviados foram removidos automaticamente da seleção. ${clientesSelecionados.size} clientes novos serão salvos.`,
+              "info"
+            );
+          }
+        }
+      }
       
       // Deletar seleção atual
       const { error: deleteError } = await supabaseClient
@@ -2669,8 +3473,10 @@
         }
 
         console.log(`Seleção de clientes salva com sucesso. ${data?.length || 0} registros inseridos.`);
+        return true; // Retorna true para indicar que salvou com sucesso
       } else {
         console.log('Nenhum cliente selecionado. Seleção anterior foi removida.');
+        return true; // Retorna true mesmo sem clientes (seleção foi limpa)
       }
     } catch (error) {
       console.error("Erro ao salvar seleção de clientes:", error);
@@ -2684,18 +3490,42 @@
       return;
     }
 
-    document.getElementById("modalTitle").textContent = "Nova Campanha";
-    document.getElementById("formCampanha").reset();
-    document.getElementById("campanhaId").value = "";
-    document.getElementById("whatsapp_api_id").value = "";
+    // Verificar se o modal existe antes de tentar acessá-lo
+    const modal = document.getElementById("modalCampanha");
+    const modalTitle = document.getElementById("modalTitle");
+    const formCampanha = document.getElementById("formCampanha");
+    const campanhaId = document.getElementById("campanhaId");
+    const whatsappApiId = document.getElementById("whatsapp_api_id");
+    const intervaloEnviosSegundos = document.getElementById("intervalo_envios_segundos");
+    
+    if (!modal || !modalTitle || !formCampanha || !campanhaId) {
+      console.error("Modal de campanha não encontrado. Elementos necessários:", {
+        modal: !!modal,
+        modalTitle: !!modalTitle,
+        formCampanha: !!formCampanha,
+        campanhaId: !!campanhaId
+      });
+      mostrarAlerta("Erro: Modal de campanha não encontrado. Recarregue a página.", "error");
+      return;
+    }
+
+    // Abrir o modal primeiro
+    modal.classList.add("active");
+
+    modalTitle.textContent = "Nova Campanha";
+    if (formCampanha) formCampanha.reset();
+    if (campanhaId) campanhaId.value = "";
+    if (whatsappApiId) whatsappApiId.value = "";
     // Definir valor padrão do intervalo (130 = base para aleatorização)
-    document.getElementById("intervalo_envios_segundos").value = 130;
+    if (intervaloEnviosSegundos) intervaloEnviosSegundos.value = 130;
 
     // Limpar seleção de clientes e histórico de envios
     clientesSelecionados.clear();
     clientesJaEnviados.clear();
     telefonesJaEnviados.clear();
-    document.getElementById("buscaClientesSelecao").value = "";
+    const buscaClientesSelecao = document.getElementById("buscaClientesSelecao");
+    if (buscaClientesSelecao) buscaClientesSelecao.value = "";
+    
     // Marcar checkbox "apenas não enviados" por padrão (para não exibir clientes já enviados)
     const filtroCheckbox = document.getElementById("filtroApenasNaoEnviados");
     if (filtroCheckbox) {
@@ -2902,69 +3732,121 @@
 
       if (error) throw error;
 
-      document.getElementById("modalTitle").textContent = "Editar Campanha";
-      document.getElementById("campanhaId").value = data.id;
-      document.getElementById("nome").value = data.nome || "";
-      document.getElementById("descricao").value = data.descricao || "";
-      document.getElementById("periodo_ano").value = data.periodo_ano || "";
-      document.getElementById("status").value = data.status || "ativa";
-      document.getElementById("data_inicio").value = data.data_inicio || "";
-      document.getElementById("data_fim").value = data.data_fim || "";
-      document.getElementById("limite_envios_dia").value =
-        data.limite_envios_dia || 200;
-      document.getElementById("intervalo_minimo_dias").value =
-        data.intervalo_minimo_dias || 30;
+    // Verificar se o modal existe antes de tentar acessá-lo
+    // O modal deve estar sempre no DOM (fora do contentArea), mas vamos garantir
+    let modal = document.getElementById("modalCampanha");
+    let modalTitle = document.getElementById("modalTitle");
+    let campanhaId = document.getElementById("campanhaId");
+    
+    // Se o modal não existir, pode ter sido removido acidentalmente - tentar recriar estrutura básica
+    if (!modal) {
+      console.warn("Modal de campanha não encontrado no DOM. Tentando recriar...");
+      // O modal deveria estar no index.html, mas se não estiver, vamos criar um placeholder
+      // Na prática, isso não deveria acontecer, mas é uma medida de segurança
+      mostrarAlerta("Erro: Modal de campanha não encontrado. Recarregue a página.", "error");
+      return;
+    }
+    
+    if (!modalTitle || !campanhaId) {
+      console.error("Modal de campanha encontrado, mas elementos internos faltando:", {
+        modal: !!modal,
+        modalTitle: !!modalTitle,
+        campanhaId: !!campanhaId
+      });
+      mostrarAlerta("Erro: Estrutura do modal de campanha incompleta. Recarregue a página.", "error");
+      return;
+    }
+
+      // Abrir o modal primeiro
+      modal.classList.add("active");
+      
+      modalTitle.textContent = "Editar Campanha";
+      campanhaId.value = data.id;
+      
+      // Preencher campos com verificações de null
+      const nomeEl = document.getElementById("nome");
+      const descricaoEl = document.getElementById("descricao");
+      const periodoAnoEl = document.getElementById("periodo_ano");
+      const statusEl = document.getElementById("status");
+      const dataInicioEl = document.getElementById("data_inicio");
+      const dataFimEl = document.getElementById("data_fim");
+      const limiteEnviosDiaEl = document.getElementById("limite_envios_dia");
+      const intervaloMinimoDiasEl = document.getElementById("intervalo_minimo_dias");
+      const intervaloEnviosSegundosEl = document.getElementById("intervalo_envios_segundos");
+      
+      if (nomeEl) nomeEl.value = data.nome || "";
+      if (descricaoEl) descricaoEl.value = data.descricao || "";
+      if (periodoAnoEl) periodoAnoEl.value = data.periodo_ano || "";
+      if (statusEl) statusEl.value = data.status || "ativa";
+      if (dataInicioEl) dataInicioEl.value = data.data_inicio || "";
+      if (dataFimEl) dataFimEl.value = data.data_fim || "";
+      if (limiteEnviosDiaEl) limiteEnviosDiaEl.value = data.limite_envios_dia || 200;
+      if (intervaloMinimoDiasEl) intervaloMinimoDiasEl.value = data.intervalo_minimo_dias || 30;
+      
       // Se intervalo_envios_segundos for null, mostrar 130 (padrão para aleatorização)
       const intervaloValor = data.intervalo_envios_segundos || 130;
-      document.getElementById("intervalo_envios_segundos").value = intervaloValor;
+      if (intervaloEnviosSegundosEl) intervaloEnviosSegundosEl.value = intervaloValor;
       
       // Selecionar opção pré-definida: usar tipo_intervalo se disponível, senão inferir do valor
       if (data.tipo_intervalo) {
         const radioCorrespondente = document.querySelector(`input[name="intervalo_preset"][value="${data.tipo_intervalo}"]`);
         if (radioCorrespondente) {
           radioCorrespondente.checked = true;
+          if (typeof atualizarClassesIntervaloPreset === "function") {
           atualizarClassesIntervaloPreset();
+          }
         }
       } else {
         // Fallback: selecionar baseado no valor (compatibilidade com campanhas antigas)
+        if (typeof selecionarOpcaoIntervalo === "function") {
         selecionarOpcaoIntervalo(intervaloValor);
+        }
       }
       
-      document.getElementById("prioridade").value = data.prioridade || 5;
-      document.getElementById("prompt_ia").value = data.prompt_ia || "";
-      document.getElementById("template_mensagem").value =
-        data.template_mensagem || "";
+      const prioridadeEl = document.getElementById("prioridade");
+      const promptIaEl = document.getElementById("prompt_ia");
+      const templateMensagemEl = document.getElementById("template_mensagem");
+      
+      if (prioridadeEl) prioridadeEl.value = data.prioridade || 5;
+      if (promptIaEl) promptIaEl.value = data.prompt_ia || "";
+      if (templateMensagemEl) templateMensagemEl.value = data.template_mensagem || "";
 
       // Novos campos: Flags de IA
-      document.getElementById("usar_veiculos").checked =
-        data.usar_veiculos !== false;
-      document.getElementById("usar_vendedor").checked =
-        data.usar_vendedor === true;
+      const usarVeiculosEl = document.getElementById("usar_veiculos");
+      const usarVendedorEl = document.getElementById("usar_vendedor");
+      if (usarVeiculosEl) usarVeiculosEl.checked = data.usar_veiculos !== false;
+      if (usarVendedorEl) usarVendedorEl.checked = data.usar_vendedor === true;
 
       // Novos campos: Lotes e Horário
-      document.getElementById("tamanho_lote").value = data.tamanho_lote || 50;
-      document.getElementById("horario_inicio").value =
-        data.horario_inicio || "09:00";
-      document.getElementById("horario_fim").value =
-        data.horario_fim || "18:00";
-      document.getElementById("processar_finais_semana").checked =
-        data.processar_finais_semana === true;
+      const tamanhoLoteEl = document.getElementById("tamanho_lote");
+      const horarioInicioEl = document.getElementById("horario_inicio");
+      const horarioFimEl = document.getElementById("horario_fim");
+      const processarFinaisSemanaEl = document.getElementById("processar_finais_semana");
+      
+      if (tamanhoLoteEl) tamanhoLoteEl.value = data.tamanho_lote || 50;
+      if (horarioInicioEl) horarioInicioEl.value = data.horario_inicio || "09:00";
+      if (horarioFimEl) horarioFimEl.value = data.horario_fim || "18:00";
+      if (processarFinaisSemanaEl) processarFinaisSemanaEl.checked = data.processar_finais_semana === true;
 
       // Preencher novos campos - Intervalo de Almoço
       const pausarAlmocoCheck = document.getElementById("pausar_almoco");
       if (pausarAlmocoCheck) {
         pausarAlmocoCheck.checked = data.pausar_almoco || false;
+        if (typeof toggleCamposAlmoco === "function") {
         toggleCamposAlmoco();
+        }
         if (data.horario_almoco_inicio) {
-          document.getElementById("horario_almoco_inicio").value = data.horario_almoco_inicio;
+          const horarioAlmocoInicioEl = document.getElementById("horario_almoco_inicio");
+          if (horarioAlmocoInicioEl) horarioAlmocoInicioEl.value = data.horario_almoco_inicio;
         }
         if (data.horario_almoco_fim) {
-          document.getElementById("horario_almoco_fim").value = data.horario_almoco_fim;
+          const horarioAlmocoFimEl = document.getElementById("horario_almoco_fim");
+          if (horarioAlmocoFimEl) horarioAlmocoFimEl.value = data.horario_almoco_fim;
         }
       }
 
       // Preencher novos campos - Configuração por Dia da Semana
-      if (data.configuracao_dias_semana) {
+      if (data.configuracao_dias_semana && typeof carregarConfiguracaoDiasSemana === "function") {
         carregarConfiguracaoDiasSemana(
           data.configuracao_dias_semana,
           data.horario_inicio || "09:00",
@@ -2976,41 +3858,47 @@
         const modoPadrao = document.getElementById("modo_configuracao_padrao");
         if (modoPadrao) {
           modoPadrao.checked = true;
+          if (typeof toggleConfiguracaoDiasSemana === "function") {
           toggleConfiguracaoDiasSemana();
+          }
         }
       }
 
       // Preencher novos campos - Modo Teste e Debug
-      document.getElementById("modo_teste").checked = data.modo_teste || false;
-      document.getElementById("modo_debug").checked = data.modo_debug || false;
+      const modoTesteEl = document.getElementById("modo_teste");
+      const modoDebugEl = document.getElementById("modo_debug");
+      const telefonesTesteEl = document.getElementById("telefones_teste");
+      const telefonesTesteGroupEl = document.getElementById("telefones_teste_group");
+      
+      if (modoTesteEl) modoTesteEl.checked = data.modo_teste || false;
+      if (modoDebugEl) modoDebugEl.checked = data.modo_debug || false;
 
       // Preencher textareas de telefones (converter array JSON para texto)
-      if (data.telefones_teste && Array.isArray(data.telefones_teste)) {
-        document.getElementById("telefones_teste").value =
-          data.telefones_teste.join("\n");
+      if (telefonesTesteEl && data.telefones_teste && Array.isArray(data.telefones_teste)) {
+        telefonesTesteEl.value = data.telefones_teste.join("\n");
       }
 
       // Mostrar campo de telefones_teste se modo_teste estiver ativo
-      if (data.modo_teste) {
-        document.getElementById("telefones_teste_group").style.display =
-          "block";
+      if (telefonesTesteGroupEl && data.modo_teste) {
+        telefonesTesteGroupEl.style.display = "block";
       }
 
       // Preencher novos campos - Notificações Admin
-      document.getElementById("notificar_inicio").checked =
-        data.notificar_inicio || false;
-      document.getElementById("notificar_erros").checked =
-        data.notificar_erros !== false; // default TRUE
-      document.getElementById("notificar_conclusao").checked =
-        data.notificar_conclusao !== false; // default TRUE
-      document.getElementById("notificar_limite").checked =
-        data.notificar_limite || false;
-      document.getElementById("whatsapp_api_id_admin").value =
-        data.whatsapp_api_id_admin || "";
+      const notificarInicioEl = document.getElementById("notificar_inicio");
+      const notificarErrosEl = document.getElementById("notificar_erros");
+      const notificarConclusaoEl = document.getElementById("notificar_conclusao");
+      const notificarLimiteEl = document.getElementById("notificar_limite");
+      const whatsappApiIdAdminEl = document.getElementById("whatsapp_api_id_admin");
+      const telefonesAdminEl = document.getElementById("telefones_admin");
+      
+      if (notificarInicioEl) notificarInicioEl.checked = data.notificar_inicio || false;
+      if (notificarErrosEl) notificarErrosEl.checked = data.notificar_erros !== false; // default TRUE
+      if (notificarConclusaoEl) notificarConclusaoEl.checked = data.notificar_conclusao !== false; // default TRUE
+      if (notificarLimiteEl) notificarLimiteEl.checked = data.notificar_limite || false;
+      if (whatsappApiIdAdminEl) whatsappApiIdAdminEl.value = data.whatsapp_api_id_admin || "";
 
-      if (data.telefones_admin && Array.isArray(data.telefones_admin)) {
-        document.getElementById("telefones_admin").value =
-          data.telefones_admin.join("\n");
+      if (telefonesAdminEl && data.telefones_admin && Array.isArray(data.telefones_admin)) {
+        telefonesAdminEl.value = data.telefones_admin.join("\n");
       }
 
       // Carregar instâncias e selecionar a correta
@@ -3056,7 +3944,9 @@
       }
 
       // Limpar busca e carregar clientes para seleção
-      document.getElementById("buscaClientesSelecao").value = "";
+      const buscaClientesSelecaoEl = document.getElementById("buscaClientesSelecao");
+      if (buscaClientesSelecaoEl) buscaClientesSelecaoEl.value = "";
+      
       // Marcar checkbox "apenas não enviados" por padrão (para não exibir clientes já enviados)
       const filtroCheckbox = document.getElementById("filtroApenasNaoEnviados");
       if (filtroCheckbox) {
@@ -3069,11 +3959,12 @@
       await carregarDadosDinamicosCampanha();
 
       // Preencher novos campos - Dados Dinâmicos do Agente IA
-      document.getElementById("usar_configuracoes_globais").checked =
-        data.usar_configuracoes_globais !== false;
-      if (data.template_prompt_id) {
-        document.getElementById("template_prompt_id").value =
-          data.template_prompt_id;
+      const usarConfiguracoesGlobaisEl = document.getElementById("usar_configuracoes_globais");
+      const templatePromptIdEl = document.getElementById("template_prompt_id");
+      
+      if (usarConfiguracoesGlobaisEl) usarConfiguracoesGlobaisEl.checked = data.usar_configuracoes_globais !== false;
+      if (templatePromptIdEl && data.template_prompt_id) {
+        templatePromptIdEl.value = data.template_prompt_id;
       }
       
       // Atualizar validação do prompt baseado no template selecionado
@@ -3109,12 +4000,19 @@
       }, 500);
 
       // Atualizar estimativas após carregar dados
+      if (typeof atualizarEstimativas === "function") {
       setTimeout(atualizarEstimativas, 100);
+      }
 
       // Configurar intervalos pré-definidos
+      if (typeof configurarIntervalosPredefinidos === "function") {
       configurarIntervalosPredefinidos();
+      }
 
-      document.getElementById("modalCampanha").classList.add("active");
+      // Modal já foi aberto no início da função, mas garantir que está ativo
+      if (modal) {
+        modal.classList.add("active");
+      }
 
       // Adicionar tooltips após um pequeno delay
       setTimeout(() => {
@@ -3754,24 +4652,56 @@
       }
 
       // 3. VALIDAR PERÍODO
-      const hoje = new Date();
-      if (campanha.data_inicio && new Date(campanha.data_inicio) > hoje) {
-        mostrarAlerta(
-          `Campanha inicia em ${new Date(
-            campanha.data_inicio
-          ).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
-          "error"
-        );
-        return;
+      // Função auxiliar para normalizar data (apenas dia/mês/ano, sem hora)
+      function normalizarData(dataString) {
+        if (!dataString) return null;
+        // Se a data vem no formato YYYY-MM-DD, criar data no timezone local
+        const partes = dataString.split("-");
+        if (partes.length === 3) {
+          // Criar data no timezone local (não UTC)
+          return new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+        }
+        // Se já for um objeto Date ou outro formato, converter
+        const data = new Date(dataString);
+        return new Date(data.getFullYear(), data.getMonth(), data.getDate());
       }
-      if (campanha.data_fim && new Date(campanha.data_fim) < hoje) {
-        mostrarAlerta(
-          `Campanha encerrou em ${new Date(
-            campanha.data_fim
-          ).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
-          "error"
-        );
-        return;
+      
+      // Obter data atual normalizada (apenas dia/mês/ano)
+      const hoje = new Date();
+      const hojeNormalizado = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+      
+      if (campanha.data_inicio) {
+        const dataInicioNormalizada = normalizarData(campanha.data_inicio);
+        if (dataInicioNormalizada && dataInicioNormalizada > hojeNormalizado) {
+          const dataInicioFormatada = new Date(campanha.data_inicio).toLocaleDateString("pt-BR", { 
+            timeZone: "America/Sao_Paulo",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+          });
+          mostrarAlerta(
+            `Campanha inicia em ${dataInicioFormatada}`,
+            "error"
+          );
+          return;
+        }
+      }
+      
+      if (campanha.data_fim) {
+        const dataFimNormalizada = normalizarData(campanha.data_fim);
+        if (dataFimNormalizada && dataFimNormalizada < hojeNormalizado) {
+          const dataFimFormatada = new Date(campanha.data_fim).toLocaleDateString("pt-BR", { 
+            timeZone: "America/Sao_Paulo",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+          });
+          mostrarAlerta(
+            `Campanha encerrou em ${dataFimFormatada}`,
+            "error"
+          );
+          return;
+        }
       }
 
       // 4. VERIFICAR EXECUÇÕES PENDENTES (pausadas ou em_andamento)
@@ -3857,7 +4787,36 @@
         return;
       }
 
-      // 7. CHAMAR WEBHOOK
+      // 7. SALVAR SELEÇÃO DE CLIENTES ANTES DE DISPARAR
+      // IMPORTANTE: Sempre salvar clientes selecionados antes de disparar para garantir
+      // que o workflow N8N encontre a seleção correta no banco de dados
+      try {
+        // Se há clientes selecionados na variável global (interface de edição), salvar
+        if (clientesSelecionados && clientesSelecionados.size > 0) {
+          console.log(`[DISPARO] Salvando ${clientesSelecionados.size} clientes selecionados antes de disparar campanha ${id}`);
+          await salvarSelecaoClientesCampanha(id);
+          console.log('[DISPARO] Seleção de clientes salva com sucesso antes do disparo');
+        } else {
+          // Se não há clientes selecionados na variável global, verificar se há no banco
+          // Isso garante que se o usuário salvou a campanha com clientes selecionados, eles serão usados
+          const { data: clientesNoBanco, error: errorClientes } = await supabaseClient
+            .from("instacar_campanhas_clientes")
+            .select("cliente_id")
+            .eq("campanha_id", id);
+          
+          if (!errorClientes && clientesNoBanco && clientesNoBanco.length > 0) {
+            console.log(`[DISPARO] Encontrados ${clientesNoBanco.length} clientes selecionados no banco de dados para campanha ${id}`);
+            console.log(`[DISPARO] IDs dos clientes: ${clientesNoBanco.map(c => c.cliente_id).join(', ')}`);
+          } else {
+            console.log(`[DISPARO] Nenhum cliente selecionado encontrado. Campanha processará todos os clientes elegíveis.`);
+          }
+        }
+      } catch (error) {
+        console.error("[DISPARO] Erro ao salvar/verificar seleção de clientes antes do disparo:", error);
+        // Continuar mesmo se houver erro - o workflow tentará buscar do banco
+      }
+
+      // 8. CHAMAR WEBHOOK
       if (continuarExecucao) {
         mostrarAlerta("Continuando execução pausada...", "success");
       } else {
@@ -3896,6 +4855,9 @@
       console.error(error);
     }
   }
+  
+  // Expor função dispararCampanha globalmente
+  window.dispararCampanha = dispararCampanha;
 
   // Dashboard de campanha
   async function abrirDashboardCampanha(campanhaId) {
@@ -4122,6 +5084,9 @@
                 <div style="background: #e3f2fd; padding: 15px; border-radius: 5px;">
                   <div style="font-size: 24px; font-weight: bold; color: #2196F3;">${totalEnviados}</div>
                   <div style="color: #666;">Total Enviados</div>
+                  <small style="display: block; color: #999; font-size: 11px; margin-top: 4px;">
+                    Registros no histórico (pode incluir múltiplos envios para o mesmo cliente)
+                  </small>
                 </div>
                 <div style="background: #ffebee; padding: 15px; border-radius: 5px;">
                   <div style="font-size: 24px; font-weight: bold; color: #f44336;">${totalErros}</div>
@@ -4497,9 +5462,7 @@
               statusIcon = "🚫";
             }
 
-            const timestamp = envio.timestamp_envio 
-              ? new Date(envio.timestamp_envio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
-              : "N/A";
+            const timestamp = formatarTimestampSP(envio.timestamp_envio);
 
             const mensagemPreview = envio.mensagem_enviada 
               ? (envio.mensagem_enviada.length > 80 
@@ -4629,6 +5592,9 @@
                   <div style="background: #e3f2fd; padding: 15px; border-radius: 5px;">
                     <div style="font-size: 24px; font-weight: bold; color: #2196F3;">${totalEnviados}</div>
                     <div style="color: #666;">Total Enviados</div>
+                    <small style="display: block; color: #999; font-size: 11px; margin-top: 4px;">
+                      Registros no histórico (pode incluir múltiplos envios para o mesmo cliente)
+                    </small>
                   </div>
                   <div style="background: #ffebee; padding: 15px; border-radius: 5px;">
                     <div style="font-size: 24px; font-weight: bold; color: #f44336;">${totalErros}</div>
@@ -4788,9 +5754,7 @@
                         statusColor = "#ff9800";
                         statusIcon = "🚫";
                       }
-                      const timestamp = envio.timestamp_envio 
-                        ? new Date(envio.timestamp_envio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
-                        : "N/A";
+                      const timestamp = formatarTimestampSP(envio.timestamp_envio);
                       const mensagemPreview = envio.mensagem_enviada 
                         ? (envio.mensagem_enviada.length > 80 
                             ? envio.mensagem_enviada.substring(0, 80) + "..." 
@@ -4966,9 +5930,7 @@
                           statusIcon = "🚫";
                         }
 
-                        const timestamp = envio.timestamp_envio 
-                          ? new Date(envio.timestamp_envio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
-                          : "N/A";
+                        const timestamp = formatarTimestampSP(envio.timestamp_envio);
 
                         const mensagemCompleta = envio.mensagem_enviada || "Sem mensagem";
                         const mensagemPreview = mensagemCompleta.length > 100 
@@ -5485,9 +6447,7 @@
       const cliente = envio.instacar_clientes_envios;
       const nomeCliente = cliente?.nome_cliente || "N/A";
       const telefone = envio.telefone || cliente?.telefone || "N/A";
-      const timestamp = envio.timestamp_envio 
-        ? new Date(envio.timestamp_envio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
-        : "N/A";
+      const timestamp = formatarTimestampSP(envio.timestamp_envio);
       
       let statusColor = "#999";
       let statusIcon = "⏳";
@@ -6436,6 +7396,7 @@
   window.conectarSupabase = conectarSupabase;
   window.atualizarStatusConexoes = atualizarStatusConexoes;
   window.abrirModalNovaCampanha = abrirModalNovaCampanha;
+  window.carregarCampanhas = carregarCampanhas;
   window.fecharModal = fecharModal;
   window.editarCampanha = editarCampanha;
   window.selecionarTodosClientes = selecionarTodosClientes;
@@ -6507,6 +7468,7 @@
   window.editarInstanciaUazapi = abrirModalNovaInstanciaUazapi;
   window.excluirInstanciaUazapi = excluirInstanciaUazapi;
   window.renderizarInstanciasUazapi = renderizarInstanciasUazapi;
+  window.carregarInstanciasUazapi = carregarInstanciasUazapi;
 
   // Funções de conexão WhatsApp
   window.conectarInstanciaWhatsApp = conectarInstanciaWhatsApp;
@@ -8558,73 +9520,29 @@
     if (!paginacaoContainer) return;
 
     const totalPaginas = Math.ceil(totalClientes / itensPorPaginaClientes);
+    const totalExibido = Math.min(paginaAtualClientes * itensPorPaginaClientes, totalClientes);
 
-    if (totalPaginas <= 1) {
-      paginacaoContainer.innerHTML = `<p style="text-align: center; color: #666; margin: 0">Total: ${totalClientes} cliente(s)</p>`;
-      return;
-    }
+    // Seguindo padrão do projeto de referência: texto à esquerda, botões à direita
+    let html = `
+      <p style="font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin: 0;">
+        ${totalClientes} cliente(s) encontrado(s)
+      </p>
+      <div style="display: flex; gap: 0.5rem;">
+        <button 
+          onclick="carregarListaClientes(${paginaAtualClientes - 1})" 
+          class="btn btn-secondary"
+          style="padding: 0.5rem 0.75rem; font-size: 0.875rem; height: auto;"
+          ${paginaAtualClientes === 1 ? "disabled" : ""}
+        >Anterior</button>
+        <button 
+          onclick="carregarListaClientes(${paginaAtualClientes + 1})" 
+          class="btn btn-secondary"
+          style="padding: 0.5rem 0.75rem; font-size: 0.875rem; height: auto;"
+          ${totalExibido >= totalClientes ? "disabled" : ""}
+        >Próximo</button>
+      </div>
+    `;
 
-    let html = `<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">`;
-
-    // Informações
-    const inicio = (paginaAtualClientes - 1) * itensPorPaginaClientes + 1;
-    const fim = Math.min(
-      paginaAtualClientes * itensPorPaginaClientes,
-      totalClientes
-    );
-    html += `<span style="color: #666; margin-right: 10px">Mostrando ${inicio}-${fim} de ${totalClientes} cliente(s)</span>`;
-
-    // Botão Anterior
-    html += `<button 
-      onclick="carregarListaClientes(${paginaAtualClientes - 1})" 
-      class="btn-secondary"
-      style="padding: 6px 12px; font-size: 12px"
-      ${paginaAtualClientes === 1 ? "disabled" : ""}
-    >◀ Anterior</button>`;
-
-    // Números de página
-    const maxBotoes = 5;
-    let inicioPaginas = Math.max(
-      1,
-      paginaAtualClientes - Math.floor(maxBotoes / 2)
-    );
-    let fimPaginas = Math.min(totalPaginas, inicioPaginas + maxBotoes - 1);
-
-    if (fimPaginas - inicioPaginas < maxBotoes - 1) {
-      inicioPaginas = Math.max(1, fimPaginas - maxBotoes + 1);
-    }
-
-    if (inicioPaginas > 1) {
-      html += `<button onclick="carregarListaClientes(1)" class="btn-secondary" style="padding: 6px 12px; font-size: 12px">1</button>`;
-      if (inicioPaginas > 2) {
-        html += `<span style="padding: 0 5px">...</span>`;
-      }
-    }
-
-    for (let i = inicioPaginas; i <= fimPaginas; i++) {
-      html += `<button 
-        onclick="carregarListaClientes(${i})" 
-        class="${i === paginaAtualClientes ? "btn-success" : "btn-secondary"}"
-        style="padding: 6px 12px; font-size: 12px; min-width: 40px"
-      >${i}</button>`;
-    }
-
-    if (fimPaginas < totalPaginas) {
-      if (fimPaginas < totalPaginas - 1) {
-        html += `<span style="padding: 0 5px">...</span>`;
-      }
-      html += `<button onclick="carregarListaClientes(${totalPaginas})" class="btn-secondary" style="padding: 6px 12px; font-size: 12px">${totalPaginas}</button>`;
-    }
-
-    // Botão Próximo
-    html += `<button 
-      onclick="carregarListaClientes(${paginaAtualClientes + 1})" 
-      class="btn-secondary"
-      style="padding: 6px 12px; font-size: 12px"
-      ${paginaAtualClientes === totalPaginas ? "disabled" : ""}
-    >Próximo ▶</button>`;
-
-    html += `</div>`;
     paginacaoContainer.innerHTML = html;
   }
 
@@ -8712,9 +9630,17 @@
         }
       }
 
+      // Filtro de bloqueio
+      const filtroBloqueado = document.getElementById("filtroBloqueado")?.value;
+      if (filtroBloqueado === "true") {
+        queryBase = queryBase.eq("bloqueado_envios", true);
+      } else if (filtroBloqueado === "false") {
+        queryBase = queryBase.eq("bloqueado_envios", false);
+      }
+
       if (busca) {
         queryBase = queryBase.or(
-          `nome_cliente.ilike.%${busca}%,telefone.ilike.%${busca}%`
+          `nome_cliente.ilike.%${busca}%,telefone.ilike.%${busca}%,email.ilike.%${busca}%`
         );
       }
 
@@ -8738,31 +9664,175 @@
       // Buscar dados da página atual
       // Usar timestamp para evitar cache
       const timestamp = Date.now();
-      let query = supabaseClient
-        .from("instacar_clientes_envios")
-        .select("*")
-        .eq("ativo", true) // Filtrar apenas clientes ativos
-        .order(ordenacaoCampo, { ascending: ascending })
-        .range(offset, offset + itensPorPaginaClientes - 1);
+      
+      // Se ordenação for por número de veículos, buscar todos e ordenar client-side
+      // (não é possível ordenar JSONB diretamente no Supabase)
+      const ordenarPorVeiculos = ordenacaoCampo === "num_veiculos";
+      
+      let clientes = [];
+      let error = null;
 
-      // Aplicar filtros na query de dados
-      if (filtroStatus) {
-        // Para "unknown", buscar tanto NULL quanto "unknown"
-        if (filtroStatus === "unknown") {
-          query = query.or("status_whatsapp.is.null,status_whatsapp.eq.unknown");
+      if (ordenarPorVeiculos) {
+        // Quando ordenar por veículos, buscar TODOS os registros em lotes (Supabase limita a 1000 por query)
+        // Construir query base com filtros
+        let queryBase = supabaseClient
+          .from("instacar_clientes_envios")
+          .select("*", { count: "exact" })
+          .eq("ativo", true);
+
+        // Aplicar filtros na query base
+        if (filtroStatus) {
+          if (filtroStatus === "unknown") {
+            queryBase = queryBase.or("status_whatsapp.is.null,status_whatsapp.eq.unknown");
+          } else {
+            queryBase = queryBase.eq("status_whatsapp", filtroStatus);
+          }
+        }
+
+        if (filtroBloqueado === "true") {
+          queryBase = queryBase.eq("bloqueado_envios", true);
+        } else if (filtroBloqueado === "false") {
+          queryBase = queryBase.eq("bloqueado_envios", false);
+        }
+
+        if (busca) {
+          queryBase = queryBase.or(
+            `nome_cliente.ilike.%${busca}%,telefone.ilike.%${busca}%,email.ilike.%${busca}%`
+          );
+        }
+
+        // Buscar total de registros para contagem
+        const { count, error: countError } = await queryBase.select("*", {
+          count: "exact",
+          head: true,
+        });
+
+        if (countError) {
+          console.error("Erro ao contar clientes:", countError);
+          totalClientes = 0;
         } else {
-          query = query.eq("status_whatsapp", filtroStatus);
+          totalClientes = count || 0;
+        }
+
+        // Buscar todos os registros em lotes de 1000
+        const limiteLote = 1000;
+        let todosClientes = [];
+        let offsetLote = 0;
+        let temMaisRegistros = true;
+
+        while (temMaisRegistros) {
+          const queryLote = supabaseClient
+            .from("instacar_clientes_envios")
+            .select("*")
+            .eq("ativo", true)
+            .range(offsetLote, offsetLote + limiteLote - 1);
+
+          // Aplicar filtros no lote
+          if (filtroStatus) {
+            if (filtroStatus === "unknown") {
+              queryLote = queryLote.or("status_whatsapp.is.null,status_whatsapp.eq.unknown");
+            } else {
+              queryLote = queryLote.eq("status_whatsapp", filtroStatus);
+            }
+          }
+
+          if (filtroBloqueado === "true") {
+            queryLote = queryLote.eq("bloqueado_envios", true);
+          } else if (filtroBloqueado === "false") {
+            queryLote = queryLote.eq("bloqueado_envios", false);
+          }
+
+          if (busca) {
+            queryLote = queryLote.or(
+              `nome_cliente.ilike.%${busca}%,telefone.ilike.%${busca}%,email.ilike.%${busca}%`
+            );
+          }
+
+          const { data: loteClientes, error: errorLote } = await queryLote;
+
+          if (errorLote) {
+            console.error("Erro ao buscar lote de clientes:", errorLote);
+            error = errorLote;
+            temMaisRegistros = false;
+          } else if (loteClientes && loteClientes.length > 0) {
+            todosClientes = todosClientes.concat(loteClientes);
+            offsetLote += limiteLote;
+            // Se retornou menos que o limite, não há mais registros
+            temMaisRegistros = loteClientes.length === limiteLote;
+          } else {
+            temMaisRegistros = false;
+          }
+        }
+
+        clientes = todosClientes;
+      } else {
+        // Ordenação normal: buscar apenas a página atual
+        let query = supabaseClient
+          .from("instacar_clientes_envios")
+          .select("*", { count: "exact" })
+          .eq("ativo", true)
+          .order(ordenacaoCampo, { ascending: ascending })
+          .range(offset, offset + itensPorPaginaClientes - 1);
+
+        // Aplicar filtros na query de dados
+        if (filtroStatus) {
+          if (filtroStatus === "unknown") {
+            query = query.or("status_whatsapp.is.null,status_whatsapp.eq.unknown");
+          } else {
+            query = query.eq("status_whatsapp", filtroStatus);
+          }
+        }
+
+        if (filtroBloqueado === "true") {
+          query = query.eq("bloqueado_envios", true);
+        } else if (filtroBloqueado === "false") {
+          query = query.eq("bloqueado_envios", false);
+        }
+
+        if (busca) {
+          query = query.or(
+            `nome_cliente.ilike.%${busca}%,telefone.ilike.%${busca}%,email.ilike.%${busca}%`
+          );
+        }
+
+        // Executar query
+        const { data: clientesData, error: errorData, count: countData } = await query;
+        clientes = clientesData || [];
+        error = errorData;
+        
+        // Buscar total de registros (com filtros aplicados)
+        if (!error) {
+          let queryCount = supabaseClient
+            .from("instacar_clientes_envios")
+            .select("*", { count: "exact", head: true })
+            .eq("ativo", true);
+
+          if (filtroStatus) {
+            if (filtroStatus === "unknown") {
+              queryCount = queryCount.or("status_whatsapp.is.null,status_whatsapp.eq.unknown");
+            } else {
+              queryCount = queryCount.eq("status_whatsapp", filtroStatus);
+            }
+          }
+
+          if (filtroBloqueado === "true") {
+            queryCount = queryCount.eq("bloqueado_envios", true);
+          } else if (filtroBloqueado === "false") {
+            queryCount = queryCount.eq("bloqueado_envios", false);
+          }
+
+          if (busca) {
+            queryCount = queryCount.or(
+              `nome_cliente.ilike.%${busca}%,telefone.ilike.%${busca}%,email.ilike.%${busca}%`
+            );
+          }
+
+          const { count: totalCount, error: countError } = await queryCount;
+          if (!countError) {
+            totalClientes = totalCount || 0;
+          }
         }
       }
-
-      if (busca) {
-        query = query.or(
-          `nome_cliente.ilike.%${busca}%,telefone.ilike.%${busca}%`
-        );
-      }
-
-      // Executar query
-      const { data: clientes, error } = await query;
 
       if (error) {
         console.error("Erro ao carregar clientes:", error);
@@ -8827,112 +9897,297 @@
         return carregarListaClientes(paginaAtualClientes);
       }
 
-      // Renderizar tabela
-      let html = `
-        <table class="clientes-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Telefone</th>
-              <th>Status WhatsApp</th>
-              <th>Bloqueado</th>
-              <th>Veículos</th>
-              <th>Última Campanha</th>
-              <th>Total Envios</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
+      // Função auxiliar para contar número de veículos
+      const contarVeiculos = (cliente) => {
+        if (!cliente.veiculos) return 0;
+        if (Array.isArray(cliente.veiculos)) {
+          return cliente.veiculos.length;
+        } else if (typeof cliente.veiculos === 'object' && cliente.veiculos !== null) {
+          try {
+            const veiculosArray = Object.values(cliente.veiculos);
+            return Array.isArray(veiculosArray) ? veiculosArray.length : 0;
+          } catch (e) {
+            return 0;
+          }
+        }
+        return 0;
+      };
 
-      for (const cliente of clientes) {
-        // Mapear status para texto legível
-        let statusTexto = cliente.status_whatsapp || "unknown";
-        let statusLabel = "Não verificado";
-        let statusIcon = "⚪";
+      // Aplicar filtro de veículos (se configurado) - filtro client-side
+      let clientesFiltrados = clientes;
+      const filtroVeiculos = document.getElementById("filtroVeiculos")?.value;
+      if (filtroVeiculos) {
+        clientesFiltrados = clientes.filter(cliente => {
+          const numVeiculos = contarVeiculos(cliente);
 
-        if (statusTexto === "valid") {
-          statusLabel = "Válido";
-          statusIcon = "✅";
-        } else if (statusTexto === "invalid") {
-          statusLabel = "Inválido";
-          statusIcon = "❌";
-        } else if (statusTexto === "unknown") {
-          statusLabel = "Não verificado";
-          statusIcon = "⚪";
+          // Aplicar filtro
+          if (filtroVeiculos === "0") {
+            return numVeiculos === 0;
+          } else if (filtroVeiculos === "1") {
+            return numVeiculos === 1;
+          } else if (filtroVeiculos === "2") {
+            return numVeiculos === 2;
+          } else if (filtroVeiculos === "3") {
+            return numVeiculos === 3;
+          } else if (filtroVeiculos === "4+") {
+            return numVeiculos >= 4;
+          }
+          return true;
+        });
+      }
+
+      // Aplicar ordenação por número de veículos (client-side)
+      if (ordenarPorVeiculos) {
+        clientesFiltrados.sort((a, b) => {
+          const numVeiculosA = contarVeiculos(a);
+          const numVeiculosB = contarVeiculos(b);
+          if (ascending) {
+            return numVeiculosA - numVeiculosB;
+          } else {
+            return numVeiculosB - numVeiculosA;
+          }
+        });
+        
+        // Atualizar total de clientes para a contagem filtrada (após ordenação)
+        totalClientes = clientesFiltrados.length;
+        
+        // Aplicar paginação após ordenação
+        const inicio = offset;
+        const fim = offset + itensPorPaginaClientes;
+        clientesFiltrados = clientesFiltrados.slice(inicio, fim);
+      }
+
+      // Buscar totais de envios e último envio do histórico para os clientes da página atual
+      // IMPORTANTE: Buscar apenas para os clientes que serão exibidos (já paginados)
+      // para evitar URLs muito longas quando há muitos clientes
+      const totaisEnviosMap = new Map();
+      const ultimoEnvioMap = new Map();
+      
+      if (clientesFiltrados.length > 0) {
+        // Coletar IDs e telefones apenas dos clientes da página atual
+        const clienteIds = clientesFiltrados.map(c => c.id).filter(id => id);
+        const telefones = clientesFiltrados.map(c => normalizarTelefone(c.telefone || "")).filter(t => t);
+        
+        // Buscar todos os envios por cliente_id (sem limite para contar corretamente)
+        if (clienteIds.length > 0) {
+          const { data: enviosPorId, error: errorId } = await supabaseClient
+            .from("instacar_historico_envios")
+            .select("cliente_id, timestamp_envio")
+            .in("cliente_id", clienteIds)
+            .order("timestamp_envio", { ascending: false });
+          
+          if (!errorId && enviosPorId) {
+            // Contar envios e encontrar último envio por cliente_id
+            enviosPorId.forEach(item => {
+              if (item.cliente_id) {
+                // Contar envios
+                const atual = totaisEnviosMap.get(item.cliente_id) || 0;
+                totaisEnviosMap.set(item.cliente_id, atual + 1);
+                
+                // Atualizar último envio (mais recente)
+                if (item.timestamp_envio) {
+                  const ultimoAtual = ultimoEnvioMap.get(item.cliente_id);
+                  if (!ultimoAtual || new Date(item.timestamp_envio) > new Date(ultimoAtual)) {
+                    ultimoEnvioMap.set(item.cliente_id, item.timestamp_envio);
+                  }
+                }
+              }
+            });
+          }
+        }
+        
+        // Buscar todos os envios por telefone (para capturar envios sem cliente_id)
+        // IMPORTANTE: Normalizar telefones antes de buscar
+        if (telefones.length > 0) {
+          const { data: enviosPorTelefone, error: errorTelefone } = await supabaseClient
+            .from("instacar_historico_envios")
+            .select("telefone, cliente_id, timestamp_envio")
+            .in("telefone", telefones)
+            .order("timestamp_envio", { ascending: false });
+          
+          if (!errorTelefone && enviosPorTelefone) {
+            // Contar envios e encontrar último envio por telefone, mas apenas se não tiver cliente_id ou se o cliente_id não estiver na lista
+            enviosPorTelefone.forEach(item => {
+              if (item.telefone) {
+                const telNormalizado = normalizarTelefone(item.telefone);
+                const clienteComTelefone = clientesFiltrados.find(c => normalizarTelefone(c.telefone) === telNormalizado);
+                
+                if (clienteComTelefone) {
+                  // Se o envio não tem cliente_id OU o cliente_id não está na lista atual, contar por telefone
+                  if (!item.cliente_id || !clienteIds.includes(item.cliente_id)) {
+                    // Contar envios
+                    const atual = totaisEnviosMap.get(clienteComTelefone.id) || 0;
+                    totaisEnviosMap.set(clienteComTelefone.id, atual + 1);
+                    
+                    // Atualizar último envio (mais recente)
+                    if (item.timestamp_envio) {
+                      const ultimoAtual = ultimoEnvioMap.get(clienteComTelefone.id);
+                      if (!ultimoAtual || new Date(item.timestamp_envio) > new Date(ultimoAtual)) {
+                        ultimoEnvioMap.set(clienteComTelefone.id, item.timestamp_envio);
+                      }
+                    }
+                  }
+                  // Se já foi contado por cliente_id, não contar novamente
+                }
+              }
+            });
+          }
+        }
+      }
+
+      // Renderizar tabela (design instacar-insights)
+      // A tabela já está no HTML da página, apenas atualizar o tbody
+      let html = "";
+
+      for (const cliente of clientesFiltrados) {
+        // Obter total de envios do histórico (mais confiável que o campo do banco)
+        const totalEnviosHistorico = totaisEnviosMap.get(cliente.id) || 0;
+        // Usar histórico se disponível, senão usar campo do banco como fallback
+        const totalEnviosExibir = totalEnviosHistorico > 0 ? totalEnviosHistorico : (cliente.total_envios || 0);
+        
+        // Obter último envio do histórico (mais confiável que o campo do banco)
+        const ultimoEnvioHistorico = ultimoEnvioMap.get(cliente.id);
+        // Usar histórico se disponível, senão usar campo do banco como fallback
+        const ultimoEnvioData = ultimoEnvioHistorico || cliente.ultimo_envio;
+        const ultimoEnvio = ultimoEnvioData 
+          ? new Date(ultimoEnvioData).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+          : "Nunca";
+        
+        // Mapear status WhatsApp (design instacar-insights)
+        const statusWhatsappConfig = {
+          valid: { label: "Válido", className: "status-success", icon: getIconSVG('checkCircle', 12) },
+          invalid: { label: "Inválido", className: "status-error", icon: getIconSVG('xCircle', 12) },
+          unknown: { label: "Desconhecido", className: "status-warning", icon: getIconSVG('helpCircle', 12) }
+        };
+        const statusTexto = cliente.status_whatsapp || "unknown";
+        const statusConfig = statusWhatsappConfig[statusTexto] || statusWhatsappConfig.unknown;
+        
+        // Status do cliente (ativo/bloqueado)
+        const statusCliente = cliente.bloqueado_envios 
+          ? { label: "Bloqueado", className: "status-error" }
+          : cliente.ativo
+            ? { label: "Ativo", className: "status-success" }
+            : { label: "Inativo", className: "status-info" };
+
+        // Contar número de veículos
+        let numVeiculos = 0;
+        if (cliente.veiculos) {
+          if (Array.isArray(cliente.veiculos)) {
+            numVeiculos = cliente.veiculos.length;
+          } else if (typeof cliente.veiculos === 'object' && cliente.veiculos !== null) {
+            // Se for um objeto, tentar converter para array
+            try {
+              const veiculosArray = Object.values(cliente.veiculos);
+              numVeiculos = Array.isArray(veiculosArray) ? veiculosArray.length : 0;
+            } catch (e) {
+              numVeiculos = 0;
+            }
+          }
         }
 
-        const statusBadge = `<span class="badge badge-${statusTexto}" title="${statusLabel}">${statusIcon} ${statusLabel}</span>`;
-
-        const veiculosCount = Array.isArray(cliente.veiculos)
-          ? cliente.veiculos.length
-          : 0;
-
-        // Mostrar última campanha (simplificado - apenas indicar se existe)
-        const ultimaCampanha = cliente.ultima_campanha_id
-          ? cliente.ultima_campanha_data
-            ? new Date(cliente.ultima_campanha_data).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
-            : "Sim"
-          : "Nenhuma";
-
-        // Bloqueado Envios
-        const bloqueadoEnvios = cliente.bloqueado_envios === true;
-        const bloqueadoBadge = bloqueadoEnvios
-          ? '<span class="badge badge-invalid" title="Cliente bloqueado - não receberá mensagens">🚫 Bloqueado</span>'
-          : '<span class="badge badge-valid" title="Cliente permitido - receberá mensagens">✅ Permitido</span>';
-        const toggleBloqueioBtn = bloqueadoEnvios
-          ? "<button onclick=\"alternarBloqueioCliente('" +
-            cliente.id +
-            '\', false)" class="btn-success" style="padding: 4px 8px; font-size: 11px" title="Desbloquear envios">🔓</button>'
-          : "<button onclick=\"alternarBloqueioCliente('" +
-            cliente.id +
-            '\', true)" class="btn-danger" style="padding: 4px 8px; font-size: 11px" title="Bloquear envios">🚫</button>';
+        // ID único para dropdown deste cliente
+        const dropdownId = `dropdown-cliente-${cliente.id}`;
 
         html += `
-          <tr data-cliente-id="${cliente.id}">
-            <td>${cliente.nome_cliente || "-"}</td>
-            <td>${cliente.telefone}</td>
-            <td data-status-whatsapp="${statusTexto}">${statusBadge}</td>
+          <tr data-cliente-id="${cliente.id}" class="animate-fade-in">
             <td>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                ${bloqueadoBadge}
-                ${toggleBloqueioBtn}
+              <p style="font-weight: 500; color: hsl(var(--foreground)); margin: 0;">
+                ${cliente.nome_cliente || "Sem nome"}
+              </p>
+            </td>
+            <td>
+              <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+                  <span style="color: hsl(var(--muted-foreground)); display: flex; align-items: center;">
+                    ${getIconSVG('phone', 14)}
+                  </span>
+                  <span>${cliente.telefone}</span>
+                </div>
+                ${cliente.email ? `
+                  <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: hsl(var(--muted-foreground));">
+                    <span style="display: flex; align-items: center;">
+                      ${getIconSVG('mail', 14)}
+                    </span>
+                    <span>${cliente.email}</span>
+                  </div>
+                ` : ""}
               </div>
             </td>
-            <td>${veiculosCount}</td>
-            <td>${ultimaCampanha}</td>
-            <td>${cliente.total_envios || 0}</td>
             <td>
-              <div class="action-buttons">
-                <button onclick="enviarMensagemIndividual('${cliente.id}', '${
-          cliente.telefone
-        }')" class="btn-success" style="padding: 6px 12px; font-size: 12px">
-                  📤 Enviar
+              <span style="font-weight: 500;">${numVeiculos}</span>
+            </td>
+            <td>
+              <span class="status-badge ${statusConfig.className}" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+                ${statusConfig.icon}
+                ${statusConfig.label}
+              </span>
+            </td>
+            <td>
+              <span style="font-weight: 500;">${totalEnviosExibir}</span>
+            </td>
+            <td>
+              <span class="status-badge ${statusCliente.className}">
+                ${statusCliente.label}
+              </span>
+            </td>
+            <td>
+              <span style="font-size: 0.875rem; color: hsl(var(--muted-foreground));">
+                ${ultimoEnvio}
+              </span>
+            </td>
+            <td style="text-align: right;">
+              <div class="dropdown-menu" style="position: relative; display: inline-block;">
+                <button onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('${dropdownId}', event)" 
+                        class="dropdown-trigger-btn">
+                  ${getIconSVG('moreVertical', 16)}
                 </button>
-                <button onclick="verificarWhatsAppIndividual('${
-                  cliente.id
-                }', '${
-          cliente.telefone
-        }')" class="btn-secondary" style="padding: 6px 12px; font-size: 12px" title="Verificar WhatsApp">
-                  ✅ Verificar
-                </button>
-                <button onclick="verDetalhesCliente('${
-                  cliente.id
-                }')" class="btn-secondary" style="padding: 6px 12px; font-size: 12px">
-                  👁️ Ver
-                </button>
+                <div id="${dropdownId}" class="dropdown-content">
+                  <button class="dropdown-item" onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('${dropdownId}'); verDetalhesCliente('${cliente.id}')">
+                    ${getIconSVG('eye', 16)}
+                    Ver detalhes
+                  </button>
+                  <button class="dropdown-item" onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('${dropdownId}'); if(typeof window.enviarMensagemIndividual === 'function') window.enviarMensagemIndividual('${cliente.id}', '${cliente.telefone || ''}')">
+                    ${getIconSVG('send', 16)}
+                    Enviar
+                  </button>
+                  <button class="dropdown-item" onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('${dropdownId}'); editarCliente('${cliente.id}')">
+                    ${getIconSVG('edit', 16)}
+                    Editar
+                  </button>
+                  <button class="dropdown-item" onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('${dropdownId}'); toggleBloqueioCliente('${cliente.id}', ${cliente.bloqueado_envios || false})">
+                    ${getIconSVG('ban', 16)}
+                    ${cliente.bloqueado_envios ? "Desbloquear" : "Bloquear"}
+                  </button>
+                  <button class="dropdown-item" style="color: hsl(var(--destructive));" onclick="if(typeof window.toggleDropdownMenu === 'function') window.toggleDropdownMenu('${dropdownId}'); excluirCliente('${cliente.id}')">
+                    ${getIconSVG('trash', 16)}
+                    Excluir
+                  </button>
+                </div>
               </div>
             </td>
           </tr>
         `;
       }
 
-      html += `
-          </tbody>
-        </table>
-      `;
+      // Se não houver clientes, mostrar mensagem
+      if (html === "") {
+        html = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 2rem; color: hsl(var(--muted-foreground));">
+              ${busca ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
+            </td>
+          </tr>
+        `;
+      }
 
+      // Atualizar apenas o tbody da tabela existente
+      const tbody = container.querySelector("tbody");
+      if (tbody) {
+        tbody.innerHTML = html;
+      } else {
+        // Fallback: se não encontrar tbody, atualizar container completo
       container.innerHTML = html;
+      }
 
       // Renderizar paginação
       renderizarPaginacaoClientes();
@@ -9126,6 +10381,64 @@
           mostrarAlerta("Selecione uma campanha!", "error");
           return;
         }
+        
+        // Verificar se já existe histórico de envios para este cliente + campanha
+        if (supabaseClient && clienteId) {
+          const telefoneNormalizado = normalizarTelefone(telefone);
+          
+          // Buscar histórico de envios para este cliente e campanha
+          const { data: historicoExistente, error: errorHistorico } = await supabaseClient
+            .from("instacar_historico_envios")
+            .select("id, timestamp_envio, status_envio, mensagem_enviada")
+            .eq("campanha_id", campanhaId)
+            .or(`cliente_id.eq.${clienteId},telefone.eq.${telefoneNormalizado || telefone}`)
+            .order("timestamp_envio", { ascending: false })
+            .limit(1);
+          
+          if (!errorHistorico && historicoExistente && historicoExistente.length > 0) {
+            const ultimoEnvio = historicoExistente[0];
+            const dataUltimoEnvio = ultimoEnvio.timestamp_envio 
+              ? new Date(ultimoEnvio.timestamp_envio).toLocaleString("pt-BR", { 
+                  timeZone: "America/Sao_Paulo",
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit"
+                })
+              : "data desconhecida";
+            
+            const statusUltimoEnvio = ultimoEnvio.status_envio === "enviado" 
+              ? "enviado com sucesso" 
+              : ultimoEnvio.status_envio === "erro"
+              ? "com erro"
+              : "bloqueado";
+            
+            // Buscar nome da campanha para exibir na mensagem
+            const { data: campanha } = await supabaseClient
+              .from("instacar_campanhas")
+              .select("nome")
+              .eq("id", campanhaId)
+              .single();
+            
+            const nomeCampanha = campanha?.nome || "esta campanha";
+            
+            // Pedir confirmação
+            const confirmar = confirm(
+              `⚠️ ATENÇÃO: Este cliente já recebeu mensagem desta campanha!\n\n` +
+              `Campanha: ${nomeCampanha}\n` +
+              `Último envio: ${dataUltimoEnvio}\n` +
+              `Status: ${statusUltimoEnvio}\n\n` +
+              `Deseja continuar e enviar novamente?`
+            );
+            
+            if (!confirmar) {
+              mostrarAlerta("Envio cancelado pelo usuário.", "info");
+              return;
+            }
+          }
+        }
+        
         payload.campanha_id = campanhaId;
       } else if (tipoEnvio === "customizada") {
         const mensagem = document
@@ -9150,6 +10463,70 @@
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      // Se o envio foi bem-sucedido E for do tipo "campanha", registrar no histórico
+      if (tipoEnvio === "campanha" && supabaseClient) {
+        try {
+          const campanhaId = document.getElementById("campanhaSelecionada").value;
+          const telefoneNormalizado = normalizarTelefone(telefone);
+          
+          // Buscar dados da campanha para obter informações adicionais (opcional)
+          const { data: campanha } = await supabaseClient
+            .from("instacar_campanhas")
+            .select("nome, prompt_ia")
+            .eq("id", campanhaId)
+            .single();
+          
+          // Registrar no histórico de envios
+          const registroHistorico = {
+            cliente_id: clienteId || null,
+            telefone: telefoneNormalizado || telefone,
+            campanha_id: campanhaId,
+            status_envio: "enviado", // Assumindo sucesso já que o N8N processou
+            mensagem_enviada: null, // A mensagem é gerada pela IA no N8N, não temos aqui
+            tipo_envio: "normal", // Tipo manual individual (schema aceita: 'normal', 'teste', 'debug')
+            timestamp_envio: new Date().toISOString(),
+            planilha_origem: "envio_manual_individual",
+          };
+          
+          const { error: errorHistorico } = await supabaseClient
+            .from("instacar_historico_envios")
+            .insert(registroHistorico);
+          
+          if (errorHistorico) {
+            console.error("Erro ao registrar histórico de envio:", errorHistorico);
+            // Não falhar o envio se o registro do histórico falhar, apenas logar
+          } else {
+            console.log("✅ Histórico de envio registrado para campanha:", campanhaId);
+            
+            // Atualizar contadores do cliente (total_envios, ultimo_envio)
+            if (clienteId) {
+              const { data: clienteAtual } = await supabaseClient
+                .from("instacar_clientes_envios")
+                .select("total_envios, primeiro_envio")
+                .eq("id", clienteId)
+                .single();
+              
+              const novoTotalEnvios = (clienteAtual?.total_envios || 0) + 1;
+              const agora = new Date().toISOString();
+              const primeiroEnvio = clienteAtual?.primeiro_envio || agora;
+              
+              await supabaseClient
+                .from("instacar_clientes_envios")
+                .update({
+                  total_envios: novoTotalEnvios,
+                  ultimo_envio: agora,
+                  primeiro_envio: primeiroEnvio, // Manter o primeiro se já existir
+                })
+                .eq("id", clienteId);
+            }
+          }
+        } catch (errorRegistro) {
+          console.error("Erro ao registrar envio no histórico:", errorRegistro);
+          // Não falhar o envio se o registro do histórico falhar, apenas logar
+        }
+      }
+      // Se for "customizada", não registra no histórico (mensagem fora das campanhas)
 
       mostrarAlerta(
         "Mensagem enviada com sucesso! Verifique o status no N8N.",
@@ -9668,8 +11045,9 @@
       );
 
       // Fazer duas queries separadas e combinar resultados (mais confiável que .or())
+      // IMPORTANTE: Buscar TODOS os registros (sem limite) para garantir que todas as campanhas apareçam
       const [resultClienteId, resultTelefone] = await Promise.all([
-        // Query 1: Buscar por cliente_id
+        // Query 1: Buscar por cliente_id (sem limite para garantir todos os registros)
         supabaseClient
           .from("instacar_historico_envios")
           .select(
@@ -9682,9 +11060,8 @@
           `
           )
           .eq("cliente_id", clienteId)
-          .order("timestamp_envio", { ascending: false })
-          .limit(50),
-        // Query 2: Buscar por telefone (para capturar envios individuais)
+          .order("timestamp_envio", { ascending: false }),
+        // Query 2: Buscar por telefone (para capturar envios individuais) (sem limite)
         supabaseClient
           .from("instacar_historico_envios")
           .select(
@@ -9697,8 +11074,7 @@
           `
           )
           .eq("telefone", telefoneCliente)
-          .order("timestamp_envio", { ascending: false })
-          .limit(50),
+          .order("timestamp_envio", { ascending: false }),
       ]);
 
       // Combinar resultados e remover duplicatas (mesmo registro pode aparecer nas duas queries)
@@ -9719,13 +11095,13 @@
       }
 
       // Converter Map para Array e ordenar por timestamp
+      // IMPORTANTE: Não limitar aqui - manter todos os registros para exibição completa
       const historico = Array.from(historicoMap.values())
         .sort((a, b) => {
           const timestampA = new Date(a.timestamp_envio || a.created_at || 0);
           const timestampB = new Date(b.timestamp_envio || b.created_at || 0);
           return timestampB - timestampA; // Mais recente primeiro
-        })
-        .slice(0, 50); // Limitar a 50 registros
+        });
 
       // Verificar erros
       const errorHistorico = resultClienteId.error || resultTelefone.error;
@@ -10409,13 +11785,102 @@
       "fieldStatusWhatsappValue"
     ).innerHTML = `<span class="badge badge-${statusTexto}">${statusIcon} ${statusLabel}</span>`;
 
-    // Estatísticas
-    document.getElementById("statTotalEnvios").textContent =
-      cliente.total_envios || 0;
+    // Estatísticas - Calcular a partir do histórico real (mais confiável que o campo do banco)
+    const historicoArray = historico || [];
+    const totalEnviosReal = historicoArray.length;
+    
+    // Calcular primeiro e último envio a partir do histórico
+    let primeiroEnvioReal = null;
+    let ultimoEnvioReal = null;
+    if (historicoArray.length > 0) {
+      const timestamps = historicoArray
+        .map(h => h.timestamp_envio || h.created_at)
+        .filter(t => t)
+        .map(t => new Date(t))
+        .sort((a, b) => a - b); // Ordenar do mais antigo para o mais recente
+      
+      if (timestamps.length > 0) {
+        primeiroEnvioReal = timestamps[0];
+        ultimoEnvioReal = timestamps[timestamps.length - 1];
+      }
+    }
+    
+    // Usar histórico real se disponível, senão usar campo do banco como fallback
+    const totalEnviosExibir = totalEnviosReal > 0 ? totalEnviosReal : (cliente.total_envios || 0);
+    const primeiroEnvioExibir = primeiroEnvioReal || cliente.primeiro_envio;
+    const ultimoEnvioExibir = ultimoEnvioReal || cliente.ultimo_envio;
+    
+    document.getElementById("statTotalEnvios").textContent = totalEnviosExibir;
     document.getElementById("statPrimeiroEnvio").textContent =
-      cliente.primeiro_envio ? formatarData(cliente.primeiro_envio) : "-";
+      primeiroEnvioExibir ? formatarData(primeiroEnvioExibir) : "-";
     document.getElementById("statUltimoEnvio").textContent =
-      cliente.ultimo_envio ? formatarData(cliente.ultimo_envio) : "-";
+      ultimoEnvioExibir ? formatarData(ultimoEnvioExibir) : "-";
+    
+    // Calcular campanhas diferentes do histórico
+    const campanhasUnicas = new Map();
+    (historico || []).forEach((h) => {
+      if (h.campanha_id) {
+        const campanhaId = h.campanha_id;
+        // Pode ser objeto ou null
+        const campanhaData = h.instacar_campanhas;
+        let campanhaNome = "Campanha sem nome";
+        if (campanhaData && campanhaData.nome) {
+          campanhaNome = campanhaData.nome;
+        } else if (campanhaId) {
+          // Se não tem nome, usar ID truncado
+          campanhaNome = `Campanha ${campanhaId.substring(0, 8)}...`;
+        }
+        
+        if (!campanhasUnicas.has(campanhaId)) {
+          campanhasUnicas.set(campanhaId, {
+            nome: campanhaNome,
+            primeiroEnvio: h.timestamp_envio,
+            ultimoEnvio: h.timestamp_envio,
+            totalEnvios: 0
+          });
+        } else {
+          // Atualizar último envio se for mais recente
+          const campanha = campanhasUnicas.get(campanhaId);
+          if (new Date(h.timestamp_envio) > new Date(campanha.ultimoEnvio)) {
+            campanha.ultimoEnvio = h.timestamp_envio;
+          }
+        }
+        campanhasUnicas.get(campanhaId).totalEnvios++;
+      }
+    });
+    
+    document.getElementById("statCampanhasEnviadas").textContent = campanhasUnicas.size;
+    
+    // Renderizar lista resumida de campanhas
+    const listaCampanhasEl = document.getElementById("statCampanhasListaContent");
+    if (listaCampanhasEl) {
+      if (campanhasUnicas.size === 0) {
+        listaCampanhasEl.innerHTML = '<em>Nenhuma campanha ainda</em>';
+      } else {
+        const campanhasArray = Array.from(campanhasUnicas.entries())
+          .sort((a, b) => new Date(b[1].ultimoEnvio) - new Date(a[1].ultimoEnvio))
+          .slice(0, 5); // Mostrar apenas as 5 mais recentes
+        
+        let html = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+        campanhasArray.forEach(([id, info]) => {
+          const dataUltimoEnvio = formatarData(info.ultimoEnvio);
+          html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: hsl(var(--muted) / 0.2); border-radius: var(--radius-md);">
+              <span style="font-weight: 500; font-size: 0.8125rem;">${info.nome}</span>
+              <div style="display: flex; gap: 0.75rem; align-items: center; font-size: 0.75rem;">
+                <span style="color: hsl(var(--muted-foreground));">${info.totalEnvios} envio${info.totalEnvios > 1 ? 's' : ''}</span>
+                <span style="color: hsl(var(--muted-foreground));" title="Último envio: ${dataUltimoEnvio}">${dataUltimoEnvio}</span>
+              </div>
+            </div>
+          `;
+        });
+        if (campanhasUnicas.size > 5) {
+          html += `<div style="text-align: center; margin-top: 0.25rem; font-size: 0.75rem; color: hsl(var(--muted-foreground));">+${campanhasUnicas.size - 5} campanha${campanhasUnicas.size - 5 > 1 ? 's' : ''} (ver todas no Histórico)</div>`;
+        }
+        html += '</div>';
+        listaCampanhasEl.innerHTML = html;
+      }
+    }
 
     // Datas
     document.getElementById("fieldCreatedAt").textContent = formatarData(
@@ -10461,9 +11926,26 @@
     const modalContent = document.getElementById("modalClienteContent");
     modalContent.classList.remove("modo-edicao");
     modalContent.classList.add("modo-visualizacao");
-    document.getElementById("btnEditarCliente").style.display = "block";
-    document.getElementById("btnSalvarCliente").style.display = "none";
-    document.getElementById("btnSalvarCliente").textContent = "💾 Salvar";
+    const btnEditar = document.getElementById("btnEditarCliente");
+    const btnSalvar = document.getElementById("btnSalvarCliente");
+    const btnCancelar = document.getElementById("btnCancelarEdicao");
+    if (btnEditar) btnEditar.style.display = "flex";
+    if (btnSalvar) btnSalvar.style.display = "none";
+    if (btnCancelar) btnCancelar.style.display = "none";
+    if (btnSalvar) btnSalvar.textContent = "💾 Salvar";
+    
+    // Garantir que campos de visualização estão visíveis e inputs ocultos
+    // O CSS já cuida disso, mas garantimos aqui também para evitar problemas
+    document.querySelectorAll('#modalClienteContent .modo-visualizacao').forEach(el => {
+      if (el.id && (el.id.includes('Value') || el.id.includes('StatusWhatsapp'))) {
+        el.style.display = '';
+      }
+    });
+    document.querySelectorAll('#modalClienteContent .modo-edicao').forEach(el => {
+      if (el.classList.contains('form-input') || el.classList.contains('form-checkbox') || el.classList.contains('form-label')) {
+        el.style.display = '';
+      }
+    });
     document.getElementById("btnSalvarCliente").onclick = salvarEdicaoCliente;
     document.getElementById("btnCancelarEdicao").style.display = "none";
 
@@ -10726,18 +12208,56 @@
   async function verDetalhesCliente(clienteId) {
     if (!supabaseClient) {
       mostrarAlerta("Conecte ao Supabase primeiro!", "error");
-      return;
+      return false;
     }
 
-    const modal = document.getElementById("modalCliente");
-    const loading = document.getElementById("modalClienteLoading");
-    const content = document.getElementById("modalClienteContent");
-    const title = document.getElementById("modalClienteTitle");
-
-    if (!modal || !loading || !content || !title) {
-      mostrarAlerta("Erro: Modal não encontrado", "error");
-      return;
+    // Aguardar elementos do modal estarem disponíveis (pode levar um tempo se o DOM ainda estiver carregando)
+    let tentativas = 0;
+    const maxTentativas = 20; // 2 segundos
+    
+    const aguardarElementos = async () => {
+      const modal = document.getElementById("modalCliente");
+      const loading = document.getElementById("modalClienteLoading");
+      const content = document.getElementById("modalClienteContent");
+      const title = document.getElementById("modalClienteTitle");
+      
+      if (modal && loading && content && title) {
+        return { modal, loading, content, title };
+      }
+      
+      if (tentativas < maxTentativas) {
+        tentativas++;
+        await new Promise(resolve => setTimeout(resolve, 100));
+        return aguardarElementos();
+      }
+      
+      // Se chegou aqui, os elementos não foram encontrados
+      const elementosFaltando = [];
+      if (!modal) elementosFaltando.push("modalCliente");
+      if (!loading) elementosFaltando.push("modalClienteLoading");
+      if (!content) elementosFaltando.push("modalClienteContent");
+      if (!title) elementosFaltando.push("modalClienteTitle");
+      
+      console.error("Elementos do modal não encontrados após aguardar:", elementosFaltando);
+      console.error("DOM atual:", {
+        modalExists: !!modal,
+        loadingExists: !!loading,
+        contentExists: !!content,
+        titleExists: !!title,
+        documentReady: document.readyState,
+        bodyChildren: document.body ? document.body.children.length : 0
+      });
+      
+      mostrarAlerta(`Erro: Modal não encontrado. Elementos faltando: ${elementosFaltando.join(", ")}. Verifique se a página está totalmente carregada.`, "error");
+      return null;
+    };
+    
+    const elementos = await aguardarElementos();
+    if (!elementos) {
+      return false;
     }
+    
+    const { modal, loading, content, title } = elementos;
 
     // Abrir modal e mostrar loading
     modal.classList.add("active");
@@ -10749,11 +12269,15 @@
       const dados = await carregarDadosClienteCompleto(clienteId);
       if (dados) {
         renderizarModalCliente(dados);
+        // Retornar true para indicar sucesso
+        return true;
       }
+      return false;
     } catch (error) {
       console.error("Erro ao carregar detalhes do cliente:", error);
       mostrarAlerta(`Erro ao carregar detalhes: ${error.message}`, "error");
       loading.innerHTML = `<p style="color: red;">Erro ao carregar: ${error.message}</p>`;
+      return false;
     }
   }
 
@@ -10765,9 +12289,14 @@
     // Ocultar todas as tabs
     document.querySelectorAll(".modal-tab-content").forEach((tab) => {
       tab.classList.remove("active");
+      tab.style.display = "none";
     });
     document.querySelectorAll(".modal-tab").forEach((tab) => {
       tab.classList.remove("active");
+      // Remover estilo inline de active
+      tab.style.color = "";
+      tab.style.borderBottomColor = "";
+      tab.style.background = "";
     });
 
     // Mostrar tab selecionada
@@ -10785,8 +12314,66 @@
         )
     );
 
-    if (tabContent) tabContent.classList.add("active");
-    if (tabButton) tabButton.classList.add("active");
+    if (tabContent) {
+      tabContent.classList.add("active");
+      tabContent.style.display = "block";
+    }
+    if (tabButton) {
+      tabButton.classList.add("active");
+      tabButton.style.color = "hsl(var(--primary))";
+      tabButton.style.borderBottomColor = "hsl(var(--primary))";
+      tabButton.style.background = "hsl(var(--muted) / 0.3)";
+    }
+    
+    // Se for a aba Histórico, garantir que o histórico está renderizado
+    if (tabName === "historico") {
+      // Aguardar um pouco para garantir que o DOM está pronto
+      setTimeout(() => {
+        // Se já temos histórico carregado, renderizar
+        if (window.historicoCompleto && window.historicoCompleto.length > 0) {
+          // Limpar filtros para mostrar tudo
+          const filtroCampanha = document.getElementById("filtroCampanhaHistorico");
+          const filtroStatus = document.getElementById("filtroStatusHistorico");
+          const filtroDataInicio = document.getElementById("filtroDataInicioHistorico");
+          const filtroDataFim = document.getElementById("filtroDataFimHistorico");
+          const filtroBusca = document.getElementById("filtroBuscaTextoHistorico");
+          
+          if (filtroCampanha) filtroCampanha.value = "";
+          if (filtroStatus) filtroStatus.value = "";
+          if (filtroDataInicio) filtroDataInicio.value = "";
+          if (filtroDataFim) filtroDataFim.value = "";
+          if (filtroBusca) filtroBusca.value = "";
+          
+          // Resetar paginação
+          window.paginaAtualHistorico = 1;
+          
+          // Renderizar primeira página do histórico completo (sem filtros)
+          const inicio = (window.paginaAtualHistorico - 1) * window.registrosPorPagina;
+          const fim = inicio + window.registrosPorPagina;
+          const historicoPagina = window.historicoCompleto.slice(inicio, fim);
+          
+          renderizarHistoricoEnvios(historicoPagina);
+          atualizarEstatisticasHistorico(window.historicoCompleto);
+          
+          // Atualizar paginação
+          const totalPaginas = Math.ceil(window.historicoCompleto.length / window.registrosPorPagina);
+          atualizarPaginacaoHistorico(totalPaginas, window.paginaAtualHistorico);
+        } else {
+          // Se não tem histórico carregado, tentar buscar novamente
+          const clienteId = document.getElementById("clienteId")?.value;
+          if (clienteId) {
+            // Recarregar dados do cliente para obter histórico
+            verDetalhesCliente(clienteId).catch(console.error);
+          } else {
+            // Se não tem clienteId, mostrar mensagem
+            const tbody = document.getElementById("historicoEnviosBody");
+            if (tbody) {
+              tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">Nenhum histórico de envio encontrado.</td></tr>';
+            }
+          }
+        }
+      }, 100);
+    }
   }
 
   /**
@@ -10794,19 +12381,46 @@
    */
   function alternarModoEdicao() {
     const modalContent = document.getElementById("modalClienteContent");
+    if (!modalContent) {
+      console.error("Modal de cliente não encontrado. Elemento modalClienteContent não existe.");
+      mostrarAlerta("Erro: Modal não encontrado. Tente novamente.", "error");
+      return;
+    }
+    
     const isEdicao = modalContent.classList.contains("modo-edicao");
 
     if (isEdicao) {
       // Voltar para visualização
       modalContent.classList.remove("modo-edicao");
       modalContent.classList.add("modo-visualizacao");
-      document.getElementById("btnEditarCliente").style.display = "block";
-      document.getElementById("btnSalvarCliente").style.display = "none";
-      document.getElementById("btnCancelarEdicao").style.display = "none";
+      
+      const btnEditar = document.getElementById("btnEditarCliente");
+      const btnSalvar = document.getElementById("btnSalvarCliente");
+      const btnCancelar = document.getElementById("btnCancelarEdicao");
+      
+      if (btnEditar) btnEditar.style.display = "flex";
+      if (btnSalvar) btnSalvar.style.display = "none";
+      if (btnCancelar) btnCancelar.style.display = "none";
+      
+      // O CSS já cuida da exibição/ocultação baseado nas classes do modalContent
+      // Apenas garantimos que os estilos inline não sobrescrevam
+      document.querySelectorAll('#modalClienteContent .modo-visualizacao').forEach(el => {
+        if (el.id && (el.id.includes('Value') || el.id.includes('StatusWhatsapp'))) {
+          el.style.display = '';
+        }
+      });
+      document.querySelectorAll('#modalClienteContent .modo-edicao').forEach(el => {
+        if (el.classList.contains('form-input') || el.classList.contains('form-checkbox')) {
+          el.style.display = '';
+        }
+        if (el.classList.contains('form-label') && el.closest('.form-group')?.querySelector('#fieldBloqueadoEnviosInput')) {
+          el.style.display = '';
+        }
+      });
       
       // Remover validação em tempo real
       const telefoneInput = document.getElementById("fieldTelefoneInput");
-      if (telefoneInput) {
+      if (telefoneInput && typeof validarTelefoneTempoReal === 'function') {
         telefoneInput.removeEventListener("input", validarTelefoneTempoReal);
         telefoneInput.removeEventListener("blur", validarTelefoneTempoReal);
       }
@@ -10820,13 +12434,34 @@
       // Entrar em modo edição
       modalContent.classList.remove("modo-visualizacao");
       modalContent.classList.add("modo-edicao");
-      document.getElementById("btnEditarCliente").style.display = "none";
-      document.getElementById("btnSalvarCliente").style.display = "block";
-      document.getElementById("btnCancelarEdicao").style.display = "block";
+      
+      const btnEditar = document.getElementById("btnEditarCliente");
+      const btnSalvar = document.getElementById("btnSalvarCliente");
+      const btnCancelar = document.getElementById("btnCancelarEdicao");
+      
+      if (btnEditar) btnEditar.style.display = "none";
+      if (btnSalvar) btnSalvar.style.display = "flex";
+      if (btnCancelar) btnCancelar.style.display = "flex";
+      
+      // O CSS já cuida da exibição/ocultação baseado nas classes do modalContent
+      // Apenas garantimos que os estilos inline não sobrescrevam
+      document.querySelectorAll('#modalClienteContent .modo-visualizacao').forEach(el => {
+        if (el.id && (el.id.includes('Value') || el.id.includes('StatusWhatsapp'))) {
+          el.style.display = '';
+        }
+      });
+      document.querySelectorAll('#modalClienteContent .modo-edicao').forEach(el => {
+        if (el.classList.contains('form-input') || el.classList.contains('form-checkbox')) {
+          el.style.display = '';
+        }
+        if (el.classList.contains('form-label') && el.closest('.form-group')?.querySelector('#fieldBloqueadoEnviosInput')) {
+          el.style.display = '';
+        }
+      });
       
       // Configurar validação em tempo real do telefone
       const telefoneInput = document.getElementById("fieldTelefoneInput");
-      if (telefoneInput) {
+      if (telefoneInput && typeof validarTelefoneTempoReal === 'function') {
         // Remover listeners anteriores para evitar duplicação
         telefoneInput.removeEventListener("input", validarTelefoneTempoReal);
         telefoneInput.removeEventListener("blur", validarTelefoneTempoReal);
@@ -12011,18 +13646,23 @@ Máximo de 3 parágrafos.</code></pre>
 
     const icon = document.createElement("span");
     icon.className = "help-icon";
-    icon.textContent = "?";
+    icon.innerHTML = "?"; // Usar innerHTML para evitar problemas com textContent
     icon.setAttribute("role", "button");
     icon.setAttribute("aria-label", `Ajuda sobre ${config.titulo}`);
     icon.setAttribute("tabindex", "0");
+    icon.style.position = "relative"; // Para que o tooltip seja posicionado corretamente
 
     const resumo = customResumo || config.resumo;
 
-    // Tooltip hover (rápido)
+    // Tooltip hover (rápido) - criar mas não adicionar ainda
     const tooltipHover = document.createElement("div");
     tooltipHover.className = "tooltip-hover";
     tooltipHover.textContent = resumo;
-    icon.appendChild(tooltipHover);
+    // Adicionar ao body em vez do ícone para evitar problemas de posicionamento
+    document.body.appendChild(tooltipHover);
+    
+    // Armazenar referência no ícone para poder remover depois
+    icon._tooltipHover = tooltipHover;
 
     // Event listeners
     let hoverTimeout;
@@ -12031,18 +13671,45 @@ Máximo de 3 parágrafos.</code></pre>
     icon.addEventListener("mouseenter", () => {
       clearTimeout(hoverTimeout);
       hoverTimeout = setTimeout(() => {
-        tooltipHover.classList.add("show");
         posicionarTooltipHover(icon, tooltipHover);
+        tooltipHover.classList.add("show");
       }, 300);
     });
 
     icon.addEventListener("mouseleave", () => {
       clearTimeout(hoverTimeout);
       tooltipHover.classList.remove("show");
+      // Resetar posição para próxima exibição
+      tooltipHover.style.top = "";
+      tooltipHover.style.left = "";
+      tooltipHover.style.visibility = "";
+      tooltipHover.style.display = "";
     });
+    
+    // Limpar tooltip quando o ícone for removido
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.removedNodes.length > 0) {
+          mutation.removedNodes.forEach((node) => {
+            if (node === icon && icon._tooltipHover) {
+              icon._tooltipHover.remove();
+            }
+          });
+        }
+      });
+    });
+    
+    // Observar quando o ícone for removido do DOM
+    if (icon.parentNode) {
+      observer.observe(icon.parentNode, { childList: true });
+    }
 
     icon.addEventListener("click", (e) => {
+      e.preventDefault();
       e.stopPropagation();
+      // Fechar tooltip hover se estiver aberto
+      tooltipHover.classList.remove("show");
+      // Mostrar popover completo
       mostrarTooltipPopover(config, icon);
     });
 
@@ -12060,17 +13727,22 @@ Máximo de 3 parágrafos.</code></pre>
    * Posiciona tooltip hover para não sair da tela
    */
   function posicionarTooltipHover(icon, tooltip) {
+    // Primeiro, garantir que o tooltip está visível para calcular dimensões
+    tooltip.style.display = "block";
+    tooltip.style.visibility = "hidden";
+    tooltip.style.opacity = "0";
+    
     const rect = icon.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    // Posição padrão: abaixo do ícone
+    // Posição padrão: abaixo do ícone, centralizado
     let top = rect.bottom + 8;
-    let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
 
     // Ajustar se sair da tela à direita
-    if (left + tooltipRect.width > viewportWidth) {
+    if (left + tooltipRect.width > viewportWidth - 10) {
       left = viewportWidth - tooltipRect.width - 10;
     }
 
@@ -12080,59 +13752,130 @@ Máximo de 3 parágrafos.</code></pre>
     }
 
     // Se não couber abaixo, colocar acima
-    if (top + tooltipRect.height > viewportHeight) {
+    if (top + tooltipRect.height > viewportHeight - 10) {
       top = rect.top - tooltipRect.height - 8;
       tooltip.style.setProperty("--arrow-position", "bottom");
     } else {
       tooltip.style.setProperty("--arrow-position", "top");
     }
 
+    // Aplicar posição (position: fixed usa coordenadas do viewport)
     tooltip.style.top = `${top}px`;
     tooltip.style.left = `${left}px`;
+    tooltip.style.visibility = "visible";
   }
 
   /**
    * Mostra popover com detalhes completos
    */
   function mostrarTooltipPopover(config, triggerElement) {
-    const popover = document.getElementById("tooltipPopover");
-    const overlay = document.getElementById("tooltipOverlay");
-    const title = document.getElementById("tooltipPopoverTitle");
-    const content = document.getElementById("tooltipPopoverContent");
+    let popover = document.getElementById("tooltipPopover");
+    let overlay = document.getElementById("tooltipOverlay");
+    let title = document.getElementById("tooltipPopoverTitle");
+    let content = document.getElementById("tooltipPopoverContent");
+
+    // Criar elementos se não existirem
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "tooltip-overlay";
+      overlay.id = "tooltipOverlay";
+      overlay.onclick = fecharTooltipPopover;
+      document.body.appendChild(overlay);
+    }
+
+    if (!popover) {
+      popover = document.createElement("div");
+      popover.className = "tooltip-popover";
+      popover.id = "tooltipPopover";
+      
+      const header = document.createElement("div");
+      header.className = "tooltip-popover-header";
+      
+      title = document.createElement("h4");
+      title.id = "tooltipPopoverTitle";
+      
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "tooltip-popover-close";
+      closeBtn.onclick = fecharTooltipPopover;
+      closeBtn.innerHTML = "&times;";
+      
+      header.appendChild(title);
+      header.appendChild(closeBtn);
+      
+      content = document.createElement("div");
+      content.className = "tooltip-popover-content";
+      content.id = "tooltipPopoverContent";
+      
+      popover.appendChild(header);
+      popover.appendChild(content);
+      document.body.appendChild(popover);
+    } else {
+      // Se popover existe, buscar elementos filhos
+      if (!title) title = document.getElementById("tooltipPopoverTitle");
+      if (!content) content = document.getElementById("tooltipPopoverContent");
+    }
 
     if (!popover || !overlay || !title || !content) {
-      console.error("Elementos do popover não encontrados");
+      console.error("Elementos do popover não encontrados ou não puderam ser criados", {
+        popover: !!popover,
+        overlay: !!overlay,
+        title: !!title,
+        content: !!content
+      });
       return;
     }
 
     title.textContent = config.titulo;
     content.innerHTML = config.detalhes;
 
+    // Primeiro, mostrar o popover invisível para calcular dimensões corretas
+    popover.style.display = "block";
+    popover.style.visibility = "hidden";
+    popover.style.opacity = "0";
+
     // Posicionar popover próximo ao elemento trigger
+    // getBoundingClientRect() retorna coordenadas relativas ao viewport
     const rect = triggerElement.getBoundingClientRect();
     const popoverRect = popover.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
+    // Para position: fixed, não precisamos considerar scroll
+    // Posição padrão: abaixo do ícone, centralizado horizontalmente
     let top = rect.bottom + 10;
-    let left = rect.left + rect.width / 2 - popoverRect.width / 2;
+    let left = rect.left + (rect.width / 2) - (popoverRect.width / 2);
 
-    // Ajustar posicionamento
-    if (left + popoverRect.width > viewportWidth) {
+    // Ajustar se sair da tela à direita
+    if (left + popoverRect.width > viewportWidth - 20) {
       left = viewportWidth - popoverRect.width - 20;
     }
+    
+    // Ajustar se sair da tela à esquerda
     if (left < 20) {
       left = 20;
     }
-    if (top + popoverRect.height > viewportHeight) {
+    
+    // Ajustar se sair da tela abaixo
+    if (top + popoverRect.height > viewportHeight - 20) {
+      // Tentar posicionar acima do ícone
       top = rect.top - popoverRect.height - 10;
+      
+      // Se ainda não couber acima, posicionar no topo da tela
+      if (top < 20) {
+        top = 20;
+      }
     }
+    
+    // Ajustar se sair da tela acima
     if (top < 20) {
       top = 20;
     }
 
+    // Aplicar posição (position: fixed usa coordenadas do viewport)
     popover.style.top = `${top}px`;
     popover.style.left = `${left}px`;
+    popover.style.visibility = "visible";
+    popover.style.opacity = "1";
 
     // Mostrar
     overlay.classList.add("show");
@@ -12152,7 +13895,15 @@ Máximo de 3 parágrafos.</code></pre>
     const popover = document.getElementById("tooltipPopover");
     const overlay = document.getElementById("tooltipOverlay");
 
-    if (popover) popover.classList.remove("show");
+    if (popover) {
+      popover.classList.remove("show");
+      // Resetar estilos inline para próxima abertura
+      popover.style.display = "";
+      popover.style.visibility = "";
+      popover.style.opacity = "";
+      popover.style.top = "";
+      popover.style.left = "";
+    }
     if (overlay) overlay.classList.remove("show");
   }
 
@@ -12269,13 +14020,140 @@ Máximo de 3 parágrafos.</code></pre>
   window.removerVeiculoCliente = removerVeiculoCliente;
   window.mostrarFormVeiculo = mostrarFormVeiculo;
   window.cancelarAdicionarVeiculo = cancelarAdicionarVeiculo;
+  /**
+   * Abre modal de cliente para edição
+   * @param {string} clienteId - ID do cliente
+   */
+  async function editarCliente(clienteId) {
+    try {
+      // Verificar se os elementos do modal existem antes de chamar verDetalhesCliente
+      const modal = document.getElementById("modalCliente");
+      if (!modal) {
+        console.error("Modal não encontrado antes de chamar verDetalhesCliente");
+        mostrarAlerta("Erro: Modal não encontrado. A página pode não estar totalmente carregada.", "error");
+        return;
+      }
+      
+      const sucesso = await verDetalhesCliente(clienteId);
+      
+      if (!sucesso) {
+        mostrarAlerta("Erro: Não foi possível carregar os dados do cliente.", "error");
+        return;
+      }
+      
+      // Aguardar o modal estar pronto antes de alternar para modo de edição
+      // Verificar se o modal está aberto, loading está escondido e content está visível
+      let tentativas = 0;
+      const maxTentativas = 30; // 3 segundos no total (30 * 100ms)
+      
+      const aguardarModalPronto = () => {
+        const modal = document.getElementById("modalCliente");
+        const modalContent = document.getElementById("modalClienteContent");
+        const loading = document.getElementById("modalClienteLoading");
+        
+        // Verificar se todos os elementos existem
+        if (!modal || !modalContent || !loading) {
+          if (tentativas < maxTentativas) {
+            tentativas++;
+            setTimeout(aguardarModalPronto, 100);
+          } else {
+            console.error("Timeout: Elementos do modal não encontrados");
+            mostrarAlerta("Erro: Modal não encontrado. Tente novamente.", "error");
+          }
+          return;
+        }
+        
+        // Verificar se o modal está ativo, loading está escondido e content está visível
+        const modalAtivo = modal.classList.contains("active");
+        const loadingEscondido = loading.style.display === "none" || loading.style.display === "";
+        const computedContentDisplay = window.getComputedStyle(modalContent).display;
+        const contentVisivel = modalContent.style.display === "block" || 
+                              (modalContent.style.display === "" && computedContentDisplay !== "none");
+        
+        if (modalAtivo && loadingEscondido && contentVisivel) {
+          // Modal está pronto, alternar para modo de edição
+          if (typeof alternarModoEdicao === 'function') {
+            alternarModoEdicao();
+          }
+        } else if (tentativas < maxTentativas) {
+          tentativas++;
+          setTimeout(aguardarModalPronto, 100);
+        } else {
+          console.error("Timeout aguardando modal estar pronto", {
+            modalAtivo,
+            loadingEscondido,
+            contentVisivel,
+            loadingDisplay: loading.style.display,
+            contentDisplay: modalContent.style.display,
+            computedContentDisplay: computedContentDisplay
+          });
+          mostrarAlerta("Erro: Não foi possível abrir o modal de edição. Tente novamente.", "error");
+        }
+      };
+      
+      // Iniciar verificação após um pequeno delay para dar tempo do DOM atualizar
+      setTimeout(aguardarModalPronto, 150);
+    } catch (error) {
+      console.error("Erro ao abrir modal de edição:", error);
+      mostrarAlerta(`Erro ao abrir modal de edição: ${error.message}`, "error");
+    }
+  }
+
+  /**
+   * Alterna bloqueio de envios do cliente
+   * @param {string} clienteId - ID do cliente
+   * @param {boolean} bloqueadoAtual - Estado atual do bloqueio
+   */
+  async function toggleBloqueioCliente(clienteId, bloqueadoAtual) {
+    if (!supabaseClient) {
+      mostrarAlerta("Conecte ao Supabase primeiro!", "error");
+      return;
+    }
+
+    const novoEstado = !bloqueadoAtual;
+    const acao = novoEstado ? "bloquear" : "desbloquear";
+    
+    if (!confirm(`Tem certeza que deseja ${acao} este cliente?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabaseClient
+        .from("instacar_clientes_envios")
+        .update({
+          bloqueado_envios: novoEstado,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", clienteId);
+
+      if (error) {
+        throw new Error(`Erro ao ${acao} cliente: ${error.message}`);
+      }
+
+      mostrarAlerta(`Cliente ${novoEstado ? "bloqueado" : "desbloqueado"} com sucesso!`, "success");
+      carregarListaClientes(paginaAtualClientes || 1);
+    } catch (error) {
+      console.error(`Erro ao ${acao} cliente:`, error);
+      mostrarAlerta(`Erro ao ${acao}: ${error.message}`, "error");
+    }
+  }
+
   window.desativarCliente = desativarCliente;
   window.excluirCliente = excluirCliente;
+  window.editarCliente = editarCliente;
+  window.toggleBloqueioCliente = toggleBloqueioCliente;
+  window.abrirModalNovoCliente = adicionarNovoCliente; // Alias para manter compatibilidade
   window.adicionarNovoCliente = adicionarNovoCliente;
   window.fecharModalCliente = fecharModalCliente;
   window.verificarWhatsAppDoModal = verificarWhatsAppDoModal;
   window.filtrarHistorico = filtrarHistorico;
   window.limparFiltrosHistorico = limparFiltrosHistorico;
+  
+  // Funções de filtros de clientes (já definidas acima, apenas expor globalmente)
+  // window.abrirModalFiltrosClientes já está definida acima
+  // window.fecharModalFiltrosClientes já está definida acima
+  // window.aplicarFiltrosClientes já está definida acima
+  // window.limparFiltrosClientes já está definida acima
   window.mudarPaginaHistorico = mudarPaginaHistorico;
   window.exportarHistorico = exportarHistorico;
   window.fecharTooltipPopover = fecharTooltipPopover;
@@ -13392,6 +15270,979 @@ Máximo de 3 parágrafos.</code></pre>
   window.fecharModalTemplatePrompt = fecharModalTemplatePrompt;
   window.abrirModalFormTemplatePrompt = abrirModalFormTemplatePrompt;
   window.toggleAtivoTemplate = toggleAtivoTemplate;
+
+  // ============================================================================
+  // Funções de Carregamento de Páginas (Sistema de Rotas)
+  // ============================================================================
+  
+  /**
+   * Carrega a página do Dashboard
+   */
+  window.loadPageDashboard = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    // Ocultar conteúdo legacy se existir
+    const legacyContent = document.getElementById("legacyContent");
+    if (legacyContent) {
+      legacyContent.style.display = "none";
+    }
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      
+      <div class="p-6" style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 stats-grid" style="gap: 1rem; display: grid;">
+          <div class="card-elevated hover-lift" style="padding: 1rem;" id="totalClientes">
+            <div style="display: flex; align-items: start; justify-content: space-between; gap: 0.75rem;">
+              <div style="flex: 1; min-width: 0;">
+                <p style="font-size: 0.75rem; font-weight: 500; color: hsl(var(--muted-foreground)); margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.025em;">Total de Clientes</p>
+                <p class="metric-value" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-family-display); color: hsl(var(--foreground)); line-height: 1.2; margin: 0 0 0.25rem 0;">-</p>
+                <p class="metric-description" style="font-size: 0.75rem; font-weight: 400; color: hsl(var(--muted-foreground)); margin: 0;">Base de contatos</p>
+              </div>
+              <div style="padding: 0.625rem; border-radius: 0.5rem; background: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 2.5rem; height: 2.5rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              </div>
+            </div>
+          </div>
+          <div class="card-elevated hover-lift" style="padding: 1rem;" id="mensagensEnviadas">
+            <div style="display: flex; align-items: start; justify-content: space-between; gap: 0.75rem;">
+              <div style="flex: 1; min-width: 0;">
+                <p style="font-size: 0.75rem; font-weight: 500; color: hsl(var(--muted-foreground)); margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.025em;">Mensagens Enviadas</p>
+                <p class="metric-value" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-family-display); color: hsl(var(--foreground)); line-height: 1.2; margin: 0 0 0.25rem 0;">-</p>
+                <p class="metric-description" style="font-size: 0.75rem; font-weight: 400; color: hsl(var(--muted-foreground)); margin: 0;">Total histórico</p>
+              </div>
+              <div style="padding: 0.625rem; border-radius: 0.5rem; background: hsl(var(--success) / 0.1); color: hsl(var(--success)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 2.5rem; height: 2.5rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><path d="M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+              </div>
+            </div>
+          </div>
+          <div class="card-elevated hover-lift" style="padding: 1rem;" id="taxaEntrega">
+            <div style="display: flex; align-items: start; justify-content: space-between; gap: 0.75rem;">
+              <div style="flex: 1; min-width: 0;">
+                <p style="font-size: 0.75rem; font-weight: 500; color: hsl(var(--muted-foreground)); margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.025em;">Taxa de Entrega</p>
+                <p class="metric-value" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-family-display); color: hsl(var(--success)); line-height: 1.2; margin: 0 0 0.25rem 0;">-</p>
+                <p class="metric-description" style="font-size: 0.75rem; font-weight: 400; color: hsl(var(--success)); margin: 0;">Mensagens com sucesso</p>
+              </div>
+              <div style="padding: 0.625rem; border-radius: 0.5rem; background: hsl(var(--info) / 0.1); color: hsl(var(--info)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 2.5rem; height: 2.5rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              </div>
+            </div>
+          </div>
+          <div class="card-elevated hover-lift" style="padding: 1rem;" id="campanhasAtivas">
+            <div style="display: flex; align-items: start; justify-content: space-between; gap: 0.75rem;">
+              <div style="flex: 1; min-width: 0;">
+                <p style="font-size: 0.75rem; font-weight: 500; color: hsl(var(--muted-foreground)); margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.025em;">Campanhas Ativas</p>
+                <p class="metric-value" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-family-display); color: hsl(var(--foreground)); line-height: 1.2; margin: 0 0 0.25rem 0;">-</p>
+                <p class="metric-description" style="font-size: 0.75rem; font-weight: 400; color: hsl(var(--muted-foreground)); margin: 0;">-</p>
+              </div>
+              <div style="padding: 0.625rem; border-radius: 0.5rem; background: hsl(var(--accent) / 0.1); color: hsl(var(--accent)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 2.5rem; height: 2.5rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="dashboard-main-grid" style="display: grid; gap: 1.5rem;">
+          <div class="campanhas-section">
+            <div class="card-elevated" style="padding: 1.5rem;">
+              <h3 style="font-family: var(--font-family-display); font-weight: 600; font-size: 1.125rem; color: hsl(var(--foreground)); margin: 0 0 1.25rem 0;">Campanhas em Andamento</h3>
+              <div id="campanhasContainer" style="display: flex; flex-direction: column; gap: 0;">
+                <div class="loading" style="padding: 2rem;"><p>Carregando campanhas...</p></div>
+              </div>
+            </div>
+          </div>
+          <div class="atividade-section">
+            <div class="card-elevated" style="padding: 1.5rem;">
+              <h3 style="font-family: var(--font-family-display); font-weight: 600; font-size: 1.125rem; color: hsl(var(--foreground)); margin: 0 0 1rem 0;">Atividade Recente</h3>
+              <div id="atividadeRecente" style="max-height: 400px; overflow-y: auto;">
+                <div class="loading" style="padding: 2rem;"><p>Carregando...</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-3" style="gap: 1rem; margin-top: 1.5rem;">
+          <button onclick="abrirModalNovaCampanha()" class="card-elevated card-interactive group" style="padding: 1.25rem; text-align: left; border: none; background: none; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 1rem;">
+            <div class="quick-action-icon" style="padding: 0.875rem; border-radius: 0.625rem; background: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); transition: all 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 3rem; height: 3rem;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><path d="M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <h4 style="font-weight: 600; font-size: 1rem; color: hsl(var(--foreground)); margin: 0 0 0.25rem 0;">Nova Campanha</h4>
+              <p style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin: 0; line-height: 1.4;">Criar disparo em massa</p>
+            </div>
+          </button>
+          
+          <button onclick="navegarPara('/clientes')" class="card-elevated card-interactive group" style="padding: 1.25rem; text-align: left; border: none; background: none; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 1rem;">
+            <div class="quick-action-icon" style="padding: 0.875rem; border-radius: 0.625rem; background: hsl(var(--success) / 0.1); color: hsl(var(--success)); transition: all 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 3rem; height: 3rem;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <h4 style="font-weight: 600; font-size: 1rem; color: hsl(var(--foreground)); margin: 0 0 0.25rem 0;">Gerenciar Clientes</h4>
+              <p style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin: 0; line-height: 1.4;">Base de contatos</p>
+            </div>
+          </button>
+          
+          <button onclick="navegarPara('/templates')" class="card-elevated card-interactive group" style="padding: 1.25rem; text-align: left; border: none; background: none; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 1rem;">
+            <div class="quick-action-icon" style="padding: 0.875rem; border-radius: 0.625rem; background: hsl(var(--accent) / 0.1); color: hsl(var(--accent)); transition: all 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 3rem; height: 3rem;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <h4 style="font-weight: 600; font-size: 1rem; color: hsl(var(--foreground)); margin: 0 0 0.25rem 0;">Templates</h4>
+              <p style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin: 0; line-height: 1.4;">Modelos de mensagem</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Carregar dados após renderizar o HTML
+    setTimeout(() => {
+      // Aguardar Supabase estar disponível
+      const tentarCarregar = () => {
+        if (window.supabaseClient || supabaseClient) {
+          if (typeof window.carregarMetricas === "function") {
+            window.carregarMetricas();
+          }
+          if (typeof window.carregarAtividadeRecente === "function") {
+            window.carregarAtividadeRecente();
+          }
+          if (typeof window.carregarCampanhas === "function") {
+            window.carregarCampanhas();
+          } else if (typeof carregarCampanhas === "function") {
+            carregarCampanhas();
+          }
+        } else {
+          // Tentar novamente após 1 segundo
+          setTimeout(tentarCarregar, 1000);
+        }
+      };
+      tentarCarregar();
+    }, 100);
+  };
+
+  /**
+   * Carrega a página de Campanhas
+   */
+  window.loadPageCampanhas = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    // Ocultar conteúdo legacy se existir
+    const legacyContent = document.getElementById("legacyContent");
+    if (legacyContent) {
+      legacyContent.style.display = "none";
+    }
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      
+      <div class="p-6" style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Actions Bar -->
+        <div class="card-elevated" style="padding: 1.5rem;">
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; flex-direction: row; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+              <div style="position: relative; flex: 1; min-width: 200px; max-width: 28rem;">
+                <svg style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: hsl(var(--muted-foreground)); pointer-events: none;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="buscaCampanhas" class="form-input" placeholder="Buscar campanhas..." 
+                       style="padding-left: 2.5rem; width: 100%;" 
+                       onkeyup="if(typeof window.filtrarCampanhas === 'function') window.filtrarCampanhas(this.value)" />
+              </div>
+              <button onclick="abrirModalNovaCampanha()" class="btn btn-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Nova Campanha
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Campaigns Grid -->
+        <div id="campanhasContainer" style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+          <div class="card-elevated" style="padding: 2rem; text-align: center;">
+            <p style="color: hsl(var(--muted-foreground)); margin: 0;">Carregando campanhas...</p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Criar filtros avançados se disponível
+    if (window.filtersSystem) {
+      window.filtersSystem.criarFiltrosCampanhas("filtrosCampanhasContainer", (tipo, filtros) => {
+        // Aplicar filtros e recarregar
+        if (typeof carregarCampanhas === "function") {
+          carregarCampanhas();
+        }
+      });
+    }
+    
+    // Recarregar campanhas
+    setTimeout(() => {
+      const tentarCarregar = () => {
+        if (window.supabaseClient || supabaseClient) {
+          if (typeof window.carregarCampanhas === "function") {
+            window.carregarCampanhas();
+          } else if (typeof carregarCampanhas === "function") {
+            carregarCampanhas();
+          }
+        } else {
+          setTimeout(tentarCarregar, 500);
+        }
+      };
+      tentarCarregar();
+    }, 100);
+  };
+
+  /**
+   * Carrega a página de Clientes
+   */
+  window.loadPageClientes = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      
+      <!-- Header -->
+      <header style="position: sticky; top: 0; z-index: 30; background: hsl(var(--background) / 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid hsl(var(--border));">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 4rem; padding: 0 1.5rem;">
+          <div>
+            <h1 style="font-family: var(--font-family-display, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif); font-size: 1.25rem; font-weight: 700; color: hsl(var(--foreground)); margin: 0;">Clientes</h1>
+            <p style="font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin: 0;">Gerencie sua base de contatos</p>
+          </div>
+        </div>
+      </header>
+      
+      <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Actions Bar -->
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div style="display: flex; flex-direction: row; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div style="display: flex; gap: 0.75rem; flex: 1;">
+              <div style="position: relative; flex: 1; max-width: 28rem;">
+                <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: hsl(var(--muted-foreground)); display: flex; align-items: center; pointer-events: none;">
+                  ${getIconSVG('search', 18)}
+                </span>
+                <input type="text" id="buscaClientes" class="form-input" placeholder="Buscar por nome, telefone ou email..." 
+                       style="padding-left: 2.5rem;" onkeyup="if(event.key==='Enter' || this.value.length >= 3 || this.value.length === 0) window.carregarListaClientes()" />
+              </div>
+              <button onclick="abrirModalFiltrosClientes()" class="btn btn-outline" style="display: flex; align-items: center; gap: 0.5rem;">
+                ${getIconSVG('filter', 18)}
+                Filtros
+              </button>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+              <button onclick="navegarPara('/')" class="btn btn-outline" style="display: flex; align-items: center; gap: 0.5rem;">
+                ${getIconSVG('upload', 18)}
+                Importar
+              </button>
+              <button onclick="abrirModalNovoCliente()" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem;">
+                ${getIconSVG('plus', 18)}
+                Novo Cliente
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card-elevated" style="overflow: hidden;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Contato</th>
+                <th>Veículos</th>
+                <th>WhatsApp</th>
+                <th>Envios</th>
+                <th>Status</th>
+                <th>Último Envio</th>
+                <th style="text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="clientesContainer">
+              <tr>
+                <td colspan="7" style="text-align: center; padding: 2rem;">
+                  <div class="loading">
+                    <p>Carregando clientes...</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div id="paginacaoClientes" style="display: flex; align-items: center; justify-content: space-between;"></div>
+      </div>
+    `;
+    
+    // Criar filtros avançados se disponível
+    if (window.filtersSystem) {
+      window.filtersSystem.criarFiltrosClientes("filtrosClientesContainer", (tipo, filtros) => {
+        // Aplicar filtros e recarregar
+        window.carregarListaClientes();
+      });
+    }
+    
+    // Recarregar clientes
+    setTimeout(() => {
+      const tentarCarregar = () => {
+        if (window.supabaseClient || supabaseClient) {
+          if (typeof window.carregarListaClientes === "function") {
+            window.carregarListaClientes();
+          } else if (typeof carregarListaClientes === "function") {
+            carregarListaClientes();
+          }
+        } else {
+          setTimeout(tentarCarregar, 500);
+        }
+      };
+      tentarCarregar();
+    }, 100);
+  };
+
+  /**
+   * Abre modal de filtros para a lista de clientes
+   */
+  window.abrirModalFiltrosClientes = function() {
+    // Obter valores atuais dos filtros (se existirem)
+    const buscaAtual = document.getElementById("buscaClientes")?.value || "";
+    const statusAtual = document.getElementById("filtroStatusWhatsapp")?.value || "";
+    const ordenacaoCampoAtual = document.getElementById("ordenacaoCampo")?.value || "nome_cliente";
+    const ordenacaoDirecaoAtual = document.getElementById("ordenacaoDirecao")?.value || "asc";
+    const itensPorPaginaAtual = document.getElementById("itensPorPagina")?.value || "25";
+    const bloqueadoAtual = document.getElementById("filtroBloqueado")?.value || "";
+    const veiculosAtual = document.getElementById("filtroVeiculos")?.value || "";
+
+    // Criar modal HTML
+    const modalHtml = `
+      <div id="modalFiltrosClientes" class="modal active">
+        <div class="modal-content" style="max-width: 600px; width: 95%;">
+          <div class="modal-header">
+            <h2 class="modal-title">🔍 Filtros e Ordenação</h2>
+            <button class="close" onclick="fecharModalFiltrosClientes()">&times;</button>
+          </div>
+          <form id="formFiltrosClientes" onsubmit="event.preventDefault(); aplicarFiltrosClientes();">
+            <!-- Busca -->
+            <div class="form-group">
+              <label class="form-label">Buscar</label>
+              <input 
+                type="text" 
+                id="filtroBuscaClientes" 
+                class="form-input" 
+                placeholder="Nome, telefone ou email..."
+                value="${buscaAtual}"
+              />
+            </div>
+
+            <!-- Filtro Status WhatsApp -->
+            <div class="form-group">
+              <label class="form-label">Status WhatsApp</label>
+              <select id="filtroStatusWhatsappModal" class="form-select">
+                <option value="">Todos os status</option>
+                <option value="valid" ${statusAtual === "valid" ? "selected" : ""}>✅ WhatsApp Válido</option>
+                <option value="invalid" ${statusAtual === "invalid" ? "selected" : ""}>❌ WhatsApp Inválido</option>
+                <option value="unknown" ${statusAtual === "unknown" ? "selected" : ""}>❓ Não Verificado</option>
+              </select>
+            </div>
+
+            <!-- Filtro Bloqueio -->
+            <div class="form-group">
+              <label class="form-label">Status de Bloqueio</label>
+              <select id="filtroBloqueadoModal" class="form-select">
+                <option value="">Todos</option>
+                <option value="false" ${bloqueadoAtual === "false" ? "selected" : ""}>✅ Permitir Envios</option>
+                <option value="true" ${bloqueadoAtual === "true" ? "selected" : ""}>🚫 Bloqueado</option>
+              </select>
+            </div>
+
+            <!-- Filtro Veículos -->
+            <div class="form-group">
+              <label class="form-label">Quantidade de Veículos</label>
+              <select id="filtroVeiculosModal" class="form-select">
+                <option value="">Todos</option>
+                <option value="0" ${veiculosAtual === "0" ? "selected" : ""}>0 veículos</option>
+                <option value="1" ${veiculosAtual === "1" ? "selected" : ""}>1 veículo</option>
+                <option value="2" ${veiculosAtual === "2" ? "selected" : ""}>2 veículos</option>
+                <option value="3" ${veiculosAtual === "3" ? "selected" : ""}>3 veículos</option>
+                <option value="4+" ${veiculosAtual === "4+" ? "selected" : ""}>4 ou mais veículos</option>
+              </select>
+            </div>
+
+            <!-- Ordenação -->
+            <div class="form-section">
+              <h3>Ordenação</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Ordenar por</label>
+                  <select id="ordenacaoCampoModal" class="form-select">
+                    <option value="nome_cliente" ${ordenacaoCampoAtual === "nome_cliente" ? "selected" : ""}>Nome (A-Z)</option>
+                    <option value="ultimo_envio" ${ordenacaoCampoAtual === "ultimo_envio" ? "selected" : ""}>Último Envio</option>
+                    <option value="num_veiculos" ${ordenacaoCampoAtual === "num_veiculos" ? "selected" : ""}>Número de Veículos</option>
+                    <option value="status_whatsapp" ${ordenacaoCampoAtual === "status_whatsapp" ? "selected" : ""}>Status WhatsApp</option>
+                    <option value="bloqueado_envios" ${ordenacaoCampoAtual === "bloqueado_envios" ? "selected" : ""}>Status Bloqueio</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Direção</label>
+                  <select id="ordenacaoDirecaoModal" class="form-select">
+                    <option value="asc" ${ordenacaoDirecaoAtual === "asc" ? "selected" : ""}>Crescente ↑</option>
+                    <option value="desc" ${ordenacaoDirecaoAtual === "desc" ? "selected" : ""}>Decrescente ↓</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Itens por página -->
+            <div class="form-group">
+              <label class="form-label">Itens por página</label>
+              <select id="itensPorPaginaModal" class="form-select">
+                <option value="10" ${itensPorPaginaAtual === "10" ? "selected" : ""}>10</option>
+                <option value="25" ${itensPorPaginaAtual === "25" ? "selected" : ""}>25</option>
+                <option value="50" ${itensPorPaginaAtual === "50" ? "selected" : ""}>50</option>
+                <option value="100" ${itensPorPaginaAtual === "100" ? "selected" : ""}>100</option>
+              </select>
+            </div>
+
+            <!-- Ações -->
+            <div class="form-actions">
+              <button type="button" onclick="limparFiltrosClientes()" class="btn btn-outline">
+                Limpar Filtros
+              </button>
+              <button type="submit" class="btn btn-primary">
+                Aplicar Filtros
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    // Remover modal anterior se existir
+    const modalAnterior = document.getElementById("modalFiltrosClientes");
+    if (modalAnterior) {
+      modalAnterior.remove();
+    }
+
+    // Adicionar modal ao DOM
+    document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+    // Fechar ao clicar fora do modal
+    const modal = document.getElementById("modalFiltrosClientes");
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          fecharModalFiltrosClientes();
+        }
+      });
+    }
+  };
+
+  /**
+   * Fecha o modal de filtros
+   */
+  window.fecharModalFiltrosClientes = function() {
+    const modal = document.getElementById("modalFiltrosClientes");
+    if (modal) {
+      modal.remove();
+    }
+  };
+
+  /**
+   * Aplica os filtros selecionados
+   */
+  window.aplicarFiltrosClientes = function() {
+    // Obter valores do modal
+    const busca = document.getElementById("filtroBuscaClientes")?.value || "";
+    const status = document.getElementById("filtroStatusWhatsappModal")?.value || "";
+    const bloqueado = document.getElementById("filtroBloqueadoModal")?.value || "";
+    const veiculos = document.getElementById("filtroVeiculosModal")?.value || "";
+    const ordenacaoCampo = document.getElementById("ordenacaoCampoModal")?.value || "nome_cliente";
+    const ordenacaoDirecao = document.getElementById("ordenacaoDirecaoModal")?.value || "asc";
+    const itensPorPagina = document.getElementById("itensPorPaginaModal")?.value || "25";
+
+    // Aplicar valores aos campos da página (se existirem)
+    const buscaInput = document.getElementById("buscaClientes");
+    if (buscaInput) buscaInput.value = busca;
+
+    // Criar ou atualizar campos ocultos para armazenar filtros
+    let filtroStatusInput = document.getElementById("filtroStatusWhatsapp");
+    if (!filtroStatusInput) {
+      filtroStatusInput = document.createElement("input");
+      filtroStatusInput.type = "hidden";
+      filtroStatusInput.id = "filtroStatusWhatsapp";
+      document.body.appendChild(filtroStatusInput);
+    }
+    filtroStatusInput.value = status;
+
+    let filtroBloqueadoInput = document.getElementById("filtroBloqueado");
+    if (!filtroBloqueadoInput) {
+      filtroBloqueadoInput = document.createElement("input");
+      filtroBloqueadoInput.type = "hidden";
+      filtroBloqueadoInput.id = "filtroBloqueado";
+      document.body.appendChild(filtroBloqueadoInput);
+    }
+    filtroBloqueadoInput.value = bloqueado;
+
+    let filtroVeiculosInput = document.getElementById("filtroVeiculos");
+    if (!filtroVeiculosInput) {
+      filtroVeiculosInput = document.createElement("input");
+      filtroVeiculosInput.type = "hidden";
+      filtroVeiculosInput.id = "filtroVeiculos";
+      document.body.appendChild(filtroVeiculosInput);
+    }
+    filtroVeiculosInput.value = veiculos;
+
+    let ordenacaoCampoInput = document.getElementById("ordenacaoCampo");
+    if (!ordenacaoCampoInput) {
+      ordenacaoCampoInput = document.createElement("input");
+      ordenacaoCampoInput.type = "hidden";
+      ordenacaoCampoInput.id = "ordenacaoCampo";
+      document.body.appendChild(ordenacaoCampoInput);
+    }
+    ordenacaoCampoInput.value = ordenacaoCampo;
+
+    let ordenacaoDirecaoInput = document.getElementById("ordenacaoDirecao");
+    if (!ordenacaoDirecaoInput) {
+      ordenacaoDirecaoInput = document.createElement("input");
+      ordenacaoDirecaoInput.type = "hidden";
+      ordenacaoDirecaoInput.id = "ordenacaoDirecao";
+      document.body.appendChild(ordenacaoDirecaoInput);
+    }
+    ordenacaoDirecaoInput.value = ordenacaoDirecao;
+
+    let itensPorPaginaSelect = document.getElementById("itensPorPagina");
+    if (!itensPorPaginaSelect) {
+      itensPorPaginaSelect = document.createElement("select");
+      itensPorPaginaSelect.id = "itensPorPagina";
+      itensPorPaginaSelect.style.display = "none";
+      document.body.appendChild(itensPorPaginaSelect);
+    }
+    itensPorPaginaSelect.value = itensPorPagina;
+
+    // Fechar modal
+    window.fecharModalFiltrosClientes();
+
+    // Resetar para página 1 e recarregar
+    if (typeof window.paginaAtualClientes !== "undefined") {
+      window.paginaAtualClientes = 1;
+    }
+    if (typeof window.carregarListaClientes === "function") {
+      window.carregarListaClientes(1);
+    } else if (typeof carregarListaClientes === "function") {
+      carregarListaClientes(1);
+    }
+  };
+
+  /**
+   * Limpa todos os filtros
+   */
+  window.limparFiltrosClientes = function() {
+    // Limpar campos do modal
+    const buscaInput = document.getElementById("filtroBuscaClientes");
+    if (buscaInput) buscaInput.value = "";
+
+    const statusSelect = document.getElementById("filtroStatusWhatsappModal");
+    if (statusSelect) statusSelect.value = "";
+
+    const bloqueadoSelect = document.getElementById("filtroBloqueadoModal");
+    if (bloqueadoSelect) bloqueadoSelect.value = "";
+
+    const veiculosSelect = document.getElementById("filtroVeiculosModal");
+    if (veiculosSelect) veiculosSelect.value = "";
+
+    const ordenacaoCampoSelect = document.getElementById("ordenacaoCampoModal");
+    if (ordenacaoCampoSelect) ordenacaoCampoSelect.value = "nome_cliente";
+
+    const ordenacaoDirecaoSelect = document.getElementById("ordenacaoDirecaoModal");
+    if (ordenacaoDirecaoSelect) ordenacaoDirecaoSelect.value = "asc";
+
+    const itensPorPaginaSelect = document.getElementById("itensPorPaginaModal");
+    if (itensPorPaginaSelect) itensPorPaginaSelect.value = "25";
+  };
+
+  /**
+   * Carrega a página de Templates
+   */
+  window.loadPageTemplates = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      
+      <div style="padding: 1.5rem; space-y: 1.5rem;">
+        <!-- Actions Bar -->
+        <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+          <div style="display: flex; flex-direction: row; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div style="position: relative; flex: 1; max-width: 28rem;">
+              <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: hsl(var(--muted-foreground)); font-size: 18px;">🔍</span>
+              <input type="text" id="buscaTemplates" class="form-input" placeholder="Buscar templates..." 
+                     style="padding-left: 2.5rem;" onkeyup="if(typeof window.filtrarTemplates === 'function') window.filtrarTemplates(this.value)" />
+            </div>
+            <button onclick="abrirModalFormTemplatePrompt()" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem;">
+              <span>+</span> Novo Template
+            </button>
+          </div>
+        </div>
+
+        <!-- Templates Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style="gap: 1rem;">
+          <div id="listaTemplatesPrompt" class="loading" style="grid-column: span 3;">
+            <p>Carregando templates...</p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Recarregar templates
+    setTimeout(() => {
+      if (typeof carregarTemplatesPrompt === "function") {
+        carregarTemplatesPrompt();
+      } else if (supabaseClient) {
+        setTimeout(() => {
+          if (typeof window.carregarTemplatesPrompt === "function") {
+            window.carregarTemplatesPrompt();
+          }
+        }, 500);
+      }
+    }, 100);
+  };
+
+  /**
+   * Carrega a página de Agendamentos
+   */
+  window.loadPageAgendamentos = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Agendamentos</h2>
+        </div>
+        <div class="card-body">
+          <p>Funcionalidade de agendamentos em desenvolvimento...</p>
+        </div>
+      </div>
+    `;
+  };
+
+  /**
+   * Carrega a página de Histórico
+   */
+  window.loadPageHistorico = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Histórico de Envios</h2>
+          <button onclick="abrirModalRelatorios()" class="btn btn-primary">📊 Gerar Relatório</button>
+        </div>
+        <div class="card-body">
+          <div style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div class="card" style="padding: 15px; text-align: center;">
+              <div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;" id="totalRegistros">-</div>
+              <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Total Registros</div>
+            </div>
+            <div class="card" style="padding: 15px; text-align: center;">
+              <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;" id="totalEnviados">-</div>
+              <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Enviados</div>
+            </div>
+            <div class="card" style="padding: 15px; text-align: center;">
+              <div style="font-size: 1.5rem; font-weight: 700; color: #ef4444;" id="totalErros">-</div>
+              <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Erros</div>
+            </div>
+            <div class="card" style="padding: 15px; text-align: center;">
+              <div style="font-size: 1.5rem; font-weight: 700; color: #f59e0b;" id="totalBloqueados">-</div>
+              <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Bloqueados</div>
+            </div>
+          </div>
+          <div style="margin-bottom: 15px;">
+            <input type="text" id="buscaHistorico" class="form-input" placeholder="Buscar por cliente, telefone ou campanha..." 
+                   style="max-width: 400px;" onkeyup="if(event.key==='Enter' || this.value.length >= 3 || this.value.length === 0) window.carregarHistoricoEnvios ? window.carregarHistoricoEnvios() : null" />
+          </div>
+          <div id="historicoContainer" class="loading">
+            <p>Carregando histórico...</p>
+          </div>
+          <div id="paginacaoHistorico"></div>
+        </div>
+      </div>
+    `;
+    
+    // Filtros avançados podem ser adicionados depois se necessário
+    // Por enquanto, a busca básica já está disponível
+    
+    // Carregar histórico
+    setTimeout(() => {
+      const tentarCarregar = () => {
+        if (window.supabaseClient || supabaseClient) {
+          if (typeof window.carregarHistoricoEnvios === "function") {
+            window.carregarHistoricoEnvios();
+          } else {
+            carregarHistoricoBasico();
+          }
+        } else {
+          setTimeout(tentarCarregar, 500);
+        }
+      };
+      tentarCarregar();
+    }, 100);
+  };
+  
+  /**
+   * Carrega histórico básico (fallback)
+   */
+  async function carregarHistoricoBasico() {
+    const supabase = window.supabaseClient || supabaseClient;
+    if (!supabase) {
+      const container = document.getElementById("historicoContainer");
+      if (container) {
+        container.innerHTML = '<p style="text-align: center; color: #666">Conectando ao Supabase...</p>';
+      }
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from("instacar_historico_envios")
+        .select("*, instacar_clientes_envios(nome_cliente, telefone), instacar_campanhas(nome)")
+        .order("timestamp_envio", { ascending: false })
+        .limit(100);
+      
+      if (error) throw error;
+      
+      const container = document.getElementById("historicoContainer");
+      if (!container) return;
+      
+      if (!data || data.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #666">Nenhum histórico encontrado</p>';
+        return;
+      }
+      
+      // Atualizar estatísticas
+      const total = data.length;
+      const enviados = data.filter(e => e.status_envio === "enviado").length;
+      const erros = data.filter(e => e.status_envio === "erro").length;
+      const bloqueados = data.filter(e => e.status_envio === "bloqueado").length;
+      
+      const totalEl = document.getElementById("totalRegistros");
+      const enviadosEl = document.getElementById("totalEnviados");
+      const errosEl = document.getElementById("totalErros");
+      const bloqueadosEl = document.getElementById("totalBloqueados");
+      
+      if (totalEl) totalEl.textContent = total;
+      if (enviadosEl) enviadosEl.textContent = enviados;
+      if (errosEl) errosEl.textContent = erros;
+      if (bloqueadosEl) bloqueadosEl.textContent = bloqueados;
+      
+      // Renderizar tabela
+      container.innerHTML = `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Telefone</th>
+              <th>Campanha</th>
+              <th>Mensagem</th>
+              <th>Status</th>
+              <th>Data/Hora</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(item => {
+              const statusBadge = {
+                enviado: '<span class="badge badge-success">Enviado</span>',
+                erro: '<span class="badge badge-error">Erro</span>',
+                bloqueado: '<span class="badge badge-warning">Bloqueado</span>',
+                pendente: '<span class="badge badge-info">Pendente</span>'
+              }[item.status_envio] || '<span class="badge">-</span>';
+              
+              const dataFormatada = formatarTimestampSP(item.timestamp_envio);
+              const mensagem = (item.mensagem_texto || "").substring(0, 50) + "...";
+              
+              return `
+                <tr>
+                  <td>${item.instacar_clientes_envios?.nome_cliente || "N/A"}</td>
+                  <td>${item.instacar_clientes_envios?.telefone || "N/A"}</td>
+                  <td>${item.instacar_campanhas?.nome || "N/A"}</td>
+                  <td title="${item.mensagem_texto || ""}">${mensagem}</td>
+                  <td>${statusBadge}</td>
+                  <td>${dataFormatada}</td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      `;
+    } catch (error) {
+      console.error("Erro ao carregar histórico:", error);
+      const container = document.getElementById("historicoContainer");
+      if (container) {
+        container.innerHTML = `<p style="text-align: center; color: #ef4444;">Erro ao carregar histórico: ${error.message}</p>`;
+      }
+    }
+  }
+
+  /**
+   * Carrega a página de Instâncias
+   */
+  window.loadPageInstancias = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Instâncias WhatsApp</h2>
+          <button onclick="abrirModalNovaInstanciaUazapi()" class="btn btn-primary">+ Nova Instância</button>
+        </div>
+        <div class="card-body">
+          <div id="instanciasUazapiList" class="loading">
+            <p>Carregando instâncias...</p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Recarregar instâncias
+    setTimeout(() => {
+      const tentarCarregar = () => {
+        if (window.supabaseClient || supabaseClient) {
+          // Usar renderizarInstanciasUazapi que já renderiza na interface
+          if (typeof window.renderizarInstanciasUazapi === "function") {
+            window.renderizarInstanciasUazapi();
+          } else if (typeof renderizarInstanciasUazapi === "function") {
+            renderizarInstanciasUazapi();
+          }
+        } else {
+          setTimeout(tentarCarregar, 500);
+        }
+      };
+      tentarCarregar();
+    }, 100);
+  };
+
+  /**
+   * Carrega a página de Configurações
+   */
+  window.loadPageConfiguracoes = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Configurações</h2>
+        </div>
+        <div class="card-body">
+          <button onclick="abrirModalConfiguracoes()" class="btn btn-primary">Gerenciar Configurações</button>
+        </div>
+      </div>
+    `;
+  };
+
+  /**
+   * Carrega a página de Perfil
+   */
+  window.loadPagePerfil = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    const userEmail = document.getElementById("userEmail")?.textContent || "usuário";
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Perfil do Usuário</h2>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" value="${userEmail}" readonly />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preferências de Notificação</label>
+            <div style="margin-top: 10px;">
+              <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <input type="checkbox" checked />
+                <span>Notificar quando campanha for concluída</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <input type="checkbox" checked />
+                <span>Alertar sobre falhas de entrega</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" checked />
+                <span>Notificar quando WhatsApp desconectar</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  /**
+   * Carrega a página de Relatórios
+   */
+  window.loadPageRelatorios = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Relatórios</h2>
+          <button onclick="abrirModalRelatorios()" class="btn btn-primary">Gerar Relatório</button>
+        </div>
+        <div class="card-body">
+          <p>Gere relatórios detalhados de campanhas, envios, clientes e erros.</p>
+          <div style="margin-top: 20px;">
+            <h3 style="margin-bottom: 15px;">Tipos de Relatórios Disponíveis:</h3>
+            <ul style="list-style: none; padding: 0;">
+              <li style="padding: 10px; border-left: 4px solid #3b82f6; margin-bottom: 10px; background: #f8fafc;">
+                <strong>Campanhas:</strong> Lista todas as campanhas com filtros de data
+              </li>
+              <li style="padding: 10px; border-left: 4px solid #10b981; margin-bottom: 10px; background: #f8fafc;">
+                <strong>Envios:</strong> Histórico completo de envios com filtros de status e data
+              </li>
+              <li style="padding: 10px; border-left: 4px solid #f59e0b; margin-bottom: 10px; background: #f8fafc;">
+                <strong>Clientes:</strong> Base completa de clientes com estatísticas
+              </li>
+              <li style="padding: 10px; border-left: 4px solid #ef4444; margin-bottom: 10px; background: #f8fafc;">
+                <strong>Erros:</strong> Registro de erros críticos do sistema
+              </li>
+            </ul>
+          </div>
+          <div style="margin-top: 20px;">
+            <h3 style="margin-bottom: 15px;">Formatos de Exportação:</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <span class="badge badge-info">CSV</span>
+              <span class="badge badge-info">Excel (XLSX)</span>
+              <span class="badge badge-info">PDF</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  };
 
   // Verificar se DOM já está pronto ou aguardar
   if (document.readyState === "loading") {

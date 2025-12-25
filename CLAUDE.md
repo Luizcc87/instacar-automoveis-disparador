@@ -360,17 +360,63 @@ Se tokens forem expostos, siga [docs/seguranca/rotacao-tokens.md](docs/seguranca
 
 Guia completo de troubleshooting: [docs/n8n/troubleshooting.md](docs/n8n/troubleshooting.md)
 
+📖 **Estrutura do Fluxo de Notificações**: [docs/n8n/estrutura-fluxo-notificacoes.md](docs/n8n/estrutura-fluxo-notificacoes.md) - Documentação detalhada do sistema de notificações, nós críticos, recomendações de uso e manutenção para manter o projeto estável e fidedigno ao fluxo do N8N.
+
 ## Estrutura da Documentação
 
 ```
 docs/
 ├── supabase/          # Configuração do banco, schemas, índices, políticas
-├── n8n/               # Configuração N8N, troubleshooting, referência de sintaxe
+├── n8n/               # Configuração N8N, troubleshooting, referência de sintaxe, estrutura de fluxo
+│   ├── configuracao.md
+│   ├── troubleshooting.md
+│   ├── sintaxe-n8n-variaveis.md
+│   └── estrutura-fluxo-notificacoes.md  # Sistema de notificações e manutenção
+├── interface-web/     # Design system, padrões de UI/UX e componentes
+│   ├── GUIA-DESIGN-SYSTEM.md      # Guia completo do design system (classes CSS, variáveis, layout)
+│   ├── PADROES-BOTOES.md          # Padrões específicos de botões (variantes, tamanhos, ícones)
+│   └── CHANGELOG-*.md              # Changelogs de features específicas
 ├── uazapi/            # Documentação da API WhatsApp, exemplos de webhooks
 └── seguranca/         # Checklist de segurança, procedimentos de rotação de tokens
 ```
 
 Toda a documentação é de nível de produção com exemplos, casos extremos e correções de bugs recentes documentadas.
+
+### Documentação de Design System
+
+**📖 [Guia do Design System](docs/interface-web/GUIA-DESIGN-SYSTEM.md)**
+
+**Quando usar:**
+- Ao criar novas páginas ou componentes na interface web
+- Ao modificar estilos CSS ou layout
+- Para entender as classes CSS reutilizáveis disponíveis
+- Para consultar variáveis CSS (cores, espaçamentos, fontes)
+- Ao implementar novos componentes seguindo o padrão do projeto
+
+**Conteúdo:**
+- Classes CSS principais (`.card-elevated`, `.card-interactive`, etc.)
+- Estrutura de layout (sidebar, header, content area)
+- Componentes reutilizáveis (cards de métricas, badges, botões)
+- Variáveis CSS (cores HSL, espaçamentos, tipografia)
+- Padrões de página (Dashboard, listagens)
+- Checklist de implementação
+
+**📖 [Padrões de Botões](docs/interface-web/PADROES-BOTOES.md)**
+
+**Quando usar:**
+- Ao criar ou modificar botões na interface
+- Para escolher a variante correta de botão (primary, secondary, destructive, etc.)
+- Para entender tamanhos disponíveis (sm, default, lg, icon)
+- Ao adicionar ícones SVG aos botões
+- Para migrar botões antigos para o novo padrão
+
+**Conteúdo:**
+- Estrutura base de botões
+- Variantes disponíveis (primary, secondary, destructive, outline, ghost)
+- Tamanhos (small, default, large, icon)
+- Botões com ícones SVG (regras e exemplos)
+- Estados (disabled, loading, focus)
+- Guia de migração de classes antigas
 
 ## Referência de Sintaxe de Variáveis N8N
 
@@ -383,6 +429,10 @@ Ao trabalhar com JSON de workflow N8N:
 - **Campos JSONB:** `{{ $json.veiculos[0].placa }}`
 
 Veja [docs/n8n/sintaxe-n8n-variaveis.md](docs/n8n/sintaxe-n8n-variaveis.md) para referência completa.
+
+**Importante:** Ao editar o workflow de notificações, consulte [docs/n8n/estrutura-fluxo-notificacoes.md](docs/n8n/estrutura-fluxo-notificacoes.md) para entender o fluxo completo, nós críticos e recomendações de manutenção. Esta documentação é essencial para manter a estabilidade do sistema e evitar quebras no fluxo.
+
+**Importante:** Ao criar ou modificar componentes da interface web, consulte [docs/interface-web/GUIA-DESIGN-SYSTEM.md](docs/interface-web/GUIA-DESIGN-SYSTEM.md) para manter consistência visual e [docs/interface-web/PADROES-BOTOES.md](docs/interface-web/PADROES-BOTOES.md) para padronização de botões. Esta documentação garante que todas as páginas sigam o mesmo padrão de design baseado no projeto `instacar-insights`.
 
 ## Restrições Conhecidas
 

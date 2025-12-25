@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gerenciador de Campanhas - Instacar Automóveis</title>
+    <!-- Google Fonts - Inter e Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Supabase JS Library - Versão UMD para expor window.supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
@@ -18,6 +22,8 @@
     <!-- Bibliotecas para parsing de planilhas -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <!-- Chart.js para gráficos do dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Variáveis de ambiente (injetadas em build time via inject-env.js) -->
     <!-- ⚠️ NUNCA commite este arquivo após executar inject-env.js com credenciais reais -->
     <script id="env-config">
@@ -34,6 +40,9 @@
       automaticamente pelo servidor local, mas não é necessário no deploy.
     -->
     <script src="config.default.js"></script>
+    <!-- Novos arquivos CSS -->
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="components.css" />
     <style>
       * {
         margin: 0;
@@ -41,21 +50,20 @@
         box-sizing: border-box;
       }
 
+      /* Estilos antigos mantidos para compatibilidade */
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
           Oxygen, Ubuntu, Cantarell, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        padding: 20px;
       }
 
+      /* Container antigo - mantido para compatibilidade com conteúdo existente */
       .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        background: white;
-        border-radius: 16px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        padding: 32px;
+        max-width: 100%;
+        margin: 0;
+        background: transparent;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0;
       }
 
       h1 {
@@ -75,11 +83,17 @@
       }
 
       .config-section {
-        background: #f9fafb;
-        padding: 24px;
-        border-radius: 12px;
+        background: var(--bg-primary);
+        padding: 28px;
+        border-radius: var(--radius-xl);
         margin-bottom: 32px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+        transition: all var(--transition-base);
+      }
+      
+      .config-section:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.05);
       }
 
       .config-section h2 {
@@ -857,9 +871,47 @@
       }
 
       .modal-tab.active {
-        color: #667eea;
-        border-bottom-color: #667eea;
-        background: #f9fafb;
+        color: hsl(var(--primary));
+        border-bottom-color: hsl(var(--primary));
+        background: hsl(var(--muted) / 0.3);
+      }
+
+      .modal-tab-content {
+        display: none;
+      }
+
+      .modal-tab-content.active {
+        display: block;
+      }
+
+      /* Modo visualização e edição */
+      /* Por padrão, modo visualização está ativo */
+      #modalClienteContent.modo-visualizacao .modo-visualizacao {
+        display: block !important;
+      }
+
+      #modalClienteContent.modo-visualizacao .modo-edicao {
+        display: none !important;
+      }
+
+      /* Quando em modo edição, inverter */
+      #modalClienteContent.modo-edicao .modo-visualizacao {
+        display: none !important;
+      }
+
+      #modalClienteContent.modo-edicao .modo-edicao {
+        display: block !important;
+      }
+
+      /* Garantir que inputs e checkboxes sejam exibidos corretamente no modo edição */
+      #modalClienteContent.modo-edicao .form-input.modo-edicao,
+      #modalClienteContent.modo-edicao .form-checkbox.modo-edicao {
+        display: block !important;
+      }
+
+      #modalClienteContent.modo-visualizacao .form-input.modo-edicao,
+      #modalClienteContent.modo-visualizacao .form-checkbox.modo-edicao {
+        display: none !important;
       }
 
       .modal-tab-content {
@@ -1333,7 +1385,7 @@
 
       /* Tooltip hover (rápido) */
       .tooltip-hover {
-        position: absolute;
+        position: fixed;
         background: #1f2937;
         color: white;
         padding: 8px 12px;
@@ -1350,6 +1402,8 @@
         max-width: 300px;
         white-space: normal;
         line-height: 1.4;
+        top: 0;
+        left: 0;
       }
 
       .tooltip-hover.show {
@@ -1384,6 +1438,11 @@
         overflow-y: auto;
         display: none;
         animation: fadeIn 0.2s ease;
+        transition: opacity 0.2s ease;
+      }
+      
+      .tooltip-popover.show {
+        display: block;
       }
 
       .tooltip-popover.show {
@@ -1549,46 +1608,105 @@
     </style>
   </head>
   <body>
-    <div class="container">
-      <div
-        style="
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 12px;
-        "
-      >
-        <div style="flex: 1">
-          <h1>🎯 Gerenciador de Campanhas</h1>
-          <p class="subtitle">
-            Instacar Automóveis - Sistema de Marketing WhatsApp
-          </p>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Colapsar/Expandir" aria-label="Colapsar sidebar">
+            <span style="font-size: 1.25rem;">←</span>
+          </button>
+          <div class="sidebar-logo">IC</div>
+          <div class="sidebar-title">Instacar</div>
         </div>
-        <button
-          onclick="abrirModalAjuda()"
-          style="
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-            white-space: nowrap;
-            margin-top: 8px;
-          "
-          onmouseover="this.style.background='#5568d3'"
-          onmouseout="this.style.background='#667eea'"
-          title="Ajuda e Documentação"
-        >
-          ❓ Ajuda
-        </button>
-      </div>
+        <div class="sidebar-user">
+          Logado como:<br />
+          <strong id="userEmail">luizcceconi@gmail.com</strong>
+        </div>
+        <nav class="sidebar-nav">
+          <a href="#/" class="sidebar-nav-item active" data-page="dashboard">
+            <span class="sidebar-nav-item-icon">📊</span>
+            <span class="sidebar-nav-item-text">Dashboard</span>
+          </a>
+          <a href="#/clientes" class="sidebar-nav-item" data-page="clientes">
+            <span class="sidebar-nav-item-icon">👥</span>
+            <span class="sidebar-nav-item-text">Clientes</span>
+          </a>
+          <a href="#/templates" class="sidebar-nav-item" data-page="templates">
+            <span class="sidebar-nav-item-icon">📝</span>
+            <span class="sidebar-nav-item-text">Templates</span>
+          </a>
+          <a href="#/campanhas" class="sidebar-nav-item" data-page="campanhas">
+            <span class="sidebar-nav-item-icon">✈️</span>
+            <span class="sidebar-nav-item-text">Campanhas</span>
+          </a>
+          <a href="#/agendamentos" class="sidebar-nav-item" data-page="agendamentos">
+            <span class="sidebar-nav-item-icon">📅</span>
+            <span class="sidebar-nav-item-text">Agendamentos</span>
+          </a>
+          <a href="#/historico" class="sidebar-nav-item" data-page="historico">
+            <span class="sidebar-nav-item-icon">📋</span>
+            <span class="sidebar-nav-item-text">Histórico</span>
+          </a>
+          <a href="#/instancias" class="sidebar-nav-item" data-page="instancias">
+            <span class="sidebar-nav-item-icon">📱</span>
+            <span class="sidebar-nav-item-text">Instâncias</span>
+          </a>
+          <a href="#/configuracoes" class="sidebar-nav-item" data-page="configuracoes">
+            <span class="sidebar-nav-item-icon">⚙️</span>
+            <span class="sidebar-nav-item-text">Configurações</span>
+          </a>
+        </nav>
+        <div class="sidebar-footer">
+          <button class="sidebar-logout" onclick="logout()">
+            <span>→</span>
+            <span>Sair</span>
+          </button>
+        </div>
+      </aside>
 
-      <div id="alertContainer"></div>
+      <!-- Main Content -->
+      <div class="main-content" id="mainContent">
+        <!-- Header -->
+        <header class="header">
+          <button class="mobile-menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <!-- Botão para abrir sidebar quando colapsada (desktop) -->
+          <button class="sidebar-open-btn" onclick="toggleSidebar()" aria-label="Abrir menu" title="Abrir menu lateral">
+            <span style="font-size: 1.5rem;">☰</span>
+          </button>
+          <div class="header-left">
+            <h1 class="header-title" id="pageTitle">Dashboard</h1>
+            <p class="header-subtitle" id="pageSubtitle">Visão geral do sistema de disparos</p>
+          </div>
+          <div class="header-right">
+            <div class="header-search">
+              <span class="header-search-icon">🔍</span>
+              <input type="text" placeholder="Buscar..." id="globalSearch" />
+            </div>
+            <div class="header-actions">
+              <button class="header-icon-btn" onclick="abrirModalAjuda()" title="Ajuda">
+                ❓
+              </button>
+              <button class="header-icon-btn" onclick="abrirModalNotificacoes()" title="Notificações">
+                🔔
+                <span class="header-icon-badge" id="notificationBadge" style="display: none;"></span>
+              </button>
+              <div class="header-user" onclick="navegarPara('/perfil')" title="Perfil">
+                LC
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content" id="contentArea">
+          <div id="alertContainer"></div>
+          
+          <!-- Conteúdo existente (mantido para compatibilidade) -->
+          <div id="legacyContent" data-page-content="dashboard">
 
       <div class="config-section">
         <h2>➕ Nova Campanha</h2>
@@ -2433,1113 +2551,6 @@
       </div>
     </div>
 
-    <!-- Modal Enviar Mensagem Individual -->
-    <div id="modalEnviarMensagem" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>📤 Enviar Mensagem Individual</h2>
-          <button class="close" onclick="fecharModalEnviarMensagem()">
-            &times;
-          </button>
-        </div>
-        <form id="formEnviarMensagem">
-          <input type="hidden" id="enviarMensagemClienteId" />
-          <input type="hidden" id="enviarMensagemTelefone" />
-
-          <div class="form-group">
-            <label>Cliente</label>
-            <input
-              type="text"
-              id="enviarMensagemClienteNome"
-              readonly
-              style="background: #f5f5f5"
-            />
-          </div>
-
-          <div class="form-group">
-            <label>Telefone</label>
-            <input
-              type="text"
-              id="enviarMensagemClienteTelefone"
-              readonly
-              style="background: #f5f5f5"
-            />
-          </div>
-
-          <div class="form-group">
-            <label>Instância WhatsApp *</label>
-            <select id="enviarMensagemInstanciaId" required>
-              <option value="">Carregando instâncias...</option>
-            </select>
-            <small style="color: #666; display: block; margin-top: 5px">
-              Selecione a instância WhatsApp que será usada para enviar a
-              mensagem
-            </small>
-          </div>
-
-          <div class="form-group">
-            <label>Tipo de Envio *</label>
-            <select id="tipoEnvio" required onchange="toggleTipoEnvio()">
-              <option value="">Selecione...</option>
-              <option value="campanha">Usar Campanha Existente</option>
-              <option value="customizada">Mensagem Customizada</option>
-            </select>
-          </div>
-
-          <div
-            class="form-group"
-            id="campanhaSelectGroup"
-            style="display: none"
-          >
-            <label>Selecionar Campanha *</label>
-            <select id="campanhaSelecionada">
-              <option value="">Carregando campanhas...</option>
-            </select>
-          </div>
-
-          <div
-            class="form-group"
-            id="mensagemCustomizadaGroup"
-            style="display: none"
-          >
-            <label>Mensagem Customizada *</label>
-            <textarea
-              id="mensagemCustomizada"
-              rows="6"
-              placeholder="Digite a mensagem personalizada aqui..."
-            ></textarea>
-          </div>
-
-          <div style="display: flex; gap: 10px; margin-top: 20px">
-            <button type="submit" class="btn-success">
-              📤 Enviar Mensagem
-            </button>
-            <button
-              type="button"
-              class="btn-secondary"
-              onclick="fecharModalEnviarMensagem()"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modal Nova/Editar Campanha -->
-    <div id="modalCampanha" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 id="modalTitle">Nova Campanha</h2>
-          <button class="close" onclick="fecharModal()">&times;</button>
-        </div>
-        <form id="formCampanha">
-          <input type="hidden" id="campanhaId" />
-
-          <div class="form-group">
-            <label>Nome da Campanha *</label>
-            <input type="text" id="nome" required />
-          </div>
-
-          <div class="form-group">
-            <label>Descrição</label>
-            <textarea id="descricao"></textarea>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Período do Ano *</label>
-              <select id="periodo_ano" required>
-                <option value="">Selecione...</option>
-                <option value="janeiro">Janeiro</option>
-                <option value="fevereiro">Fevereiro</option>
-                <option value="marco">Março</option>
-                <option value="abril">Abril</option>
-                <option value="maio">Maio</option>
-                <option value="junho">Junho</option>
-                <option value="julho">Julho</option>
-                <option value="agosto">Agosto</option>
-                <option value="setembro">Setembro</option>
-                <option value="outubro">Outubro</option>
-                <option value="novembro">Novembro</option>
-                <option value="dezembro">Dezembro</option>
-                <option value="black-friday">Black Friday</option>
-                <option value="dia-maes">Dia das Mães</option>
-                <option value="dia-pais">Dia dos Pais</option>
-                <option value="natal">Natal</option>
-                <option value="ano-novo">Ano Novo</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Status *</label>
-              <select id="status" required>
-                <option value="ativa">Ativa</option>
-                <option value="pausada">Pausada</option>
-                <option value="concluida">Concluída</option>
-                <option value="cancelada">Cancelada</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Data Início</label>
-              <input type="date" id="data_inicio" />
-            </div>
-
-            <div class="form-group">
-              <label>Data Fim</label>
-              <input type="date" id="data_fim" />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Limite de Envios/Dia</label>
-              <input type="number" id="limite_envios_dia" value="200" min="1" />
-            </div>
-
-            <div class="form-group">
-              <label>Intervalo Mínimo (dias)</label>
-              <input
-                type="number"
-                id="intervalo_minimo_dias"
-                value="30"
-                min="1"
-              />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Atraso Inteligente Entre Mensagens - Opcional</label>
-              
-              <!-- Opções pré-definidas -->
-              <div style="margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
-                <div style="margin-bottom: 8px; font-size: 13px; color: #666; font-weight: 500;">
-                  Selecionar intervalo pré-definido:
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <label class="intervalo-preset-option">
-                    <input type="radio" name="intervalo_preset" value="muito_curto" />
-                    <span><strong>Muito curto:</strong> 1-5s</span>
-                  </label>
-                  <label class="intervalo-preset-option">
-                    <input type="radio" name="intervalo_preset" value="curto" />
-                    <span><strong>Curto:</strong> 5-20s</span>
-                  </label>
-                  <label class="intervalo-preset-option">
-                    <input type="radio" name="intervalo_preset" value="medio" />
-                    <span><strong>Médio:</strong> 20-50s</span>
-                  </label>
-                  <label class="intervalo-preset-option">
-                    <input type="radio" name="intervalo_preset" value="longo" />
-                    <span><strong>Longo:</strong> 50-120s</span>
-                  </label>
-                  <label class="intervalo-preset-option">
-                    <input type="radio" name="intervalo_preset" value="muito_longo" />
-                    <span><strong>Muito longo:</strong> 120-300s</span>
-                  </label>
-                  <label class="intervalo-preset-option">
-                    <input type="radio" name="intervalo_preset" value="padrao" checked />
-                    <span><strong>Padrão (recomendado):</strong> 130-150s aleatorizado</span>
-                  </label>
-                  <label class="intervalo-preset-option">
-                    <input type="radio" name="intervalo_preset" value="personalizado" />
-                    <span><strong>Personalizado:</strong> Digite valor abaixo</span>
-                  </label>
-                </div>
-              </div>
-
-              <!-- Campo numérico personalizado -->
-              <div style="margin-top: 12px;">
-                <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #666;">
-                  Valor personalizado (segundos):
-                </label>
-                <input
-                  type="number"
-                  id="intervalo_envios_segundos"
-                  min="1"
-                  max="300"
-                  value="130"
-                  placeholder="130 (padrão aleatorizado)"
-                  style="width: 100%;"
-                />
-              </div>
-
-              <small style="color: #666; display: block; margin-top: 8px;">
-                Valor base com variação aleatória de ±10s por disparo (para não parecer automação). 
-                Selecione uma opção acima ou digite um valor personalizado. Valor padrão (130) usa aleatorização 130-150s.
-              </small>
-            </div>
-
-            <div class="form-group">
-              <label>Prioridade (1-10)</label>
-              <input type="number" id="prioridade" value="5" min="1" max="10" />
-              <small style="color: #666">
-                Maior prioridade processada primeiro quando cliente elegível
-                para múltiplas campanhas
-              </small>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Instância API WhatsApp *</label>
-            <select id="whatsapp_api_id" required>
-              <option value="">Carregando instâncias...</option>
-            </select>
-            <small style="color: #666">
-              Selecione qual instância de API WhatsApp usar para esta campanha.
-              Configure instâncias em "⚙️ Gerenciar Configurações".
-            </small>
-          </div>
-
-          <!-- Seção de Estimativas de Tempo -->
-          <div
-            id="estimativas-tempo"
-            style="
-              background: #f5f5f5;
-              padding: 15px;
-              border-radius: 5px;
-              margin-top: 15px;
-              margin-bottom: 15px;
-            "
-          >
-            <h4 style="margin-top: 0; color: #333">📊 Estimativas de Tempo</h4>
-            <div id="estimativas-conteudo">
-              <p style="color: #666; font-size: 14px">
-                Configure o limite diário e intervalo para ver estimativas
-              </p>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label id="label_prompt_ia">Prompt Personalizado para IA <span id="prompt_ia_required" style="color: red">*</span></label>
-            <textarea
-              id="prompt_ia"
-              placeholder="Instruções específicas para a IA gerar mensagens desta campanha..."
-            ></textarea>
-            <small style="color: #666; display: block; margin-top: 5px" id="prompt_ia_help">
-              Obrigatório apenas se nenhum template de prompt for selecionado.
-            </small>
-          </div>
-
-          <div class="form-group">
-            <label>Template de Mensagem (opcional)</label>
-            <textarea
-              id="template_mensagem"
-              placeholder="Template base opcional..."
-            ></textarea>
-          </div>
-
-          <!-- Seção: Configurações de IA -->
-          <div
-            style="
-              background: #f0f7ff;
-              padding: 15px;
-              border-radius: 6px;
-              margin-top: 20px;
-              margin-bottom: 20px;
-              border-left: 4px solid #667eea;
-            "
-          >
-            <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
-              🤖 Configurações do Agente IA
-            </h4>
-
-            <div class="form-group" style="margin-bottom: 15px">
-              <label
-                style="display: flex; align-items: center; cursor: pointer"
-              >
-                <input
-                  type="checkbox"
-                  id="usar_veiculos"
-                  checked
-                  style="width: auto; margin-right: 8px"
-                />
-                <span>Incluir informações de veículos no contexto da IA</span>
-              </label>
-              <small style="color: #666; display: block; margin-top: 5px">
-                Se marcado, a IA terá acesso aos dados de veículos do cliente.
-                Desmarque para campanhas genéricas (Natal, Ano Novo).
-              </small>
-            </div>
-
-            <div class="form-group" style="margin-bottom: 15px">
-              <label
-                style="display: flex; align-items: center; cursor: pointer"
-              >
-                <input
-                  type="checkbox"
-                  id="usar_vendedor"
-                  style="width: auto; margin-right: 8px"
-                />
-                <span>Incluir nome do vendedor no contexto da IA</span>
-              </label>
-              <small style="color: #666; display: block; margin-top: 5px">
-                Se marcado, a IA poderá mencionar o vendedor do veículo mais
-                recente. Útil para campanhas de relacionamento.
-              </small>
-            </div>
-
-            <!-- Seção: Dados Dinâmicos do Agente IA -->
-            <div
-              class="form-group"
-              style="margin-top: 20px; margin-bottom: 15px"
-            >
-              <label
-                style="display: flex; align-items: center; cursor: pointer"
-              >
-                <input
-                  type="checkbox"
-                  id="usar_configuracoes_globais"
-                  checked
-                  style="width: auto; margin-right: 8px"
-                />
-                <span>Usar configurações globais da empresa</span>
-              </label>
-              <small style="color: #666; display: block; margin-top: 5px">
-                Se marcado, usa configurações globais como base. Pode ser
-                sobrescrito abaixo.
-              </small>
-            </div>
-
-            <div class="form-group" style="margin-bottom: 15px">
-              <label>Template de Prompt (opcional)</label>
-              <select id="template_prompt_id">
-                <option value="">Nenhum - usar prompt personalizado</option>
-              </select>
-              <small style="color: #666; display: block; margin-top: 5px">
-                Selecione um template para usar como base do prompt. O prompt
-                personalizado será ignorado se um template for selecionado.
-              </small>
-            </div>
-
-            <div class="form-group" style="margin-bottom: 15px">
-              <label>Sessões de Contexto Habilitadas</label>
-              <div
-                id="sessoes_contexto_checkboxes"
-                style="
-                  max-height: 200px;
-                  overflow-y: auto;
-                  border: 1px solid #ddd;
-                  padding: 10px;
-                  border-radius: 4px;
-                "
-              >
-                <p style="color: #666; font-size: 14px">
-                  Carregando sessões...
-                </p>
-              </div>
-              <small style="color: #666; display: block; margin-top: 5px">
-                Selecione quais sessões de contexto incluir no prompt do agente
-                IA.
-              </small>
-            </div>
-
-            <details style="margin-top: 15px; margin-bottom: 15px">
-              <summary
-                style="cursor: pointer; font-weight: 600; color: #667eea"
-              >
-                Sobrescrever Configurações Globais (opcional)
-              </summary>
-              <div
-                id="configuracoes_sobrescritas"
-                style="
-                  margin-top: 10px;
-                  padding: 10px;
-                  background: #f9f9f9;
-                  border-radius: 4px;
-                "
-              >
-                <p style="color: #666; font-size: 14px">
-                  Carregando configurações...
-                </p>
-              </div>
-              <small style="color: #666; display: block; margin-top: 5px">
-                Deixe vazio para usar a configuração global. Preencha para
-                sobrescrever.
-              </small>
-            </details>
-          </div>
-
-          <!-- Seção: Processamento em Lotes -->
-          <div
-            style="
-              background: #fff5f0;
-              padding: 15px;
-              border-radius: 6px;
-              margin-top: 20px;
-              margin-bottom: 20px;
-              border-left: 4px solid #ff6b35;
-            "
-          >
-            <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
-              ⚙️ Processamento em Lotes e Horário
-            </h4>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label>Tamanho do Lote</label>
-                <input
-                  type="number"
-                  id="tamanho_lote"
-                  value="50"
-                  min="10"
-                  max="500"
-                />
-                <small style="color: #666">
-                  Número de clientes processados por execução (padrão: 50,
-                  mínimo: 10, máximo: 500)
-                </small>
-              </div>
-
-              <div class="form-group">
-                <label>Processar Finais de Semana</label>
-                <div style="margin-top: 8px">
-                  <label
-                    style="display: flex; align-items: center; cursor: pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      id="processar_finais_semana"
-                      style="width: auto; margin-right: 8px"
-                    />
-                    <span>Processar também sábados e domingos</span>
-                  </label>
-                </div>
-                <small style="color: #666">
-                  Se desmarcado, processa apenas dias úteis (segunda a sexta)
-                </small>
-              </div>
-            </div>
-
-            <!-- Seção: Modo Teste e Debug -->
-            <div
-              class="form-section"
-              style="margin-top: 20px; margin-bottom: 20px"
-            >
-              <h3
-                style="
-                  margin-top: 0;
-                  margin-bottom: 1rem;
-                  color: #333;
-                  font-size: 1.1rem;
-                "
-              >
-                🧪 Modo Teste e Debug
-              </h3>
-
-              <!-- Modo Teste -->
-              <div class="form-group">
-                <label
-                  for="modo_teste"
-                  style="display: flex; align-items: center; cursor: pointer"
-                >
-                  <input
-                    type="checkbox"
-                    id="modo_teste"
-                    style="width: auto; margin-right: 8px"
-                  />
-                  <span>Modo Teste (substituir telefones dos clientes)</span>
-                </label>
-                <p
-                  class="help-text"
-                  style="
-                    font-size: 0.85rem;
-                    color: #666;
-                    margin-top: 0.25rem;
-                    margin-bottom: 0;
-                  "
-                >
-                  Quando ativado, processa clientes normalmente mas envia
-                  mensagens para os telefones de teste.
-                </p>
-              </div>
-
-              <div
-                class="form-group"
-                id="telefones_teste_group"
-                style="display: none"
-              >
-                <label for="telefones_teste">
-                  Telefones de Teste
-                  <span style="color: #999; font-size: 0.85rem"
-                    >(deixe vazio para usar configuração global)</span
-                  >
-                </label>
-                <textarea
-                  id="telefones_teste"
-                  rows="3"
-                  placeholder="5511999999999&#10;5511988888888&#10;(um por linha)"
-                  style="
-                    width: 100%;
-                    padding: 8px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    font-family: monospace;
-                  "
-                ></textarea>
-                <p
-                  class="help-text"
-                  style="
-                    font-size: 0.85rem;
-                    color: #666;
-                    margin-top: 0.25rem;
-                    margin-bottom: 0;
-                  "
-                >
-                  Digite um telefone por linha no formato 55XXXXXXXXXXX (código
-                  país + DDD + número).
-                </p>
-                <div
-                  id="telefones_teste_validacao"
-                  class="validation-message"
-                  style="
-                    font-size: 0.85rem;
-                    margin-top: 0.5rem;
-                    padding: 0.5rem;
-                    border-radius: 4px;
-                  "
-                ></div>
-              </div>
-
-              <!-- Modo Debug -->
-              <div class="form-group">
-                <label
-                  for="modo_debug"
-                  style="display: flex; align-items: center; cursor: pointer"
-                >
-                  <input
-                    type="checkbox"
-                    id="modo_debug"
-                    style="width: auto; margin-right: 8px"
-                  />
-                  <span>Modo Debug (logs detalhados)</span>
-                </label>
-                <p
-                  class="help-text"
-                  style="
-                    font-size: 0.85rem;
-                    color: #666;
-                    margin-top: 0.25rem;
-                    margin-bottom: 0;
-                  "
-                >
-                  Ativa logs detalhados no N8N para debug do fluxo de
-                  processamento.
-                </p>
-              </div>
-            </div>
-
-            <!-- Seção: Notificações Admin -->
-            <div
-              class="form-section"
-              style="margin-top: 20px; margin-bottom: 20px"
-            >
-              <h3
-                style="
-                  margin-top: 0;
-                  margin-bottom: 1rem;
-                  color: #333;
-                  font-size: 1.1rem;
-                "
-              >
-                🔔 Notificações Admin
-              </h3>
-
-              <div class="form-group">
-                <label for="telefones_admin">
-                  Telefones Admin
-                  <span style="color: #999; font-size: 0.85rem"
-                    >(deixe vazio para usar configuração global)</span
-                  >
-                </label>
-                <textarea
-                  id="telefones_admin"
-                  rows="2"
-                  placeholder="5511999999999&#10;5511988888888"
-                  style="
-                    width: 100%;
-                    padding: 8px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    font-family: monospace;
-                  "
-                ></textarea>
-                <p
-                  class="help-text"
-                  style="
-                    font-size: 0.85rem;
-                    color: #666;
-                    margin-top: 0.25rem;
-                    margin-bottom: 0;
-                  "
-                >
-                  Telefones que receberão notificações sobre a campanha (um por
-                  linha).
-                </p>
-                <div
-                  id="telefones_admin_validacao"
-                  class="validation-message"
-                  style="
-                    font-size: 0.85rem;
-                    margin-top: 0.5rem;
-                    padding: 0.5rem;
-                    border-radius: 4px;
-                  "
-                ></div>
-              </div>
-
-              <div class="form-group">
-                <label
-                  style="display: flex; align-items: center; cursor: pointer"
-                >
-                  <input
-                    type="checkbox"
-                    id="notificar_inicio"
-                    style="width: auto; margin-right: 8px"
-                  />
-                  <span>Notificar ao iniciar campanha</span>
-                </label>
-              </div>
-
-              <div class="form-group">
-                <label
-                  style="display: flex; align-items: center; cursor: pointer"
-                >
-                  <input
-                    type="checkbox"
-                    id="notificar_erros"
-                    checked
-                    style="width: auto; margin-right: 8px"
-                  />
-                  <span>Notificar erros críticos</span>
-                </label>
-              </div>
-
-              <div class="form-group">
-                <label
-                  style="display: flex; align-items: center; cursor: pointer"
-                >
-                  <input
-                    type="checkbox"
-                    id="notificar_conclusao"
-                    checked
-                    style="width: auto; margin-right: 8px"
-                  />
-                  <span>Notificar ao concluir campanha</span>
-                </label>
-              </div>
-
-              <div class="form-group">
-                <label
-                  style="display: flex; align-items: center; cursor: pointer"
-                >
-                  <input
-                    type="checkbox"
-                    id="notificar_limite"
-                    style="width: auto; margin-right: 8px"
-                  />
-                  <span>Notificar ao atingir limite diário</span>
-                </label>
-              </div>
-
-              <div class="form-group">
-                <label for="whatsapp_api_id_admin">
-                  Instância WhatsApp para Notificações
-                  <span style="color: #999; font-size: 0.85rem"
-                    >(deixe vazio para usar a mesma da campanha)</span
-                  >
-                </label>
-                <select
-                  id="whatsapp_api_id_admin"
-                  style="
-                    width: 100%;
-                    padding: 8px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                  "
-                >
-                  <option value="">-- Usar instância da campanha --</option>
-                </select>
-                <p
-                  class="help-text"
-                  style="
-                    font-size: 0.85rem;
-                    color: #666;
-                    margin-top: 0.25rem;
-                    margin-bottom: 0;
-                  "
-                >
-                  Escolha uma instância diferente para evitar sobrecarga na
-                  instância principal da campanha. Recomendado: usar instância
-                  dedicada para notificações admin.
-                </p>
-              </div>
-            </div>
-
-            <!-- Seção: Configuração por Dia da Semana -->
-            <div
-              style="
-                background: #fff5f0;
-                padding: 15px;
-                border-radius: 6px;
-                margin-top: 20px;
-                margin-bottom: 20px;
-                border-left: 4px solid #ff6b35;
-              "
-            >
-              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
-                📅 Configuração por Dia da Semana
-              </h4>
-              
-              <div class="form-group" style="margin-bottom: 15px">
-                <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 10px">
-                  <input
-                    type="radio"
-                    name="modo_configuracao_dias"
-                    id="modo_configuracao_padrao"
-                    value="padrao"
-                    checked
-                    onchange="toggleConfiguracaoDiasSemana()"
-                    style="width: auto; margin-right: 8px"
-                  />
-                  <span>Usar configuração padrão (horário início/fim e processar finais de semana)</span>
-                </label>
-                <label style="display: flex; align-items: center; cursor: pointer">
-                  <input
-                    type="radio"
-                    name="modo_configuracao_dias"
-                    id="modo_configuracao_individual"
-                    value="individual"
-                    onchange="toggleConfiguracaoDiasSemana()"
-                    style="width: auto; margin-right: 8px"
-                  />
-                  <span>Configurar cada dia individualmente</span>
-                </label>
-              </div>
-
-              <!-- Campos padrão (sempre visíveis) -->
-              <div id="configuracao_padrao_dias">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label class="with-help">Horário Início <span class="help-icon" title="Horário em que a campanha começa a processar automaticamente. O Schedule Trigger verifica este horário para iniciar a campanha.">?</span></label>
-                    <input type="time" id="horario_inicio" value="09:00" />
-                    <small style="color: #666">
-                      Horário de início para processamento automático (formato HH:MM). Define quando a campanha começa a executar automaticamente.
-                    </small>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="with-help">Horário Fim <span class="help-icon" title="Horário em que a campanha para de processar. Se definido, o sistema calcula automaticamente quantos clientes cabem neste horário.">?</span></label>
-                    <input type="time" id="horario_fim" value="18:00" />
-                    <small style="color: #666">
-                      Horário de fim para processamento (formato HH:MM, opcional). Se definido, limita o processamento e calcula lotes automaticamente para caber no horário disponível.
-                    </small>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Tabela de configuração individual (inicialmente oculta) -->
-              <div id="configuracao_individual_dias" style="display: none">
-                <div style="margin-bottom: 10px">
-                  <button
-                    type="button"
-                    onclick="aplicarHorarioPadrao()"
-                    class="btn-secondary"
-                    style="padding: 6px 12px; font-size: 13px"
-                  >
-                    🔄 Aplicar horário padrão a todos os dias habilitados
-                  </button>
-                </div>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 10px">
-                  <thead>
-                    <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd">
-                      <th style="padding: 10px; text-align: left; width: 120px">Dia</th>
-                      <th style="padding: 10px; text-align: center; width: 100px">Habilitado</th>
-                      <th style="padding: 10px; text-align: left; width: 150px">Horário Início</th>
-                      <th style="padding: 10px; text-align: left; width: 150px">Horário Fim</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tabela_dias_semana">
-                    <!-- Preenchido via JavaScript -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Seção: Intervalo de Almoço -->
-            <div
-              style="
-                background: #fff5f0;
-                padding: 15px;
-                border-radius: 6px;
-                margin-top: 20px;
-                margin-bottom: 20px;
-                border-left: 4px solid #ff6b35;
-              "
-            >
-              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
-                🍽️ Intervalo de Almoço
-              </h4>
-              
-              <div class="form-group" style="margin-bottom: 15px">
-                <label style="display: flex; align-items: center; cursor: pointer">
-                  <input
-                    type="checkbox"
-                    id="pausar_almoco"
-                    onchange="toggleCamposAlmoco()"
-                    style="width: auto; margin-right: 8px"
-                  />
-                  <span>Pausar durante horário de almoço</span>
-                </label>
-                <small style="color: #666; display: block; margin-top: 5px">
-                  Quando marcado, o sistema pausa automaticamente durante o intervalo de almoço e separa os lotes antes e depois do almoço.
-                </small>
-              </div>
-
-              <div id="campos_almoco" style="display: none">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Horário Início Almoço</label>
-                    <input type="time" id="horario_almoco_inicio" value="12:00" />
-                    <small style="color: #666">
-                      Horário em que o intervalo de almoço começa (formato HH:MM)
-                    </small>
-                  </div>
-
-                  <div class="form-group">
-                    <label>Horário Fim Almoço</label>
-                    <input type="time" id="horario_almoco_fim" value="13:00" />
-                    <small style="color: #666">
-                      Horário em que o intervalo de almoço termina (formato HH:MM)
-                    </small>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Painel de Estimativas -->
-            <div
-              id="painel_estimativas"
-              style="
-                background: #f0f9ff;
-                padding: 20px;
-                border-radius: 6px;
-                margin-top: 20px;
-                margin-bottom: 20px;
-                border-left: 4px solid #3b82f6;
-                display: none;
-              "
-            >
-              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
-                📊 Estimativas da Campanha
-              </h4>
-              <div id="estimativas-conteudo">
-                <!-- Preenchido via JavaScript -->
-              </div>
-              <div id="sugestoes-automaticas" style="margin-top: 15px">
-                <!-- Preenchido via JavaScript -->
-              </div>
-            </div>
-
-            <!-- Seção: Seleção de Clientes -->
-            <div
-              style="
-                background: #f0f7ff;
-                padding: 15px;
-                border-radius: 6px;
-                margin-top: 20px;
-                margin-bottom: 20px;
-                border-left: 4px solid #667eea;
-              "
-            >
-              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
-                👥 Selecionar Clientes para Campanha
-              </h4>
-              <p style="color: #666; font-size: 14px; margin-bottom: 15px">
-                Por padrão, a campanha enviará para todos os clientes elegíveis.
-                Selecione clientes específicos abaixo para limitar o envio
-                apenas a eles.
-              </p>
-
-              <div
-                style="
-                  display: flex;
-                  gap: 10px;
-                  margin-bottom: 15px;
-                  flex-wrap: wrap;
-                "
-              >
-                <button
-                  type="button"
-                  onclick="selecionarTodosClientes()"
-                  class="btn-secondary"
-                  style="padding: 8px 16px"
-                >
-                  ✅ Selecionar Todos
-                </button>
-                <button
-                  type="button"
-                  onclick="desmarcarTodosClientes()"
-                  class="btn-secondary"
-                  style="padding: 8px 16px"
-                >
-                  ❌ Desmarcar Todos
-                </button>
-                <button
-                  type="button"
-                  onclick="inverterSelecaoClientes()"
-                  class="btn-secondary"
-                  style="padding: 8px 16px"
-                >
-                  🔄 Inverter Seleção
-                </button>
-              </div>
-
-              <div style="margin-bottom: 10px">
-                <input
-                  type="text"
-                  id="buscaClientesSelecao"
-                  placeholder="Buscar cliente por nome ou telefone..."
-                  style="
-                    width: 100%;
-                    padding: 8px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                  "
-                  onkeyup="filtrarClientesSelecao()"
-                />
-              </div>
-
-              <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-                <select
-                  id="ordenacaoCampoSelecao"
-                  style="flex: 1; min-width: 150px"
-                  onchange="renderizarListaClientesSelecao()"
-                >
-                  <option value="nome_cliente" selected>Nome (A-Z)</option>
-                  <option value="ultimo_envio">Último Envio</option>
-                  <option value="status_whatsapp">Status WhatsApp</option>
-                  <option value="bloqueado_envios">Status Bloqueio</option>
-                </select>
-                <select
-                  id="ordenacaoDirecaoSelecao"
-                  style="width: 120px"
-                  onchange="renderizarListaClientesSelecao()"
-                >
-                  <option value="asc" selected>Crescente ↑</option>
-                  <option value="desc">Decrescente ↓</option>
-                </select>
-              </div>
-
-              <div style="margin-bottom: 10px; padding: 10px; background: #f9fafb; border-radius: 4px; border: 1px solid #e5e7eb;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input
-                    type="checkbox"
-                    id="filtroApenasNaoEnviados"
-                    onchange="renderizarListaClientesSelecao()"
-                    style="width: 18px; height: 18px; cursor: pointer;"
-                  />
-                  <span style="font-size: 14px; color: #333;">
-                    📋 Mostrar apenas clientes que ainda <strong>não receberam</strong> mensagens nesta campanha
-                  </span>
-                </label>
-                <small style="display: block; color: #666; margin-top: 5px; margin-left: 26px; font-size: 12px;">
-                  Clientes que já receberam mensagens serão marcados automaticamente com um indicador visual
-                </small>
-              </div>
-
-              <div style="margin-bottom: 10px">
-                <strong id="contadorClientesSelecionados"
-                  >0 clientes selecionados</strong
-                >
-              </div>
-
-              <div
-                id="listaClientesSelecao"
-                style="
-                  max-height: 300px;
-                  overflow-y: auto;
-                  border: 1px solid #ddd;
-                  border-radius: 4px;
-                  padding: 10px;
-                  background: white;
-                "
-              >
-                <p style="text-align: center; color: #666; padding: 20px">
-                  Carregando clientes...
-                </p>
-              </div>
-
-              <small style="color: #666; display: block; margin-top: 10px">
-                Apenas clientes com WhatsApp validado são exibidos (ativo, não
-                bloqueado, status_whatsapp = 'valid'). Para verificar o WhatsApp
-                de um cliente, use o botão "✅ Verificar WhatsApp" na lista de
-                clientes. Se nenhum cliente for selecionado, a campanha enviará
-                para todos os elegíveis.
-              </small>
-            </div>
-
-            <!-- Seção: Quantidade de Clientes (Opcional) -->
-            <div
-              style="
-                background: #f0f7ff;
-                padding: 15px;
-                border-radius: 6px;
-                margin-top: 20px;
-                margin-bottom: 20px;
-                border-left: 4px solid #667eea;
-              "
-            >
-              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
-                📊 Quantidade de Clientes (Opcional)
-              </h4>
-              <div class="form-group">
-                <label>Quantidade Fixa de Clientes</label>
-                <input
-                  type="number"
-                  id="quantidade_clientes"
-                  min="1"
-                  placeholder="Deixe vazio para usar clientes selecionados ou todos elegíveis"
-                />
-                <small style="color: #666">
-                  Se preenchido, será usado para cálculos de estimativas. Se vazio, usa quantidade de clientes selecionados ou todos elegíveis do banco.
-                </small>
-              </div>
-            </div>
-
-            <div
-              id="estimativas-lote"
-              style="
-                background: #f5f5f5;
-                padding: 10px;
-                border-radius: 4px;
-                margin-top: 10px;
-              "
-            >
-              <p style="color: #666; font-size: 13px; margin: 0">
-                <strong>Estimativa:</strong>
-                <span id="estimativa-dias-lote"
-                  >Configure o tamanho do lote e limite diário para ver
-                  estimativa</span
-                >
-              </p>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 10px; margin-top: 20px">
-            <button type="submit" class="btn-success">Salvar</button>
-            <button type="button" class="btn-secondary" onclick="fecharModal()">
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
     <!-- Modal de Ajuda -->
     <div id="modalAjuda" class="modal">
       <div class="modal-content" style="max-width: 900px; max-height: 90vh">
@@ -4178,9 +3189,14 @@ Registra no histórico (Supabase)
       </div>
     </div>
 
-    <!-- Modal Detalhes do Cliente -->
+          </div>
+          <!-- Fim do conteúdo legacy -->
+        </div>
+      </div>
+      
+    <!-- Modal Detalhes do Cliente (movido para fora do contentArea para garantir acesso) -->
     <div id="modalCliente" class="modal modal-cliente">
-      <div class="modal-content">
+      <div class="modal-content" style="max-width: 1000px; max-height: 90vh;">
         <div class="modal-header">
           <h2 id="modalClienteTitle">Detalhes do Cliente</h2>
           <button class="close" onclick="fecharModalCliente()">&times;</button>
@@ -4188,37 +3204,48 @@ Registra no histórico (Supabase)
         <div id="modalClienteLoading" style="text-align: center; padding: 40px">
           <p>Carregando dados do cliente...</p>
         </div>
-        <div id="modalClienteContent" style="display: none">
+        <div id="modalClienteContent" style="display: none; overflow-y: auto; max-height: calc(90vh - 120px);">
           <input type="hidden" id="clienteId" />
 
-          <div class="modal-tabs">
+          <!-- Tabs -->
+          <div class="modal-tabs" style="display: flex; gap: 0.5rem; border-bottom: 1px solid hsl(var(--border)); margin-bottom: 1.5rem;">
             <button
               class="modal-tab active"
               onclick="trocarTabCliente('dados')"
+              style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 500; color: hsl(var(--muted-foreground)); transition: all 0.2s;"
             >
               📋 Dados
             </button>
-            <button class="modal-tab" onclick="trocarTabCliente('observacoes')">
+            <button 
+              class="modal-tab" 
+              onclick="trocarTabCliente('observacoes')"
+              style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 500; color: hsl(var(--muted-foreground)); transition: all 0.2s;"
+            >
               📝 Observações
             </button>
-            <button class="modal-tab" onclick="trocarTabCliente('historico')">
+            <button 
+              class="modal-tab" 
+              onclick="trocarTabCliente('historico')"
+              style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 500; color: hsl(var(--muted-foreground)); transition: all 0.2s;"
+            >
               📨 Histórico
             </button>
           </div>
 
           <!-- Tab Dados -->
           <div id="tabDados" class="modal-tab-content active">
-            <div style="display: flex; gap: 10px; margin-bottom: 20px">
+            <!-- Botões de Ação -->
+            <div class="form-actions" style="justify-content: flex-start; border: none; padding: 0; margin-bottom: 1.5rem;">
               <button
                 id="btnEditarCliente"
-                class="btn-secondary"
+                class="btn btn-outline"
                 onclick="alternarModoEdicao()"
               >
                 ✏️ Editar
               </button>
               <button
                 id="btnSalvarCliente"
-                class="btn-success"
+                class="btn btn-primary"
                 onclick="salvarEdicaoCliente()"
                 style="display: none"
               >
@@ -4226,7 +3253,7 @@ Registra no histórico (Supabase)
               </button>
               <button
                 id="btnCancelarEdicao"
-                class="btn-secondary"
+                class="btn btn-outline"
                 onclick="cancelarEdicao()"
                 style="display: none"
               >
@@ -4234,324 +3261,381 @@ Registra no histórico (Supabase)
               </button>
             </div>
 
-            <div class="cliente-field">
-              <label>Nome do Cliente *</label>
-              <div class="field-value" id="fieldNomeValue"></div>
-              <input
-                type="text"
-                class="field-input"
-                id="fieldNomeInput"
-                required
-              />
-            </div>
-
-            <div class="cliente-field">
-              <label>Telefone *</label>
-              <div class="field-value" id="fieldTelefoneValue"></div>
-              <input
-                type="text"
-                class="field-input"
-                id="fieldTelefoneInput"
-                placeholder="Ex: (11) 98765-4321 ou 11987654321"
-                required
-              />
-              <small style="color: #666; display: block; margin-top: 5px">
-                Formato esperado: 55 + DDD + número<br>
-                • Fixo: 8 dígitos (ex: 551112345678)<br>
-                • Celular: 9 dígitos (ex: 5511987654321) - números antigos são padronizados automaticamente
-              </small>
-              <div
-                id="fieldTelefoneValidacao"
-                class="validation-message"
-                style="
-                  font-size: 0.85rem;
-                  margin-top: 0.5rem;
-                  padding: 0.5rem;
-                  border-radius: 4px;
-                  display: none;
-                "
-              ></div>
-            </div>
-
-            <div class="cliente-field">
-              <label>Email</label>
-              <div class="field-value" id="fieldEmailValue"></div>
-              <input type="email" class="field-input" id="fieldEmailInput" />
-            </div>
-
-            <div class="cliente-field">
-              <label
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
-                  cursor: pointer;
-                "
-              >
+            <!-- Formulário de Dados -->
+            <div class="form-section">
+              <div class="form-group">
+                <label class="form-label">Nome do Cliente <small>(obrigatório)</small></label>
+                <div class="modo-visualizacao" id="fieldNomeValue" style="padding: 0.625rem 0.875rem; color: hsl(var(--foreground)); font-size: 0.875rem; border: 1px solid hsl(var(--border)); border-radius: var(--radius-md); background: hsl(var(--muted) / 0.3); min-height: 2.5rem; display: flex; align-items: center;"></div>
                 <input
-                  type="checkbox"
-                  id="fieldBloqueadoEnviosInput"
-                  class="field-input"
-                  style="width: auto; margin: 0"
+                  type="text"
+                  class="form-input modo-edicao"
+                  id="fieldNomeInput"
+                  required
                 />
-                <span>🚫 Não enviar mensagens (Bloqueado)</span>
-              </label>
-              <div class="field-value" id="fieldBloqueadoEnviosValue"></div>
-              <small style="color: #666; display: block; margin-top: 5px">
-                Se marcado, este cliente não receberá mensagens de campanhas,
-                mesmo que esteja selecionado.
-              </small>
-            </div>
-
-            <div class="cliente-field readonly">
-              <label>Status WhatsApp</label>
-              <div class="field-value" id="fieldStatusWhatsappValue"></div>
-              <button
-                class="btn-secondary"
-                onclick="verificarWhatsAppDoModal()"
-                style="margin-top: 5px"
-              >
-                ✅ Verificar WhatsApp
-              </button>
-            </div>
-
-            <div class="cliente-stats">
-              <div class="stat-card">
-                <div class="stat-value" id="statTotalEnvios">0</div>
-                <div class="stat-label">Total de Envios</div>
               </div>
-              <div class="stat-card">
-                <div class="stat-value" id="statPrimeiroEnvio">-</div>
-                <div class="stat-label">Primeiro Envio</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-value" id="statUltimoEnvio">-</div>
-                <div class="stat-label">Último Envio</div>
-              </div>
-            </div>
 
-            <div class="cliente-field">
-              <label>Veículos</label>
-              <div id="veiculosList" class="veiculos-list"></div>
-              <div id="veiculoForm" class="veiculo-form" style="display: none">
-                <div class="veiculo-form-row">
+              <div class="form-group">
+                <label class="form-label">Telefone <small>(obrigatório)</small></label>
+                <div class="modo-visualizacao" id="fieldTelefoneValue" style="padding: 0.625rem 0.875rem; color: hsl(var(--foreground)); font-size: 0.875rem; border: 1px solid hsl(var(--border)); border-radius: var(--radius-md); background: hsl(var(--muted) / 0.3); min-height: 2.5rem; display: flex; align-items: center;"></div>
+                <input
+                  type="text"
+                  class="form-input modo-edicao"
+                  id="fieldTelefoneInput"
+                  placeholder="Ex: (11) 98765-4321 ou 11987654321"
+                  required
+                />
+                <small class="form-help-text">
+                  Formato esperado: 55 + DDD + número<br>
+                  • Fixo: 8 dígitos (ex: 551112345678)<br>
+                  • Celular: 9 dígitos (ex: 5511987654321) - números antigos são padronizados automaticamente
+                </small>
+                <div
+                  id="fieldTelefoneValidacao"
+                  class="validation-message modo-edicao"
+                  style="
+                    font-size: 0.8125rem;
+                    margin-top: 0.5rem;
+                    padding: 0.5rem;
+                    border-radius: var(--radius-md);
+                  "
+                ></div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <div class="modo-visualizacao" id="fieldEmailValue" style="padding: 0.625rem 0.875rem; color: hsl(var(--foreground)); font-size: 0.875rem; border: 1px solid hsl(var(--border)); border-radius: var(--radius-md); background: hsl(var(--muted) / 0.3); min-height: 2.5rem; display: flex; align-items: center;"></div>
+                <input 
+                  type="email" 
+                  class="form-input modo-edicao" 
+                  id="fieldEmailInput"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Bloqueado para Envios</label>
+                <div class="modo-visualizacao" id="fieldBloqueadoEnviosValue" style="padding: 0.625rem 0.875rem; color: hsl(var(--foreground)); font-size: 0.875rem; border: 1px solid hsl(var(--border)); border-radius: var(--radius-md); background: hsl(var(--muted) / 0.3); min-height: 2.5rem; display: flex; align-items: center;"></div>
+                <label class="form-label modo-edicao" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 0.5rem;">
                   <input
-                    type="text"
-                    id="veiculoMarca"
-                    placeholder="Marca"
-                    class="field-input"
+                    type="checkbox"
+                    id="fieldBloqueadoEnviosInput"
+                    class="form-checkbox"
+                    style="width: auto; margin: 0;"
                   />
-                  <input
-                    type="text"
-                    id="veiculoModelo"
-                    placeholder="Modelo"
-                    class="field-input"
-                  />
+                  <span>🚫 Não enviar mensagens (Bloqueado)</span>
+                </label>
+                <small class="form-help-text">
+                  Se marcado, este cliente não receberá mensagens de campanhas, mesmo que esteja selecionado.
+                </small>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Status WhatsApp</label>
+                <div class="modo-visualizacao" id="fieldStatusWhatsappValue" style="padding: 0.625rem 0.875rem; color: hsl(var(--foreground)); font-size: 0.875rem; border: 1px solid hsl(var(--border)); border-radius: var(--radius-md); background: hsl(var(--muted) / 0.3); min-height: 2.5rem; display: flex; align-items: center;"></div>
+                <button
+                  class="btn btn-outline modo-visualizacao"
+                  onclick="verificarWhatsAppDoModal()"
+                  style="margin-top: 0.5rem;"
+                >
+                  ✅ Verificar WhatsApp
+                </button>
+              </div>
+            </div>
+
+            <!-- Estatísticas -->
+            <div class="card-elevated" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+              <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: hsl(var(--foreground));">Estatísticas de Envios</h3>
+              <div class="stats-grid" style="gap: 1rem;">
+                <div class="card-elevated" style="padding: 1rem; text-align: center;">
+                  <div style="font-size: 1.5rem; font-weight: 700; color: hsl(var(--primary));" id="statTotalEnvios">0</div>
+                  <div style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin-top: 0.25rem;">Total de Envios</div>
                 </div>
-                <div class="veiculo-form-row">
-                  <input
-                    type="text"
-                    id="veiculoAno"
-                    placeholder="Ano"
-                    class="field-input"
-                  />
-                  <input
-                    type="text"
-                    id="veiculoPlaca"
-                    placeholder="Placa"
-                    class="field-input"
-                  />
+                <div class="card-elevated" style="padding: 1rem; text-align: center;">
+                  <div style="font-size: 1.5rem; font-weight: 700; color: hsl(var(--foreground));" id="statPrimeiroEnvio">-</div>
+                  <div style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin-top: 0.25rem;">Primeiro Envio</div>
                 </div>
-                <div style="display: flex; gap: 10px">
-                  <button
-                    class="btn-success"
-                    onclick="adicionarVeiculoCliente()"
-                  >
-                    ➕ Adicionar
-                  </button>
-                  <button
-                    class="btn-secondary"
-                    onclick="cancelarAdicionarVeiculo()"
-                  >
-                    Cancelar
-                  </button>
+                <div class="card-elevated" style="padding: 1rem; text-align: center;">
+                  <div style="font-size: 1.5rem; font-weight: 700; color: hsl(var(--foreground));" id="statUltimoEnvio">-</div>
+                  <div style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin-top: 0.25rem;">Último Envio</div>
+                </div>
+                <div class="card-elevated" style="padding: 1rem; text-align: center;">
+                  <div style="font-size: 1.5rem; font-weight: 700; color: hsl(var(--primary));" id="statCampanhasEnviadas">0</div>
+                  <div style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin-top: 0.25rem;">Campanhas Diferentes</div>
                 </div>
               </div>
-              <button
-                class="btn-secondary"
-                onclick="mostrarFormVeiculo()"
-                id="btnMostrarFormVeiculo"
-              >
-                ➕ Adicionar Veículo
-              </button>
+              <!-- Lista resumida de campanhas -->
+              <div id="statCampanhasLista" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid hsl(var(--border));">
+                <div style="font-size: 0.875rem; font-weight: 500; color: hsl(var(--foreground)); margin-bottom: 0.5rem;">Campanhas já disparadas:</div>
+                <div id="statCampanhasListaContent" style="font-size: 0.8125rem; color: hsl(var(--muted-foreground));">
+                  <em>Nenhuma campanha ainda</em>
+                </div>
+                <div style="margin-top: 0.5rem; font-size: 0.75rem; color: hsl(var(--muted-foreground));">
+                  <em>💡 Para ver detalhes completos, acesse a aba "Histórico"</em>
+                </div>
+              </div>
             </div>
 
-            <div class="cliente-field readonly">
-              <label>Data de Criação</label>
-              <div class="field-value" id="fieldCreatedAt"></div>
+            <!-- Veículos -->
+            <div class="form-section">
+              <div class="form-group">
+                <label class="form-label">Veículos</label>
+                <div id="veiculosList" class="veiculos-list" style="margin-bottom: 1rem;"></div>
+                <div id="veiculoForm" class="card-elevated modo-edicao" style="padding: 1rem; margin-bottom: 1rem; display: none;">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label class="form-label">Marca</label>
+                      <input
+                        type="text"
+                        id="veiculoMarca"
+                        placeholder="Marca"
+                        class="form-input"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Modelo</label>
+                      <input
+                        type="text"
+                        id="veiculoModelo"
+                        placeholder="Modelo"
+                        class="form-input"
+                      />
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label class="form-label">Ano</label>
+                      <input
+                        type="text"
+                        id="veiculoAno"
+                        placeholder="Ano"
+                        class="form-input"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Placa</label>
+                      <input
+                        type="text"
+                        id="veiculoPlaca"
+                        placeholder="Placa"
+                        class="form-input"
+                      />
+                    </div>
+                  </div>
+                  <div class="form-actions" style="justify-content: flex-start; border: none; padding: 0; margin-top: 0.5rem;">
+                    <button
+                      class="btn btn-primary"
+                      onclick="adicionarVeiculoCliente()"
+                    >
+                      ➕ Adicionar
+                    </button>
+                    <button
+                      class="btn btn-outline"
+                      onclick="cancelarAdicionarVeiculo()"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+                <button
+                  class="btn btn-outline modo-visualizacao"
+                  onclick="mostrarFormVeiculo()"
+                  id="btnMostrarFormVeiculo"
+                >
+                  ➕ Adicionar Veículo
+                </button>
+              </div>
             </div>
 
-            <div class="cliente-field readonly">
-              <label>Última Atualização</label>
-              <div class="field-value" id="fieldUpdatedAt"></div>
+            <!-- Datas -->
+            <div class="form-section">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Data de Criação</label>
+                  <div class="field-value" id="fieldCreatedAt" style="padding: 0.625rem 0.875rem; color: hsl(var(--muted-foreground)); font-size: 0.875rem;"></div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Última Atualização</label>
+                  <div class="field-value" id="fieldUpdatedAt" style="padding: 0.625rem 0.875rem; color: hsl(var(--muted-foreground)); font-size: 0.875rem;"></div>
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- Tab Observações -->
-          <div id="tabObservacoes" class="modal-tab-content">
-            <div class="observacoes-list" id="observacoesList">
-              <p style="text-align: center; color: #666; padding: 20px">
-                Nenhuma observação registrada.
-              </p>
+          <div id="tabObservacoes" class="modal-tab-content" style="display: none;">
+            <div class="card-elevated" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+              <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: hsl(var(--foreground));">Observações Registradas</h3>
+              <div class="observacoes-list" id="observacoesList">
+                <p style="text-align: center; color: hsl(var(--muted-foreground)); padding: 2rem;">
+                  Nenhuma observação registrada.
+                </p>
+              </div>
             </div>
-            <div class="observacao-form">
-              <label
-                style="font-weight: 600; margin-bottom: 8px; display: block"
-                >Nova Observação</label
-              >
-              <textarea
-                id="novaObservacaoTexto"
-                placeholder="Digite uma observação sobre o cliente..."
-              ></textarea>
-              <button
-                class="btn-success"
-                onclick="adicionarObservacaoCliente()"
-                style="margin-top: 10px"
-              >
-                ➕ Adicionar Observação
-              </button>
+            <div class="form-section">
+              <div class="form-group">
+                <label class="form-label">Nova Observação</label>
+                <textarea
+                  id="novaObservacaoTexto"
+                  class="form-textarea"
+                  placeholder="Digite uma observação sobre o cliente..."
+                  rows="4"
+                ></textarea>
+              </div>
+              <div class="form-actions" style="justify-content: flex-start; border: none; padding: 0;">
+                <button
+                  class="btn btn-primary"
+                  onclick="adicionarObservacaoCliente()"
+                >
+                  ➕ Adicionar Observação
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- Tab Histórico -->
-          <div id="tabHistorico" class="modal-tab-content">
+          <div id="tabHistorico" class="modal-tab-content" style="display: none;">
             <!-- Estatísticas Resumidas -->
-            <div id="historicoEstatisticas" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-              <div class="stat-card" style="background: #f0f9ff; padding: 15px; border-radius: 8px; border: 1px solid #bae6fd;">
-                <div style="font-size: 24px; font-weight: bold; color: #0369a1;" id="statTotalHistorico">0</div>
-                <div style="color: #64748b; font-size: 14px;">Total de Envios</div>
-              </div>
-              <div class="stat-card" style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0;">
-                <div style="font-size: 24px; font-weight: bold; color: #15803d;" id="statEnviadosHistorico">0</div>
-                <div style="color: #64748b; font-size: 14px;">Enviados com Sucesso</div>
-              </div>
-              <div class="stat-card" style="background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px solid #fecaca;">
-                <div style="font-size: 24px; font-weight: bold; color: #dc2626;" id="statErrosHistorico">0</div>
-                <div style="color: #64748b; font-size: 14px;">Erros</div>
-              </div>
-              <div class="stat-card" style="background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fde68a;">
-                <div style="font-size: 24px; font-weight: bold; color: #d97706;" id="statCampanhasHistorico">0</div>
-                <div style="color: #64748b; font-size: 14px;">Campanhas Diferentes</div>
+            <div class="card-elevated" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+              <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: hsl(var(--foreground));">Estatísticas do Histórico</h3>
+              <div class="stats-grid" style="gap: 1rem;">
+                <div class="card-elevated" style="padding: 1rem; text-align: center; background: hsl(var(--primary) / 0.05);">
+                  <div style="font-size: 1.5rem; font-weight: 700; color: hsl(var(--primary));" id="statTotalHistorico">0</div>
+                  <div style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin-top: 0.25rem;">Total de Envios</div>
+                </div>
+                <div class="card-elevated" style="padding: 1rem; text-align: center; background: hsl(var(--success) / 0.05);">
+                  <div style="font-size: 1.5rem; font-weight: 700; color: hsl(var(--success));" id="statEnviadosHistorico">0</div>
+                  <div style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin-top: 0.25rem;">Enviados com Sucesso</div>
+                </div>
+                <div class="card-elevated" style="padding: 1rem; text-align: center; background: hsl(var(--destructive) / 0.05);">
+                  <div style="font-size: 1.5rem; font-weight: 700; color: hsl(var(--destructive));" id="statErrosHistorico">0</div>
+                  <div style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin-top: 0.25rem;">Erros</div>
+                </div>
+                <div class="card-elevated" style="padding: 1rem; text-align: center; background: hsl(var(--warning) / 0.05);">
+                  <div style="font-size: 1.5rem; font-weight: 700; color: hsl(var(--warning));" id="statCampanhasHistorico">0</div>
+                  <div style="font-size: 0.8125rem; color: hsl(var(--muted-foreground)); margin-top: 0.25rem;">Campanhas Diferentes</div>
+                </div>
               </div>
             </div>
 
             <!-- Filtros -->
-            <div style="margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-              <label style="font-weight: 600;">Filtros:</label>
-              
-              <select
-                id="filtroCampanhaHistorico"
-                onchange="filtrarHistorico()"
-                style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 200px;"
-              >
-                <option value="">Todas as campanhas</option>
-              </select>
-
-              <select
-                id="filtroStatusHistorico"
-                onchange="filtrarHistorico()"
-                style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px;"
-              >
-                <option value="">Todos os status</option>
-                <option value="enviado">Enviado</option>
-                <option value="erro">Erro</option>
-                <option value="bloqueado">Bloqueado</option>
-              </select>
-
-              <label style="font-size: 12px; color: #666;">De:</label>
-              <input
-                type="date"
-                id="filtroDataInicioHistorico"
-                onchange="filtrarHistorico()"
-                style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px;"
-              />
-
-              <label style="font-size: 12px; color: #666;">Até:</label>
-              <input
-                type="date"
-                id="filtroDataFimHistorico"
-                onchange="filtrarHistorico()"
-                style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px;"
-              />
-
-              <input
-                type="text"
-                id="filtroBuscaTextoHistorico"
-                placeholder="Buscar na mensagem..."
-                onkeyup="filtrarHistorico()"
-                style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; flex: 1; min-width: 200px;"
-              />
-
-              <button
-                onclick="exportarHistorico()"
-                style="padding: 5px 15px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;"
-                title="Exportar histórico filtrado para CSV"
-              >
-                📥 Exportar CSV
-              </button>
-
-              <button
-                onclick="limparFiltrosHistorico()"
-                style="padding: 5px 15px; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer;"
-                title="Limpar todos os filtros"
-              >
-                🔄 Limpar
-              </button>
+            <div class="card-elevated" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+              <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: hsl(var(--foreground));">Filtros</h3>
+              <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div class="form-group">
+                  <label class="form-label">Campanha</label>
+                  <select
+                    id="filtroCampanhaHistorico"
+                    class="form-select"
+                    onchange="filtrarHistorico()"
+                  >
+                    <option value="">Todas as campanhas</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Status</label>
+                  <select
+                    id="filtroStatusHistorico"
+                    class="form-select"
+                    onchange="filtrarHistorico()"
+                  >
+                    <option value="">Todos os status</option>
+                    <option value="enviado">Enviado</option>
+                    <option value="erro">Erro</option>
+                    <option value="bloqueado">Bloqueado</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Data Início</label>
+                  <input
+                    type="date"
+                    id="filtroDataInicioHistorico"
+                    class="form-input"
+                    onchange="filtrarHistorico()"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Data Fim</label>
+                  <input
+                    type="date"
+                    id="filtroDataFimHistorico"
+                    class="form-input"
+                    onchange="filtrarHistorico()"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Buscar na Mensagem</label>
+                  <input
+                    type="text"
+                    id="filtroBuscaTextoHistorico"
+                    class="form-input"
+                    placeholder="Buscar na mensagem..."
+                    onkeyup="filtrarHistorico()"
+                  />
+                </div>
+              </div>
+              <div class="form-actions" style="justify-content: flex-start; border: none; padding: 0; margin-top: 1rem;">
+                <button
+                  class="btn btn-primary"
+                  onclick="exportarHistorico()"
+                  title="Exportar histórico filtrado para CSV"
+                >
+                  📥 Exportar CSV
+                </button>
+                <button
+                  class="btn btn-outline"
+                  onclick="limparFiltrosHistorico()"
+                  title="Limpar todos os filtros"
+                >
+                  🔄 Limpar Filtros
+                </button>
+              </div>
             </div>
 
             <!-- Paginação -->
-            <div id="historicoPaginacao" style="display: none; margin-bottom: 10px; text-align: center;">
-              <button id="btnPaginaAnterior" onclick="mudarPaginaHistorico(-1)" style="padding: 5px 15px; margin-right: 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">← Anterior</button>
-              <span id="infoPaginaHistorico" style="margin: 0 10px;">Página 1 de 1</span>
-              <button id="btnPaginaProxima" onclick="mudarPaginaHistorico(1)" style="padding: 5px 15px; margin-left: 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">Próxima →</button>
+            <div id="historicoPaginacao" style="display: none; margin-bottom: 1rem; text-align: center;">
+              <button id="btnPaginaAnterior" class="btn btn-outline" onclick="mudarPaginaHistorico(-1)">← Anterior</button>
+              <span id="infoPaginaHistorico" style="margin: 0 1rem; color: hsl(var(--muted-foreground));">Página 1 de 1</span>
+              <button id="btnPaginaProxima" class="btn btn-outline" onclick="mudarPaginaHistorico(1)">Próxima →</button>
             </div>
 
             <!-- Tabela -->
-            <div style="overflow-x: auto; max-height: 500px; overflow-y: auto">
-              <table class="historico-envios-table">
-                <thead>
-                  <tr>
-                    <th>Data/Hora</th>
-                    <th>Status</th>
-                    <th>Tipo</th>
-                    <th>Campanha</th>
-                    <th>Mensagem</th>
-                  </tr>
-                </thead>
-                <tbody id="historicoEnviosBody">
-                  <tr>
-                    <td
-                      colspan="5"
-                      style="text-align: center; padding: 20px; color: #666"
-                    >
-                      Carregando histórico...
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <div class="card-elevated" style="padding: 0; overflow: hidden;">
+              <div style="overflow-x: auto; max-height: 500px; overflow-y: auto">
+                <table class="data-table" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Data/Hora</th>
+                      <th>Status</th>
+                      <th>Tipo</th>
+                      <th>Campanha</th>
+                      <th>Mensagem</th>
+                    </tr>
+                  </thead>
+                  <tbody id="historicoEnviosBody">
+                    <tr>
+                      <td
+                        colspan="5"
+                        style="text-align: center; padding: 2rem; color: hsl(var(--muted-foreground));"
+                      >
+                        Carregando histórico...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          <div class="modal-actions">
+          <!-- Ações do Modal -->
+          <div class="form-actions">
             <button
-              class="btn-warning"
+              class="btn btn-outline"
               onclick="desativarCliente(document.getElementById('clienteId').value)"
               id="btnDesativarCliente"
             >
               🚫 Desativar Cliente
             </button>
             <button
-              class="btn-danger"
+              class="btn btn-destructive"
               onclick="excluirCliente(document.getElementById('clienteId').value)"
               id="btnExcluirCliente"
             >
@@ -4937,14 +4021,18 @@ Registra no histórico (Supabase)
       </div>
     </div>
 
-    <!-- Overlay para fechar tooltips -->
+          </div>
+          <!-- Fim do conteúdo legacy -->
+        </div>
+      </div>
+      
+    <!-- Overlay e Popover de Tooltip (fora do legacyContent para garantir acesso) -->
     <div
       class="tooltip-overlay"
       id="tooltipOverlay"
       onclick="fecharTooltipPopover()"
     ></div>
 
-    <!-- Popover de Tooltip -->
     <div class="tooltip-popover" id="tooltipPopover">
       <div class="tooltip-popover-header">
         <h4 id="tooltipPopoverTitle"></h4>
@@ -4955,6 +4043,1046 @@ Registra no histórico (Supabase)
       <div class="tooltip-popover-content" id="tooltipPopoverContent"></div>
     </div>
 
+    <!-- Modal Enviar Mensagem Individual (fora do legacyContent para garantir acesso) -->
+    <div id="modalEnviarMensagem" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>📤 Enviar Mensagem Individual</h2>
+          <button class="close" onclick="fecharModalEnviarMensagem()">
+            &times;
+          </button>
+        </div>
+        <form id="formEnviarMensagem">
+          <input type="hidden" id="enviarMensagemClienteId" />
+          <input type="hidden" id="enviarMensagemTelefone" />
+
+          <div class="form-section">
+            <h3 style="font-size: 1rem; font-weight: 600; color: hsl(var(--foreground)); margin-bottom: 1rem;">Informações do Cliente</h3>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Cliente</label>
+                <input
+                  type="text"
+                  id="enviarMensagemClienteNome"
+                  class="form-input"
+                  readonly
+                  style="background: hsl(var(--muted)); cursor: not-allowed;"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Telefone</label>
+                <input
+                  type="text"
+                  id="enviarMensagemClienteTelefone"
+                  class="form-input"
+                  readonly
+                  style="background: hsl(var(--muted)); cursor: not-allowed;"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3 style="font-size: 1rem; font-weight: 600; color: hsl(var(--foreground)); margin-bottom: 1rem;">Configuração do Envio</h3>
+            
+            <div class="form-group">
+              <label class="form-label">Instância WhatsApp <span style="color: hsl(var(--destructive));">*</span></label>
+              <select id="enviarMensagemInstanciaId" class="form-select" required>
+                <option value="">Carregando instâncias...</option>
+              </select>
+              <div class="form-help-text">
+                Selecione a instância WhatsApp que será usada para enviar a mensagem
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tipo de Envio <span style="color: hsl(var(--destructive));">*</span></label>
+              <select id="tipoEnvio" class="form-select" required onchange="toggleTipoEnvio()">
+                <option value="">Selecione...</option>
+                <option value="campanha">Usar Campanha Existente</option>
+                <option value="customizada">Mensagem Customizada</option>
+              </select>
+            </div>
+
+            <div
+              class="form-group"
+              id="campanhaSelectGroup"
+              style="display: none"
+            >
+              <label class="form-label">Selecionar Campanha <span style="color: hsl(var(--destructive));">*</span></label>
+              <select id="campanhaSelecionada" class="form-select">
+                <option value="">Carregando campanhas...</option>
+              </select>
+            </div>
+
+            <div
+              class="form-group"
+              id="mensagemCustomizadaGroup"
+              style="display: none"
+            >
+              <label class="form-label">Mensagem Customizada <span style="color: hsl(var(--destructive));">*</span></label>
+              <textarea
+                id="mensagemCustomizada"
+                class="form-textarea"
+                rows="6"
+                placeholder="Digite a mensagem personalizada aqui..."
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+              Enviar Mensagem
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline"
+              onclick="fecharModalEnviarMensagem()"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Nova/Editar Campanha -->
+    <div id="modalCampanha" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modalTitle">Nova Campanha</h2>
+          <button class="close" onclick="fecharModal()">&times;</button>
+        </div>
+        <form id="formCampanha">
+          <input type="hidden" id="campanhaId" />
+
+          <div class="form-group">
+            <label>Nome da Campanha <small>(obrigatório)</small></label>
+            <input type="text" id="nome" class="form-input" required />
+          </div>
+
+          <div class="form-group">
+            <label>Descrição</label>
+            <textarea id="descricao" class="form-textarea" rows="3"></textarea>
+            <small>Campo opcional para notas internas</small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Período do Ano <small>(obrigatório)</small></label>
+              <select id="periodo_ano" class="form-select" required>
+                <option value="">Selecione...</option>
+                <option value="janeiro">Janeiro</option>
+                <option value="fevereiro">Fevereiro</option>
+                <option value="marco">Março</option>
+                <option value="abril">Abril</option>
+                <option value="maio">Maio</option>
+                <option value="junho">Junho</option>
+                <option value="julho">Julho</option>
+                <option value="agosto">Agosto</option>
+                <option value="setembro">Setembro</option>
+                <option value="outubro">Outubro</option>
+                <option value="novembro">Novembro</option>
+                <option value="dezembro">Dezembro</option>
+                <option value="black-friday">Black Friday</option>
+                <option value="dia-maes">Dia das Mães</option>
+                <option value="dia-pais">Dia dos Pais</option>
+                <option value="natal">Natal</option>
+                <option value="ano-novo">Ano Novo</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Status <small>(obrigatório)</small></label>
+              <select id="status" class="form-select" required>
+                <option value="ativa">Ativa</option>
+                <option value="pausada">Pausada</option>
+                <option value="concluida">Concluída</option>
+                <option value="cancelada">Cancelada</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Data Início</label>
+              <input type="date" id="data_inicio" class="form-input" />
+            </div>
+
+            <div class="form-group">
+              <label>Data Fim</label>
+              <input type="date" id="data_fim" class="form-input" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Limite de Envios/Dia</label>
+              <input type="number" id="limite_envios_dia" class="form-input" value="200" min="1" />
+            </div>
+
+            <div class="form-group">
+              <label>Intervalo Mínimo (dias)</label>
+              <input
+                type="number"
+                id="intervalo_minimo_dias"
+                class="form-input"
+                value="30"
+                min="1"
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Atraso Inteligente Entre Mensagens</label>
+              
+              <!-- Opções pré-definidas -->
+              <div class="form-section" style="padding: 1rem; margin-bottom: 0.75rem;">
+                <div style="margin-bottom: 0.75rem; font-size: 0.8125rem; color: hsl(var(--muted-foreground)); font-weight: 500;">
+                  Selecionar intervalo pré-definido:
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                  <label class="form-radio">
+                    <input type="radio" name="intervalo_preset" value="muito_curto" />
+                    <span><strong>Muito curto:</strong> 1-5s</span>
+                  </label>
+                  <label class="form-radio">
+                    <input type="radio" name="intervalo_preset" value="curto" />
+                    <span><strong>Curto:</strong> 5-20s</span>
+                  </label>
+                  <label class="form-radio">
+                    <input type="radio" name="intervalo_preset" value="medio" />
+                    <span><strong>Médio:</strong> 20-50s</span>
+                  </label>
+                  <label class="form-radio">
+                    <input type="radio" name="intervalo_preset" value="longo" />
+                    <span><strong>Longo:</strong> 50-120s</span>
+                  </label>
+                  <label class="form-radio">
+                    <input type="radio" name="intervalo_preset" value="muito_longo" />
+                    <span><strong>Muito longo:</strong> 120-300s</span>
+                  </label>
+                  <label class="form-radio">
+                    <input type="radio" name="intervalo_preset" value="padrao" checked />
+                    <span><strong>Padrão (recomendado):</strong> 130-150s aleatorizado</span>
+                  </label>
+                  <label class="form-radio">
+                    <input type="radio" name="intervalo_preset" value="personalizado" />
+                    <span><strong>Personalizado:</strong> Digite valor abaixo</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Campo numérico personalizado -->
+              <div style="margin-top: 0.75rem;">
+                <label style="display: block; margin-bottom: 0.375rem; font-size: 0.8125rem; color: hsl(var(--muted-foreground));">
+                  Valor personalizado (segundos):
+                </label>
+                <input
+                  type="number"
+                  id="intervalo_envios_segundos"
+                  class="form-input"
+                  min="1"
+                  max="300"
+                  value="130"
+                  placeholder="130 (padrão aleatorizado)"
+                />
+              </div>
+
+              <small>
+                Valor base com variação aleatória de ±10s por disparo (para não parecer automação). 
+                Selecione uma opção acima ou digite um valor personalizado. Valor padrão (130) usa aleatorização 130-150s.
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label>Prioridade (1-10)</label>
+              <input type="number" id="prioridade" class="form-input" value="5" min="1" max="10" />
+              <small>
+                Maior prioridade processada primeiro quando cliente elegível
+                para múltiplas campanhas
+              </small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Instância API WhatsApp <small>(obrigatório)</small></label>
+            <select id="whatsapp_api_id" class="form-select" required>
+              <option value="">Carregando instâncias...</option>
+            </select>
+            <small>
+              Selecione qual instância de API WhatsApp usar para esta campanha.
+              Configure instâncias em "⚙️ Gerenciar Configurações".
+            </small>
+          </div>
+
+          <!-- Seção de Estimativas de Tempo -->
+          <div id="estimativas-tempo" class="form-section">
+            <h4>📊 Estimativas de Tempo</h4>
+            <div id="estimativas-conteudo">
+              <p style="color: hsl(var(--muted-foreground)); font-size: 0.875rem; margin: 0;">
+                Configure o limite diário e intervalo para ver estimativas
+              </p>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label id="label_prompt_ia">Prompt Personalizado para IA <span id="prompt_ia_required" style="color: hsl(var(--destructive));">*</span></label>
+            <textarea
+              id="prompt_ia"
+              class="form-textarea"
+              rows="4"
+              placeholder="Instruções específicas para a IA gerar mensagens desta campanha..."
+            ></textarea>
+            <small id="prompt_ia_help">
+              Obrigatório apenas se nenhum template de prompt for selecionado.
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label>Template de Mensagem <small>(opcional)</small></label>
+            <textarea
+              id="template_mensagem"
+              class="form-textarea"
+              rows="3"
+              placeholder="Template base opcional..."
+            ></textarea>
+          </div>
+
+          <!-- Seção: Configurações de IA -->
+          <div class="form-section" style="background: hsl(var(--primary) / 0.05); border-left: 4px solid hsl(var(--primary));">
+            <h4 style="margin-top: 0; margin-bottom: 1rem;">
+              🤖 Configurações do Agente IA
+            </h4>
+
+            <div class="form-group">
+              <label class="form-checkbox">
+                <input
+                  type="checkbox"
+                  id="usar_veiculos"
+                  checked
+                />
+                <span>Incluir informações de veículos no contexto da IA</span>
+              </label>
+              <small>
+                Se marcado, a IA terá acesso aos dados de veículos do cliente.
+                Desmarque para campanhas genéricas (Natal, Ano Novo).
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-checkbox">
+                <input
+                  type="checkbox"
+                  id="usar_vendedor"
+                />
+                <span>Incluir nome do vendedor no contexto da IA</span>
+              </label>
+              <small>
+                Se marcado, a IA poderá mencionar o vendedor do veículo mais
+                recente. Útil para campanhas de relacionamento.
+              </small>
+            </div>
+
+            <!-- Seção: Dados Dinâmicos do Agente IA -->
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label class="form-checkbox">
+                <input
+                  type="checkbox"
+                  id="usar_configuracoes_globais"
+                  checked
+                />
+                <span>Usar configurações globais da empresa</span>
+              </label>
+              <small>
+                Se marcado, usa configurações globais como base. Pode ser
+                sobrescrito abaixo.
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label>Template de Prompt <small>(opcional)</small></label>
+              <select id="template_prompt_id" class="form-select">
+                <option value="">Nenhum - usar prompt personalizado</option>
+              </select>
+              <small>
+                Selecione um template para usar como base do prompt. O prompt
+                personalizado será ignorado se um template for selecionado.
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label>Sessões de Contexto Habilitadas</label>
+              <div
+                id="sessoes_contexto_checkboxes"
+                class="form-section"
+                style="max-height: 200px; overflow-y: auto; padding: 1rem; margin-bottom: 0;"
+              >
+                <p style="color: hsl(var(--muted-foreground)); font-size: 0.875rem; margin: 0;">
+                  Carregando sessões...
+                </p>
+              </div>
+              <small>
+                Selecione quais sessões de contexto incluir no prompt do agente
+                IA.
+              </small>
+            </div>
+
+            <details style="margin-top: 1rem; margin-bottom: 1rem;">
+              <summary
+                style="cursor: pointer; font-weight: 600; color: hsl(var(--primary)); padding: 0.5rem 0;"
+              >
+                Sobrescrever Configurações Globais <small>(opcional)</small>
+              </summary>
+              <div
+                id="configuracoes_sobrescritas"
+                class="form-section"
+                style="margin-top: 0.75rem; padding: 1rem;"
+              >
+                <p style="color: hsl(var(--muted-foreground)); font-size: 0.875rem; margin: 0;">
+                  Carregando configurações...
+                </p>
+              </div>
+              <small>
+                Deixe vazio para usar a configuração global. Preencha para
+                sobrescrever.
+              </small>
+            </details>
+          </div>
+
+          <!-- Seção: Processamento em Lotes -->
+          <div class="form-section" style="background: hsl(var(--warning) / 0.05); border-left: 4px solid hsl(var(--warning));">
+            <h4 style="margin-top: 0; margin-bottom: 1rem;">
+              ⚙️ Processamento em Lotes e Horário
+            </h4>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Tamanho do Lote</label>
+                <input
+                  type="number"
+                  id="tamanho_lote"
+                  class="form-input"
+                  value="50"
+                  min="10"
+                  max="500"
+                />
+                <small>
+                  Número de clientes processados por execução (padrão: 50,
+                  mínimo: 10, máximo: 500)
+                </small>
+              </div>
+
+              <div class="form-group">
+                <label>Processar Finais de Semana</label>
+                <label class="form-checkbox">
+                  <input
+                    type="checkbox"
+                    id="processar_finais_semana"
+                  />
+                  <span>Processar também sábados e domingos</span>
+                </label>
+                <small>
+                  Se desmarcado, processa apenas dias úteis (segunda a sexta)
+                </small>
+              </div>
+            </div>
+
+            <!-- Seção: Modo Teste e Debug -->
+            <div class="form-section">
+              <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem;">
+                🧪 Modo Teste e Debug
+              </h3>
+
+              <!-- Modo Teste -->
+              <div class="form-group">
+                <label class="form-checkbox">
+                  <input
+                    type="checkbox"
+                    id="modo_teste"
+                  />
+                  <span>Modo Teste (substituir telefones dos clientes)</span>
+                </label>
+                <small>
+                  Quando ativado, processa clientes normalmente mas envia
+                  mensagens para os telefones de teste.
+                </small>
+              </div>
+
+              <div
+                class="form-group"
+                id="telefones_teste_group"
+                style="display: none"
+              >
+                <label for="telefones_teste">
+                  Telefones de Teste
+                  <small>(deixe vazio para usar configuração global)</small>
+                </label>
+                <textarea
+                  id="telefones_teste"
+                  class="form-textarea"
+                  rows="3"
+                  placeholder="5511999999999&#10;5511988888888&#10;(um por linha)"
+                  style="font-family: monospace;"
+                ></textarea>
+                <small>
+                  Digite um telefone por linha no formato 55XXXXXXXXXXX (código
+                  país + DDD + número).
+                </small>
+                <div
+                  id="telefones_teste_validacao"
+                  class="validation-message"
+                  style="
+                    font-size: 0.85rem;
+                    margin-top: 0.5rem;
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                  "
+                ></div>
+              </div>
+
+              <!-- Modo Debug -->
+              <div class="form-group">
+                <label class="form-checkbox">
+                  <input
+                    type="checkbox"
+                    id="modo_debug"
+                  />
+                  <span>Modo Debug (logs detalhados)</span>
+                </label>
+                <small>
+                  Ativa logs detalhados no N8N para debug do fluxo de
+                  processamento.
+                </small>
+              </div>
+            </div>
+
+            <!-- Seção: Notificações Admin -->
+            <div
+              class="form-section"
+              style="margin-top: 20px; margin-bottom: 20px"
+            >
+              <h3
+                style="
+                  margin-top: 0;
+                  margin-bottom: 1rem;
+                  color: #333;
+                  font-size: 1.1rem;
+                "
+              >
+                🔔 Notificações Admin
+              </h3>
+
+              <div class="form-group">
+                <label for="telefones_admin">
+                  Telefones Admin
+                  <span style="color: #999; font-size: 0.85rem"
+                    >(deixe vazio para usar configuração global)</span
+                  >
+                </label>
+                <textarea
+                  id="telefones_admin"
+                  rows="2"
+                  placeholder="5511999999999&#10;5511988888888"
+                  style="
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-family: monospace;
+                  "
+                ></textarea>
+                <p
+                  class="help-text"
+                  style="
+                    font-size: 0.85rem;
+                    color: #666;
+                    margin-top: 0.25rem;
+                    margin-bottom: 0;
+                  "
+                >
+                  Telefones que receberão notificações sobre a campanha (um por
+                  linha).
+                </p>
+                <div
+                  id="telefones_admin_validacao"
+                  class="validation-message"
+                  style="
+                    font-size: 0.85rem;
+                    margin-top: 0.5rem;
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                  "
+                ></div>
+              </div>
+
+              <div class="form-group">
+                <label
+                  style="display: flex; align-items: center; cursor: pointer"
+                >
+                  <input
+                    type="checkbox"
+                    id="notificar_inicio"
+                    style="width: auto; margin-right: 8px"
+                  />
+                  <span>Notificar ao iniciar campanha</span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label
+                  style="display: flex; align-items: center; cursor: pointer"
+                >
+                  <input
+                    type="checkbox"
+                    id="notificar_erros"
+                    checked
+                    style="width: auto; margin-right: 8px"
+                  />
+                  <span>Notificar erros críticos</span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label
+                  style="display: flex; align-items: center; cursor: pointer"
+                >
+                  <input
+                    type="checkbox"
+                    id="notificar_conclusao"
+                    checked
+                    style="width: auto; margin-right: 8px"
+                  />
+                  <span>Notificar ao concluir campanha</span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label
+                  style="display: flex; align-items: center; cursor: pointer"
+                >
+                  <input
+                    type="checkbox"
+                    id="notificar_limite"
+                    style="width: auto; margin-right: 8px"
+                  />
+                  <span>Notificar ao atingir limite diário</span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label for="whatsapp_api_id_admin">
+                  Instância WhatsApp para Notificações
+                  <span style="color: #999; font-size: 0.85rem"
+                    >(deixe vazio para usar a mesma da campanha)</span
+                  >
+                </label>
+                <select
+                  id="whatsapp_api_id_admin"
+                  style="
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                  "
+                >
+                  <option value="">-- Usar instância da campanha --</option>
+                </select>
+                <p
+                  class="help-text"
+                  style="
+                    font-size: 0.85rem;
+                    color: #666;
+                    margin-top: 0.25rem;
+                    margin-bottom: 0;
+                  "
+                >
+                  Escolha uma instância diferente para evitar sobrecarga na
+                  instância principal da campanha. Recomendado: usar instância
+                  dedicada para notificações admin.
+                </p>
+              </div>
+            </div>
+
+            <!-- Seção: Configuração por Dia da Semana -->
+            <div
+              style="
+                background: #fff5f0;
+                padding: 15px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #ff6b35;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                📅 Configuração por Dia da Semana
+              </h4>
+              
+              <div class="form-group" style="margin-bottom: 15px">
+                <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 10px">
+                  <input
+                    type="radio"
+                    name="modo_configuracao_dias"
+                    id="modo_configuracao_padrao"
+                    value="padrao"
+                    checked
+                    onchange="toggleConfiguracaoDiasSemana()"
+                    style="width: auto; margin-right: 8px"
+                  />
+                  <span>Usar configuração padrão (horário início/fim e processar finais de semana)</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer">
+                  <input
+                    type="radio"
+                    name="modo_configuracao_dias"
+                    id="modo_configuracao_individual"
+                    value="individual"
+                    onchange="toggleConfiguracaoDiasSemana()"
+                    style="width: auto; margin-right: 8px"
+                  />
+                  <span>Configurar cada dia individualmente</span>
+                </label>
+              </div>
+
+              <!-- Campos padrão (sempre visíveis) -->
+              <div id="configuracao_padrao_dias">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="with-help">Horário Início <span class="help-icon" title="Horário em que a campanha começa a processar automaticamente. O Schedule Trigger verifica este horário para iniciar a campanha.">?</span></label>
+                    <input type="time" id="horario_inicio" value="09:00" />
+                    <small style="color: #666">
+                      Horário de início para processamento automático (formato HH:MM). Define quando a campanha começa a executar automaticamente.
+                    </small>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="with-help">Horário Fim <span class="help-icon" title="Horário em que a campanha para de processar. Se definido, o sistema calcula automaticamente quantos clientes cabem neste horário.">?</span></label>
+                    <input type="time" id="horario_fim" value="18:00" />
+                    <small style="color: #666">
+                      Horário de fim para processamento (formato HH:MM, opcional). Se definido, limita o processamento e calcula lotes automaticamente para caber no horário disponível.
+                    </small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tabela de configuração individual (inicialmente oculta) -->
+              <div id="configuracao_individual_dias" style="display: none">
+                <div style="margin-bottom: 10px">
+                  <button
+                    type="button"
+                    onclick="aplicarHorarioPadrao()"
+                    class="btn-secondary"
+                    style="padding: 6px 12px; font-size: 13px"
+                  >
+                    🔄 Aplicar horário padrão a todos os dias habilitados
+                  </button>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px">
+                  <thead>
+                    <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd">
+                      <th style="padding: 10px; text-align: left; width: 120px">Dia</th>
+                      <th style="padding: 10px; text-align: center; width: 100px">Habilitado</th>
+                      <th style="padding: 10px; text-align: left; width: 150px">Horário Início</th>
+                      <th style="padding: 10px; text-align: left; width: 150px">Horário Fim</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tabela_dias_semana">
+                    <!-- Preenchido via JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Seção: Intervalo de Almoço -->
+            <div
+              style="
+                background: #fff5f0;
+                padding: 15px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #ff6b35;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                🍽️ Intervalo de Almoço
+              </h4>
+              
+              <div class="form-group" style="margin-bottom: 15px">
+                <label style="display: flex; align-items: center; cursor: pointer">
+                  <input
+                    type="checkbox"
+                    id="pausar_almoco"
+                    onchange="toggleCamposAlmoco()"
+                    style="width: auto; margin-right: 8px"
+                  />
+                  <span>Pausar durante horário de almoço</span>
+                </label>
+                <small style="color: #666; display: block; margin-top: 5px">
+                  Quando marcado, o sistema pausa automaticamente durante o intervalo de almoço e separa os lotes antes e depois do almoço.
+                </small>
+              </div>
+
+              <div id="campos_almoco" style="display: none">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Horário Início Almoço</label>
+                    <input type="time" id="horario_almoco_inicio" value="12:00" />
+                    <small style="color: #666">
+                      Horário em que o intervalo de almoço começa (formato HH:MM)
+                    </small>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Horário Fim Almoço</label>
+                    <input type="time" id="horario_almoco_fim" value="13:00" />
+                    <small style="color: #666">
+                      Horário em que o intervalo de almoço termina (formato HH:MM)
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Painel de Estimativas -->
+            <div
+              id="painel_estimativas"
+              style="
+                background: #f0f9ff;
+                padding: 20px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #3b82f6;
+                display: none;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                📊 Estimativas da Campanha
+              </h4>
+              <div id="estimativas-conteudo">
+                <!-- Preenchido via JavaScript -->
+              </div>
+              <div id="sugestoes-automaticas" style="margin-top: 15px">
+                <!-- Preenchido via JavaScript -->
+              </div>
+            </div>
+
+            <!-- Seção: Seleção de Clientes -->
+            <div
+              style="
+                background: #f0f7ff;
+                padding: 15px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #667eea;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                👥 Selecionar Clientes para Campanha
+              </h4>
+              <p style="color: #666; font-size: 14px; margin-bottom: 15px">
+                Por padrão, a campanha enviará para todos os clientes elegíveis.
+                Selecione clientes específicos abaixo para limitar o envio
+                apenas a eles.
+              </p>
+
+              <div
+                style="
+                  display: flex;
+                  gap: 10px;
+                  margin-bottom: 15px;
+                  flex-wrap: wrap;
+                "
+              >
+                <button
+                  type="button"
+                  onclick="selecionarTodosClientes()"
+                  class="btn-secondary"
+                  style="padding: 8px 16px"
+                >
+                  ✅ Selecionar Todos
+                </button>
+                <button
+                  type="button"
+                  onclick="desmarcarTodosClientes()"
+                  class="btn-secondary"
+                  style="padding: 8px 16px"
+                >
+                  ❌ Desmarcar Todos
+                </button>
+                <button
+                  type="button"
+                  onclick="inverterSelecaoClientes()"
+                  class="btn-secondary"
+                  style="padding: 8px 16px"
+                >
+                  🔄 Inverter Seleção
+                </button>
+              </div>
+
+              <div style="margin-bottom: 10px">
+                <input
+                  type="text"
+                  id="buscaClientesSelecao"
+                  placeholder="Buscar cliente por nome ou telefone..."
+                  style="
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                  "
+                  onkeyup="filtrarClientesSelecao()"
+                />
+              </div>
+
+              <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                <select
+                  id="ordenacaoCampoSelecao"
+                  style="flex: 1; min-width: 150px"
+                  onchange="renderizarListaClientesSelecao()"
+                >
+                  <option value="nome_cliente" selected>Nome (A-Z)</option>
+                  <option value="ultimo_envio">Último Envio</option>
+                  <option value="status_whatsapp">Status WhatsApp</option>
+                  <option value="bloqueado_envios">Status Bloqueio</option>
+                </select>
+                <select
+                  id="ordenacaoDirecaoSelecao"
+                  style="width: 120px"
+                  onchange="renderizarListaClientesSelecao()"
+                >
+                  <option value="asc" selected>Crescente ↑</option>
+                  <option value="desc">Decrescente ↓</option>
+                </select>
+              </div>
+
+              <div style="margin-bottom: 10px; padding: 10px; background: #f9fafb; border-radius: 4px; border: 1px solid #e5e7eb;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input
+                    type="checkbox"
+                    id="filtroApenasNaoEnviados"
+                    onchange="renderizarListaClientesSelecao()"
+                    style="width: 18px; height: 18px; cursor: pointer;"
+                  />
+                  <span style="font-size: 14px; color: #333;">
+                    📋 Mostrar apenas clientes que ainda <strong>não receberam</strong> mensagens nesta campanha
+                  </span>
+                </label>
+                <small style="display: block; color: #666; margin-top: 5px; margin-left: 26px; font-size: 12px;">
+                  Clientes que já receberam mensagens serão marcados automaticamente com um indicador visual (badge "📨 Já enviado" e fundo azul). 
+                  <strong>O sistema sempre valida no backend antes de enviar</strong>, então mesmo que você selecione manualmente um cliente já enviado, ele será pulado automaticamente durante a execução.
+                </small>
+                <div id="contadorClientesJaEnviados" style="display: none; margin-top: 8px; margin-left: 26px; padding: 6px 10px; background: #e3f2fd; border-radius: 4px; font-size: 12px; color: #1976d2;">
+                  <strong>ℹ️ Informação:</strong> <span id="textoContadorJaEnviados"></span>
+                </div>
+              </div>
+
+              <div style="margin-bottom: 10px">
+                <strong id="contadorClientesSelecionados"
+                  >0 clientes selecionados</strong
+                >
+              </div>
+
+              <div
+                id="listaClientesSelecao"
+                style="
+                  max-height: 300px;
+                  overflow-y: auto;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  padding: 10px;
+                  background: white;
+                "
+              >
+                <p style="text-align: center; color: #666; padding: 20px">
+                  Carregando clientes...
+                </p>
+              </div>
+
+              <small style="color: #666; display: block; margin-top: 10px">
+                Apenas clientes com WhatsApp validado são exibidos (ativo, não
+                bloqueado, status_whatsapp = 'valid'). Para verificar o WhatsApp
+                de um cliente, use o botão "✅ Verificar WhatsApp" na lista de
+                clientes. Se nenhum cliente for selecionado, a campanha enviará
+                para todos os elegíveis.
+              </small>
+            </div>
+
+            <!-- Seção: Quantidade de Clientes (Opcional) -->
+            <div
+              style="
+                background: #f0f7ff;
+                padding: 15px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #667eea;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                📊 Quantidade de Clientes (Opcional)
+              </h4>
+              <div class="form-group">
+                <label>Quantidade Fixa de Clientes</label>
+                <input
+                  type="number"
+                  id="quantidade_clientes"
+                  min="1"
+                  placeholder="Deixe vazio para usar clientes selecionados ou todos elegíveis"
+                />
+                <small style="color: #666">
+                  Se preenchido, será usado para cálculos de estimativas. Se vazio, usa quantidade de clientes selecionados ou todos elegíveis do banco.
+                </small>
+              </div>
+            </div>
+
+            <div
+              id="estimativas-lote"
+              style="
+                background: #f5f5f5;
+                padding: 10px;
+                border-radius: 4px;
+                margin-top: 10px;
+              "
+            >
+              <p style="color: #666; font-size: 13px; margin: 0">
+                <strong>Estimativa:</strong>
+                <span id="estimativa-dias-lote"
+                  >Configure o tamanho do lote e limite diário para ver
+                  estimativa</span
+                >
+              </p>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="fecharModal()">
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary">
+              Salvar Campanha
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    </div>
+
     <script src="app.js"></script>
+    <script src="router.js"></script>
+    <script src="dashboard.js"></script>
+    <script src="notifications.js"></script>
+    <script src="relatorios.js"></script>
+    <script src="filters.js"></script>
   </body>
 </html>

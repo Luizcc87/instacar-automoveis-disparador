@@ -1,5 +1,7 @@
 # Histórico de Envios Individuais - Documentação
 
+**Versão:** 2.7.2 (Dezembro 2025 - Registro automático de envios com campanha e verificação de duplicatas)
+
 ## Visão Geral
 
 Este documento descreve como o sistema registra e exibe o histórico de envios individuais de mensagens WhatsApp através da interface web.
@@ -15,10 +17,20 @@ Quando um usuário envia uma mensagem individual através da interface web:
    - `trigger_tipo: 'manual_individual'`
    - `telefone`: Número do cliente
    - `instance_id`: ID da instância WhatsApp selecionada (obrigatório)
-   - `mensagem_customizada`: Mensagem personalizada (opcional)
-   - `campanha_id`: ID da campanha (opcional)
+   - `mensagem_customizada`: Mensagem personalizada (opcional - tipo "customizada")
+   - `campanha_id`: ID da campanha (opcional - tipo "campanha")
 
-2. **N8N Workflow** (`Disparador_Web_Campanhas_Instacar.json`):
+2. **Verificação de Envios Anteriores** (apenas para tipo "campanha"):
+
+   - Antes de enviar, verifica se já existe histórico de envios para aquele cliente + campanha
+   - Se encontrar envio anterior, exibe confirmação com:
+     - Nome da campanha
+     - Data/hora do último envio
+     - Status do último envio (enviado com sucesso, com erro, bloqueado)
+   - Usuário pode confirmar ou cancelar o envio
+   - **Mensagens customizadas** não são verificadas (são consideradas fora das campanhas)
+
+3. **N8N Workflow** (`Disparador_Web_Campanhas_Instacar.json`):
 
    - Valida payload
    - Busca cliente no Supabase
@@ -27,14 +39,23 @@ Quando um usuário envia uma mensagem individual através da interface web:
    - Envia mensagem via API (Uazapi/Z-API/Evolution)
    - **Registra no histórico** via nó "Registrar Histórico Individual"
 
-3. **Supabase** → Insere registro em `instacar_historico_envios` com:
-   - `cliente_id`: ID do cliente (se existir)
-   - `telefone`: Número normalizado (55XXXXXXXXXXX)
-   - `mensagem_enviada`: Texto da mensagem
-   - `status_envio`: 'enviado', 'erro' ou 'bloqueado'
-   - `campanha_id`: ID da campanha (se houver)
-   - `planilha_origem`: 'Envio Individual Manual'
-   - `timestamp_envio`: Data/hora do envio
+4. **Registro Automático no Histórico** (apenas para tipo "campanha"):
+
+   - Após envio bem-sucedido via webhook N8N, o frontend registra automaticamente no Supabase
+   - **Supabase** → Insere registro em `instacar_historico_envios` com:
+     - `cliente_id`: ID do cliente (se existir)
+     - `telefone`: Número normalizado (55XXXXXXXXXXX)
+     - `campanha_id`: ID da campanha selecionada
+     - `status_envio`: 'enviado' (assumindo sucesso, já que o N8N processou)
+     - `mensagem_enviada`: `null` (mensagem é gerada pela IA no N8N)
+     - `tipo_envio`: 'normal'
+     - `planilha_origem`: 'envio_manual_individual'
+     - `timestamp_envio`: Data/hora atual
+   - **Atualiza contadores do cliente:**
+     - `total_envios`: Incrementa em 1
+     - `ultimo_envio`: Atualiza para data/hora atual
+     - `primeiro_envio`: Mantém valor existente (não sobrescreve)
+   - **Mensagens customizadas** não são registradas no histórico (são consideradas fora das campanhas)
 
 ### 2. Exibição do Histórico na Interface Web
 
@@ -56,7 +77,7 @@ Quando o usuário visualiza os detalhes do cliente:
 
 ### Políticas RLS
 
-A tabela `instacar_historico_envios` deve ter a seguinte política RLS:
+A tabela `instacar_historico_envios` deve ter as seguintes políticas RLS:
 
 ```sql
 -- Anon users (interface web) podem ler histórico de envios
@@ -65,9 +86,28 @@ CREATE POLICY "Anon users can read historico_envios"
   FOR SELECT
   TO anon
   USING (true);
+
+-- Anon users (interface web) podem inserir histórico de envios
+-- Necessário para registro automático de envios individuais com campanha (v2.7.2)
+CREATE POLICY "Anon users can insert historico_envios"
+  ON instacar_historico_envios
+  FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+-- Anon users (interface web) podem atualizar histórico de envios
+CREATE POLICY "Anon users can update historico_envios"
+  ON instacar_historico_envios
+  FOR UPDATE
+  TO anon
+  USING (true)
+  WITH CHECK (true);
 ```
 
-**Script completo:** `docs/interface-web/fix-rls-historico.sql`
+**Scripts completos:**
+- `docs/interface-web/fix-rls-historico.sql` (leitura)
+- `docs/supabase/fix-rls-historico-insert.sql` (inserção e atualização - v2.7.2)
+- `docs/supabase/policies.sql` (todas as políticas - inclui INSERT/UPDATE a partir de v2.7.2)
 
 ### Verificação
 
@@ -79,11 +119,13 @@ FROM pg_policies
 WHERE tablename = 'instacar_historico_envios';
 ```
 
-Deve retornar 3 políticas:
+Deve retornar pelo menos 5 políticas:
 
-- `Service role full access to historico_envios` (service_role)
-- `Authenticated users can read historico_envios` (authenticated)
-- `Anon users can read historico_envios` (anon) ← **Essencial para interface web**
+- `Service role full access to historico_envios` (service_role) - ALL
+- `Authenticated users can read historico_envios` (authenticated) - SELECT
+- `Anon users can read historico_envios` (anon) - SELECT ← **Essencial para visualização**
+- `Anon users can insert historico_envios` (anon) - INSERT ← **Essencial para registro automático (v2.7.2)**
+- `Anon users can update historico_envios` (anon) - UPDATE ← **Opcional, para atualizações futuras**
 
 ## Troubleshooting
 
@@ -113,7 +155,9 @@ Deve retornar 3 políticas:
    WHERE tablename = 'instacar_historico_envios';
    ```
 
-   Se não houver política para `anon`, execute `docs/interface-web/fix-rls-historico.sql`
+   Se não houver políticas para `anon`, execute:
+   - `docs/interface-web/fix-rls-historico.sql` (para leitura)
+   - `docs/supabase/fix-rls-historico-insert.sql` (para inserção e atualização - v2.7.2)
 
 3. **Verificar logs do navegador:**
    - Abra console (F12)
@@ -122,7 +166,10 @@ Deve retornar 3 políticas:
 
 **Solução:**
 
-- Execute o script `docs/interface-web/fix-rls-historico.sql` no Supabase
+- Execute os scripts no Supabase:
+  - `docs/interface-web/fix-rls-historico.sql` (para leitura)
+  - `docs/supabase/fix-rls-historico-insert.sql` (para inserção e atualização - v2.7.2)
+- Ou execute `docs/supabase/policies.sql` completo (inclui todas as políticas atualizadas)
 - Recarregue a página da interface web
 
 ### Problema: Histórico aparece, mas sem cliente_id
@@ -147,6 +194,8 @@ Deve retornar 3 políticas:
 **Solução:** O nó "Preparar Histórico Individual" verifica `campanha_id` de duas fontes:
 1. `dados.campanha.id` (objeto campanha)
 2. `dados.campanha_id` (campo direto do payload)
+
+**Nota:** A partir da versão 2.7.2, envios individuais do tipo "campanha" são registrados automaticamente pelo frontend após envio bem-sucedido, garantindo que o histórico seja sempre atualizado mesmo se o N8N não registrar. O sistema também verifica se já existe envio anterior para aquele cliente + campanha e solicita confirmação antes de continuar.
 
 **Verificação:**
 Execute a query em `docs/interface-web/verificar-historico-com-campanha.sql` para confirmar que o registro foi criado com `campanha_id` no banco.

@@ -5,7 +5,9 @@
   "scripts": {
     "inject-env": "node inject-env.js",
     "dev": "npm run inject-env && npx http-server . -p 8080 -o",
-    "build": "npm run inject-env"
+    "build": "npm run inject-env",
+    "download-reference": "node scripts/download-instacar-insights.js",
+    "download-reference-advanced": "node scripts/download-instacar-insights-advanced.js"
   },
   "keywords": [],
   "author": "",

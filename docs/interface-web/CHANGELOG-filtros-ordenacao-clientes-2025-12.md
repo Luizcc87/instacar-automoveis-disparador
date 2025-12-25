@@ -12,8 +12,9 @@ Implementação completa de sistema de filtros e ordenação para a lista de cli
 
 1. **Nome do Cliente** (alfabética) - Padrão: A-Z
 2. **Último Envio** (data/hora)
-3. **Status WhatsApp** (valid, invalid, unknown)
-4. **Status de Bloqueio** (bloqueado_envios: true/false)
+3. **Número de Veículos** (numérico) - Ordenação client-side
+4. **Status WhatsApp** (valid, invalid, unknown)
+5. **Status de Bloqueio** (bloqueado_envios: true/false)
 
 ### Funcionalidades Implementadas
 
@@ -35,12 +36,17 @@ Implementação completa de sistema de filtros e ordenação para a lista de cli
 - **Timestamps** (`ultimo_envio`): Ordenação por data/hora com tratamento de valores nulos
 - **Booleanos** (`bloqueado_envios`): Ordenação booleana (false < true)
 - **Strings** (`nome_cliente`, `status_whatsapp`): Ordenação alfabética padrão
+- **JSONB/Arrays** (`num_veiculos`): Ordenação client-side (não suportada diretamente pelo Supabase)
+  - Busca todos os registros em lotes de 1000 para evitar limite do Supabase
+  - Ordena client-side após buscar todos os registros filtrados
+  - Aplica paginação após ordenação
 
 #### 4. Integração com Filtros Existentes
 
-- **Compatibilidade**: Funciona em conjunto com filtros de busca e status WhatsApp
+- **Compatibilidade**: Funciona em conjunto com filtros de busca, status WhatsApp, bloqueio e número de veículos
 - **Paginação**: Mantém paginação ao alterar ordenação
 - **Performance**: Ordenação realizada no banco de dados (Supabase) para melhor performance
+- **Busca Paginada**: Quando ordenar por número de veículos, busca todos os registros em lotes de 1000 para evitar limite do Supabase
 
 ### Implementação Técnica
 
@@ -103,4 +109,6 @@ Implementação completa de sistema de filtros e ordenação para a lista de cli
 - Índices existentes no banco otimizam performance das ordenações
 - Valores nulos são tratados adequadamente em cada tipo de campo
 - Compatibilidade retroativa mantida (valores padrão quando controles não existirem)
+- **Ordenação por Veículos**: Requer busca paginada em lotes devido ao limite de 1000 registros do Supabase e impossibilidade de ordenar JSONB diretamente
+- **Otimização de Histórico**: Busca histórico de envios apenas para clientes da página atual para evitar URLs muito longas
 

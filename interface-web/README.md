@@ -14,6 +14,51 @@ A interface suporta upload de planilhas XLSX e CSV para importação em massa de
 
 📖 **Changelog completo e documentação técnica**: [../docs/interface-web/CHANGELOG-upload-planilhas.md](../docs/interface-web/CHANGELOG-upload-planilhas.md)
 
+## 🎨 Design System e Padrões de UI
+
+A interface web segue um design system padronizado baseado no projeto `instacar-insights`:
+
+### Documentação de Design System
+
+**📖 [Guia do Design System](../docs/interface-web/GUIA-DESIGN-SYSTEM.md)**
+
+**Use quando:**
+- Criar novas páginas ou componentes
+- Modificar estilos CSS ou layout
+- Consultar classes CSS reutilizáveis
+- Entender variáveis CSS (cores, espaçamentos, fontes)
+- Implementar novos componentes seguindo o padrão
+
+**Conteúdo:**
+- Classes CSS principais (`.card-elevated`, `.card-interactive`, etc.)
+- Estrutura de layout (sidebar, header, content area)
+- Componentes reutilizáveis (cards de métricas, badges, botões)
+- Variáveis CSS (cores HSL, espaçamentos, tipografia)
+- Padrões de página (Dashboard, listagens)
+- Checklist de implementação
+
+**📖 [Padrões de Botões](../docs/interface-web/PADROES-BOTOES.md)**
+
+**Use quando:**
+- Criar ou modificar botões na interface
+- Escolher a variante correta de botão (primary, secondary, destructive, etc.)
+- Entender tamanhos disponíveis (sm, default, lg, icon)
+- Adicionar ícones SVG aos botões
+- Migrar botões antigos para o novo padrão
+
+**Conteúdo:**
+- Estrutura base de botões
+- Variantes disponíveis (primary, secondary, destructive, outline, ghost)
+- Tamanhos (small, default, large, icon)
+- Botões com ícones SVG (regras e exemplos)
+- Estados (disabled, loading, focus)
+- Guia de migração de classes antigas
+
+### Arquivos CSS Principais
+
+- **`styles.css`** - Variáveis CSS, layout base, sidebar, header
+- **`components.css`** - Componentes reutilizáveis (botões, cards, badges, modais, formulários)
+
 ## 🚀 Iniciando em Desenvolvimento
 
 ### Opção 1: Script Automatizado (Recomendado)
@@ -158,11 +203,12 @@ A interface oferece sistema completo de filtros e ordenação para facilitar o g
 
 ### Funcionalidades
 
-- **Ordenação por Campo**: Nome, Último Envio, Status WhatsApp, Status de Bloqueio
+- **Ordenação por Campo**: Nome, Último Envio, Número de Veículos, Status WhatsApp, Status de Bloqueio
 - **Direção de Ordenação**: Crescente (↑) ou Decrescente (↓)
 - **Persistência**: Preferências salvas automaticamente e restauradas ao recarregar
 - **Dois Contextos**: Disponível na tela inicial e na seleção de clientes para campanhas
-- **Integração**: Funciona em conjunto com filtros de busca e status WhatsApp existentes
+- **Integração**: Funciona em conjunto com filtros de busca, status WhatsApp, bloqueio e número de veículos
+- **Ordenação por Veículos**: Busca paginada em lotes de 1000 para evitar limite do Supabase (ordenação client-side)
 
 ### Como Usar
 

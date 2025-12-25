@@ -1,0 +1,671 @@
+{
+  "instacar_clientes_envios": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "telefone": "5511999999999",
+      "nome_cliente": "João Silva",
+      "email": "joao.silva@email.com",
+      "veiculos": [
+        {
+          "modelo": "Honda Civic",
+          "ano": "2020",
+          "placa": "ABC1234",
+          "cor": "Branco",
+          "vendedor": "Maria Santos",
+          "data_venda": "2020-03-15"
+        }
+      ],
+      "primeiro_envio": "2024-01-15T10:30:00Z",
+      "ultimo_envio": "2024-12-10T14:20:00Z",
+      "total_envios": 5,
+      "status_whatsapp": "valid",
+      "ativo": true,
+      "bloqueado_envios": false,
+      "observacoes_internas": [
+        {
+          "id": "obs-001",
+          "texto": "Cliente interessado em trocar veículo",
+          "autor": "Sistema",
+          "timestamp": "2024-12-10T14:20:00Z"
+        }
+      ],
+      "ultima_campanha_id": null,
+      "ultima_campanha_data": null,
+      "ultima_atualizacao_planilha": "2024-12-01T09:00:00Z",
+      "fonte_dados": "google_sheets",
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-12-10T14:20:00Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "telefone": "5511888888888",
+      "nome_cliente": "Ana Costa",
+      "email": "ana.costa@email.com",
+      "veiculos": [
+        {
+          "modelo": "Toyota Corolla",
+          "ano": "2021",
+          "placa": "XYZ5678",
+          "cor": "Prata",
+          "vendedor": "Carlos Oliveira",
+          "data_venda": "2021-05-20"
+        },
+        {
+          "modelo": "Volkswagen Gol",
+          "ano": "2019",
+          "placa": "DEF9012",
+          "cor": "Preto",
+          "vendedor": "Carlos Oliveira",
+          "data_venda": "2019-08-10"
+        }
+      ],
+      "primeiro_envio": "2024-02-01T11:15:00Z",
+      "ultimo_envio": "2024-12-08T16:45:00Z",
+      "total_envios": 8,
+      "status_whatsapp": "valid",
+      "ativo": true,
+      "bloqueado_envios": false,
+      "observacoes_internas": [],
+      "ultima_campanha_id": null,
+      "ultima_campanha_data": null,
+      "ultima_atualizacao_planilha": "2024-12-01T09:00:00Z",
+      "fonte_dados": "google_sheets",
+      "created_at": "2024-02-01T11:00:00Z",
+      "updated_at": "2024-12-08T16:45:00Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440003",
+      "telefone": "5511777777777",
+      "nome_cliente": "Pedro Almeida",
+      "email": "pedro.almeida@email.com",
+      "veiculos": [
+        {
+          "modelo": "Ford Ranger",
+          "ano": "2022",
+          "placa": "GHI3456",
+          "cor": "Azul",
+          "vendedor": "Maria Santos",
+          "data_venda": "2022-07-12"
+        }
+      ],
+      "primeiro_envio": null,
+      "ultimo_envio": null,
+      "total_envios": 0,
+      "status_whatsapp": "unknown",
+      "ativo": true,
+      "bloqueado_envios": false,
+      "observacoes_internas": [],
+      "ultima_campanha_id": null,
+      "ultima_campanha_data": null,
+      "ultima_atualizacao_planilha": "2024-12-01T09:00:00Z",
+      "fonte_dados": "upload_manual",
+      "created_at": "2024-12-01T09:00:00Z",
+      "updated_at": "2024-12-01T09:00:00Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440004",
+      "telefone": "5511666666666",
+      "nome_cliente": "Mariana Lima",
+      "email": "mariana.lima@email.com",
+      "veiculos": [
+        {
+          "modelo": "Chevrolet Onix",
+          "ano": "2023",
+          "placa": "JKL7890",
+          "cor": "Vermelho",
+          "vendedor": "Carlos Oliveira",
+          "data_venda": "2023-11-05"
+        }
+      ],
+      "primeiro_envio": "2024-11-20T09:30:00Z",
+      "ultimo_envio": "2024-12-05T15:10:00Z",
+      "total_envios": 2,
+      "status_whatsapp": "valid",
+      "ativo": true,
+      "bloqueado_envios": true,
+      "observacoes_internas": [
+        {
+          "id": "obs-002",
+          "texto": "Cliente solicitou não receber mais mensagens",
+          "autor": "Admin",
+          "timestamp": "2024-12-05T15:10:00Z"
+        }
+      ],
+      "ultima_campanha_id": null,
+      "ultima_campanha_data": null,
+      "ultima_atualizacao_planilha": "2024-12-01T09:00:00Z",
+      "fonte_dados": "google_sheets",
+      "created_at": "2024-11-20T09:00:00Z",
+      "updated_at": "2024-12-05T15:10:00Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440005",
+      "telefone": "5511555555555",
+      "nome_cliente": "Roberto Souza",
+      "email": "roberto.souza@email.com",
+      "veiculos": [
+        {
+          "modelo": "Fiat Uno",
+          "ano": "2018",
+          "placa": "MNO2345",
+          "cor": "Branco",
+          "vendedor": "Maria Santos",
+          "data_venda": "2018-04-22"
+        }
+      ],
+      "primeiro_envio": "2024-03-10T13:20:00Z",
+      "ultimo_envio": "2024-12-01T10:15:00Z",
+      "total_envios": 12,
+      "status_whatsapp": "invalid",
+      "ativo": true,
+      "bloqueado_envios": false,
+      "observacoes_internas": [],
+      "ultima_campanha_id": null,
+      "ultima_campanha_data": null,
+      "ultima_atualizacao_planilha": "2024-12-01T09:00:00Z",
+      "fonte_dados": "google_sheets",
+      "created_at": "2024-03-10T13:00:00Z",
+      "updated_at": "2024-12-01T10:15:00Z"
+    }
+  ],
+  "instacar_campanhas": [
+    {
+      "id": "campanha-001",
+      "nome": "Campanha Black Friday 2024",
+      "descricao": "Campanha promocional para Black Friday com descontos especiais",
+      "periodo_ano": "black-friday",
+      "template_mensagem": null,
+      "prompt_ia": "Crie uma mensagem promocional para Black Friday destacando descontos especiais em veículos usados e seminovos. Seja entusiasmado mas profissional.",
+      "data_inicio": "2024-11-25",
+      "data_fim": "2024-11-30",
+      "status": "concluida",
+      "limite_envios_dia": 200,
+      "agendamento_cron": "0 9 * * 1-5",
+      "intervalo_minimo_dias": 30,
+      "intervalo_envios_segundos": null,
+      "prioridade": 8,
+      "ativo": true,
+      "usar_veiculos": true,
+      "usar_vendedor": false,
+      "tamanho_lote": 50,
+      "horario_inicio": "09:00:00",
+      "horario_fim": "18:00:00",
+      "processar_finais_semana": false,
+      "pausar_almoco": true,
+      "horario_almoco_inicio": "12:00:00",
+      "horario_almoco_fim": "13:00:00",
+      "configuracao_dias_semana": {
+        "segunda": {"habilitado": true, "horario_inicio": "09:00", "horario_fim": "18:00"},
+        "terca": {"habilitado": true, "horario_inicio": "09:00", "horario_fim": "18:00"},
+        "quarta": {"habilitado": true, "horario_inicio": "09:00", "horario_fim": "18:00"},
+        "quinta": {"habilitado": true, "horario_inicio": "09:00", "horario_fim": "18:00"},
+        "sexta": {"habilitado": true, "horario_inicio": "09:00", "horario_fim": "18:00"},
+        "sabado": {"habilitado": false, "horario_inicio": "09:00", "horario_fim": "13:00"},
+        "domingo": {"habilitado": false, "horario_inicio": "09:00", "horario_fim": "18:00"}
+      },
+      "whatsapp_api_id": "whatsapp-api-001",
+      "template_prompt_id": null,
+      "sessoes_contexto_habilitadas": ["sobre_empresa", "ofertas_especiais"],
+      "configuracoes_empresa_sobrescritas": {},
+      "usar_configuracoes_globais": true,
+      "modo_teste": false,
+      "telefones_teste": [],
+      "modo_debug": false,
+      "telefones_admin": [],
+      "notificar_inicio": false,
+      "notificar_erros": true,
+      "notificar_conclusao": true,
+      "notificar_limite": false,
+      "whatsapp_api_id_admin": null,
+      "created_at": "2024-11-01T10:00:00Z",
+      "updated_at": "2024-11-30T18:00:00Z"
+    },
+    {
+      "id": "campanha-002",
+      "nome": "Campanha Natal 2024",
+      "descricao": "Campanha de fim de ano com mensagens personalizadas de Natal",
+      "periodo_ano": "natal",
+      "template_mensagem": null,
+      "prompt_ia": "Crie uma mensagem calorosa de Natal agradecendo a confiança do cliente e desejando um feliz Natal e próspero Ano Novo. Seja pessoal e afetuoso.",
+      "data_inicio": "2024-12-20",
+      "data_fim": "2024-12-31",
+      "status": "ativa",
+      "limite_envios_dia": 200,
+      "agendamento_cron": "0 9 * * 1-5",
+      "intervalo_minimo_dias": 30,
+      "intervalo_envios_segundos": null,
+      "prioridade": 7,
+      "ativo": true,
+      "usar_veiculos": false,
+      "usar_vendedor": false,
+      "tamanho_lote": 50,
+      "horario_inicio": "09:00:00",
+      "horario_fim": "18:00:00",
+      "processar_finais_semana": false,
+      "pausar_almoco": true,
+      "horario_almoco_inicio": "12:00:00",
+      "horario_almoco_fim": "13:00:00",
+      "configuracao_dias_semana": null,
+      "whatsapp_api_id": "whatsapp-api-001",
+      "template_prompt_id": null,
+      "sessoes_contexto_habilitadas": ["sobre_empresa"],
+      "configuracoes_empresa_sobrescritas": {},
+      "usar_configuracoes_globais": true,
+      "modo_teste": false,
+      "telefones_teste": [],
+      "modo_debug": false,
+      "telefones_admin": [],
+      "notificar_inicio": false,
+      "notificar_erros": true,
+      "notificar_conclusao": true,
+      "notificar_limite": false,
+      "whatsapp_api_id_admin": null,
+      "created_at": "2024-12-01T10:00:00Z",
+      "updated_at": "2024-12-01T10:00:00Z"
+    },
+    {
+      "id": "campanha-003",
+      "nome": "Campanha Relacionamento Janeiro",
+      "descricao": "Campanha de relacionamento para início do ano",
+      "periodo_ano": "janeiro",
+      "template_mensagem": null,
+      "prompt_ia": "Crie uma mensagem de relacionamento para início do ano, perguntando sobre o veículo e oferecendo serviços de manutenção e revisão.",
+      "data_inicio": "2025-01-05",
+      "data_fim": "2025-01-31",
+      "status": "pausada",
+      "limite_envios_dia": 200,
+      "agendamento_cron": "0 9 * * 1-5",
+      "intervalo_minimo_dias": 30,
+      "intervalo_envios_segundos": null,
+      "prioridade": 5,
+      "ativo": true,
+      "usar_veiculos": true,
+      "usar_vendedor": true,
+      "tamanho_lote": 50,
+      "horario_inicio": "09:00:00",
+      "horario_fim": "18:00:00",
+      "processar_finais_semana": false,
+      "pausar_almoco": false,
+      "horario_almoco_inicio": "12:00:00",
+      "horario_almoco_fim": "13:00:00",
+      "configuracao_dias_semana": null,
+      "whatsapp_api_id": "whatsapp-api-001",
+      "template_prompt_id": null,
+      "sessoes_contexto_habilitadas": [],
+      "configuracoes_empresa_sobrescritas": {},
+      "usar_configuracoes_globais": true,
+      "modo_teste": false,
+      "telefones_teste": [],
+      "modo_debug": false,
+      "telefones_admin": [],
+      "notificar_inicio": false,
+      "notificar_erros": true,
+      "notificar_conclusao": true,
+      "notificar_limite": false,
+      "whatsapp_api_id_admin": null,
+      "created_at": "2024-12-15T10:00:00Z",
+      "updated_at": "2024-12-15T10:00:00Z"
+    }
+  ],
+  "instacar_campanhas_execucoes": [
+    {
+      "id": "execucao-001",
+      "campanha_id": "campanha-001",
+      "data_execucao": "2024-11-25",
+      "total_enviado": 150,
+      "total_erros": 2,
+      "total_duplicados": 10,
+      "total_sem_whatsapp": 5,
+      "total_contatos_elegiveis": 200,
+      "contatos_processados": 167,
+      "contatos_pendentes": 33,
+      "dias_processamento": 2,
+      "data_inicio_processamento": "2024-11-25",
+      "data_fim_estimada": "2024-11-26",
+      "lote_atual": 4,
+      "clientes_no_lote_atual": 33,
+      "proxima_execucao_em": "2024-11-26T09:00:00Z",
+      "total_enviado_teste": 0,
+      "total_enviado_debug": 0,
+      "total_enviado_normal": 150,
+      "status_execucao": "concluida",
+      "trigger_tipo": "manual",
+      "horario_inicio": "2024-11-25T09:00:00Z",
+      "horario_fim": "2024-11-25T18:00:00Z",
+      "observacoes": "Execução concluída com sucesso",
+      "created_at": "2024-11-25T09:00:00Z",
+      "updated_at": "2024-11-25T18:00:00Z"
+    },
+    {
+      "id": "execucao-002",
+      "campanha_id": "campanha-002",
+      "data_execucao": "2024-12-20",
+      "total_enviado": 45,
+      "total_erros": 0,
+      "total_duplicados": 3,
+      "total_sem_whatsapp": 2,
+      "total_contatos_elegiveis": 180,
+      "contatos_processados": 50,
+      "contatos_pendentes": 130,
+      "dias_processamento": 4,
+      "data_inicio_processamento": "2024-12-20",
+      "data_fim_estimada": "2024-12-23",
+      "lote_atual": 1,
+      "clientes_no_lote_atual": 50,
+      "proxima_execucao_em": "2024-12-21T09:00:00Z",
+      "total_enviado_teste": 0,
+      "total_enviado_debug": 0,
+      "total_enviado_normal": 45,
+      "status_execucao": "em_andamento",
+      "trigger_tipo": "cron",
+      "horario_inicio": "2024-12-20T09:00:00Z",
+      "horario_fim": null,
+      "observacoes": null,
+      "created_at": "2024-12-20T09:00:00Z",
+      "updated_at": "2024-12-20T15:30:00Z"
+    }
+  ],
+  "instacar_campanhas_clientes": [
+    {
+      "id": "rel-001",
+      "campanha_id": "campanha-001",
+      "cliente_id": "550e8400-e29b-41d4-a716-446655440001",
+      "created_at": "2024-11-01T10:00:00Z"
+    },
+    {
+      "id": "rel-002",
+      "campanha_id": "campanha-001",
+      "cliente_id": "550e8400-e29b-41d4-a716-446655440002",
+      "created_at": "2024-11-01T10:00:00Z"
+    },
+    {
+      "id": "rel-003",
+      "campanha_id": "campanha-002",
+      "cliente_id": "550e8400-e29b-41d4-a716-446655440001",
+      "created_at": "2024-12-01T10:00:00Z"
+    },
+    {
+      "id": "rel-004",
+      "campanha_id": "campanha-002",
+      "cliente_id": "550e8400-e29b-41d4-a716-446655440002",
+      "created_at": "2024-12-01T10:00:00Z"
+    },
+    {
+      "id": "rel-005",
+      "campanha_id": "campanha-002",
+      "cliente_id": "550e8400-e29b-41d4-a716-446655440003",
+      "created_at": "2024-12-01T10:00:00Z"
+    }
+  ],
+  "instacar_historico_envios": [
+    {
+      "id": "historico-001",
+      "cliente_id": "550e8400-e29b-41d4-a716-446655440001",
+      "telefone": "5511999999999",
+      "mensagem_enviada": "Olá João! Temos uma ótima oportunidade relacionada ao seu Honda Civic 2020. Entre em contato conosco para mais informações!",
+      "veiculo_referencia": {
+        "modelo": "Honda Civic",
+        "ano": "2020",
+        "placa": "ABC1234"
+      },
+      "status_envio": "enviado",
+      "mensagem_erro": null,
+      "planilha_origem": "Planilha Vendas 2024",
+      "linha_planilha": 15,
+      "campanha_id": "campanha-001",
+      "execucao_id": "execucao-001",
+      "tipo_envio": "normal",
+      "timestamp_envio": "2024-11-25T10:30:00Z",
+      "created_at": "2024-11-25T10:30:00Z"
+    },
+    {
+      "id": "historico-002",
+      "cliente_id": "550e8400-e29b-41d4-a716-446655440002",
+      "telefone": "5511888888888",
+      "mensagem_enviada": "Olá Ana! Temos uma ótima oportunidade relacionada ao seu Toyota Corolla 2021. Entre em contato conosco para mais informações!",
+      "veiculo_referencia": {
+        "modelo": "Toyota Corolla",
+        "ano": "2021",
+        "placa": "XYZ5678"
+      },
+      "status_envio": "enviado",
+      "mensagem_erro": null,
+      "planilha_origem": "Planilha Vendas 2024",
+      "linha_planilha": 28,
+      "campanha_id": "campanha-001",
+      "execucao_id": "execucao-001",
+      "tipo_envio": "normal",
+      "timestamp_envio": "2024-11-25T11:15:00Z",
+      "created_at": "2024-11-25T11:15:00Z"
+    },
+    {
+      "id": "historico-003",
+      "cliente_id": "550e8400-e29b-41d4-a716-446655440001",
+      "telefone": "5511999999999",
+      "mensagem_enviada": "Olá João! Desejamos um Feliz Natal e um Próspero Ano Novo! Obrigado pela confiança em nossos serviços.",
+      "veiculo_referencia": null,
+      "status_envio": "enviado",
+      "mensagem_erro": null,
+      "planilha_origem": null,
+      "linha_planilha": null,
+      "campanha_id": "campanha-002",
+      "execucao_id": "execucao-002",
+      "tipo_envio": "normal",
+      "timestamp_envio": "2024-12-20T09:30:00Z",
+      "created_at": "2024-12-20T09:30:00Z"
+    }
+  ],
+  "instacar_whatsapp_apis": [
+    {
+      "id": "whatsapp-api-001",
+      "nome": "Instacar_a3k9m2_uazapi-principal",
+      "tipo_api": "uazapi",
+      "base_url": "https://fourtakeoff.uazapi.com",
+      "token": "mock-token-uazapi-123",
+      "ativo": true,
+      "descricao": "Instância principal Uazapi para envios",
+      "configuracao_extra": {},
+      "status_conexao": "conectado",
+      "ultima_verificacao": "2024-12-20T10:00:00Z",
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-12-20T10:00:00Z"
+    },
+    {
+      "id": "whatsapp-api-002",
+      "nome": "Instacar_b4l0n3_zapi-backup",
+      "tipo_api": "zapi",
+      "base_url": "https://api.z-api.io",
+      "token": "mock-token-zapi-456",
+      "ativo": false,
+      "descricao": "Instância backup Z-API",
+      "configuracao_extra": {
+        "instance_id": "instance_123"
+      },
+      "status_conexao": "desconectado",
+      "ultima_verificacao": "2024-12-15T10:00:00Z",
+      "created_at": "2024-06-01T10:00:00Z",
+      "updated_at": "2024-12-15T10:00:00Z"
+    }
+  ],
+  "instacar_configuracoes_empresa": [
+    {
+      "id": "config-001",
+      "chave": "politicas.tom_voz",
+      "categoria": "politicas",
+      "titulo": "Tom de Voz",
+      "conteudo": "Use um tom profissional, amigável e próximo. Evite ser muito formal ou muito casual. Seja empático e prestativo.",
+      "descricao": "Define o tom de voz padrão para todas as mensagens",
+      "ordem": 1,
+      "ativo": true,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    },
+    {
+      "id": "config-002",
+      "chave": "sobre_empresa.missao",
+      "categoria": "sobre_empresa",
+      "titulo": "Missão da Empresa",
+      "conteudo": "A Instacar Automóveis tem como missão oferecer veículos de qualidade com atendimento personalizado e transparente, construindo relacionamentos duradouros com nossos clientes.",
+      "descricao": "Missão e valores da empresa",
+      "ordem": 1,
+      "ativo": true,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    },
+    {
+      "id": "config-003",
+      "chave": "contato.telefone",
+      "categoria": "contato",
+      "titulo": "Telefone de Contato",
+      "conteudo": "(11) 3456-7890",
+      "descricao": "Telefone principal para contato",
+      "ordem": 1,
+      "ativo": true,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    },
+    {
+      "id": "config-004",
+      "chave": "ofertas.descontos",
+      "categoria": "ofertas",
+      "titulo": "Política de Descontos",
+      "conteudo": "Oferecemos descontos especiais para clientes fiéis e em campanhas sazonais. Consulte condições na loja.",
+      "descricao": "Informações sobre descontos e ofertas",
+      "ordem": 1,
+      "ativo": true,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  ],
+  "instacar_sessoes_contexto_ia": [
+    {
+      "id": "sessao-001",
+      "nome": "Sobre a Empresa",
+      "slug": "sobre_empresa",
+      "categoria": "institucional",
+      "conteudo_template": "A Instacar Automóveis é uma empresa especializada em veículos usados e seminovos, com mais de 10 anos de experiência no mercado. Nossa missão é oferecer qualidade e confiança.",
+      "exemplo_preenchido": "A Instacar Automóveis é uma empresa especializada em veículos usados e seminovos, com mais de 10 anos de experiência no mercado. Nossa missão é oferecer qualidade e confiança.",
+      "descricao": "Informações gerais sobre a empresa",
+      "habilitado_por_padrao": true,
+      "ordem": 1,
+      "ativo": true,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    },
+    {
+      "id": "sessao-002",
+      "nome": "Ofertas Especiais",
+      "slug": "ofertas_especiais",
+      "categoria": "promocional",
+      "conteudo_template": "Temos ofertas especiais disponíveis! Consulte nossos descontos e condições especiais de pagamento.",
+      "exemplo_preenchido": "Temos ofertas especiais disponíveis! Consulte nossos descontos e condições especiais de pagamento.",
+      "descricao": "Informações sobre ofertas e promoções",
+      "habilitado_por_padrao": false,
+      "ordem": 2,
+      "ativo": true,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  ],
+  "instacar_templates_prompt": [
+    {
+      "id": "template-001",
+      "nome": "Template Black Friday",
+      "descricao": "Template otimizado para campanhas de Black Friday",
+      "prompt_completo": "Você é um assistente de marketing da Instacar Automóveis. Crie uma mensagem promocional para Black Friday destacando descontos especiais em veículos usados e seminovos. Seja entusiasmado mas profissional. Use o tom de voz da empresa e destaque ofertas especiais.",
+      "sessoes_habilitadas": ["sobre_empresa", "ofertas_especiais"],
+      "configuracoes_empresa_habilitadas": ["politicas.tom_voz", "ofertas.descontos"],
+      "categoria": "black-friday",
+      "exemplo_uso": "Use este template para campanhas de Black Friday e outras promoções sazonais",
+      "ativo": true,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    },
+    {
+      "id": "template-002",
+      "nome": "Template Relacionamento",
+      "descricao": "Template para campanhas de relacionamento e follow-up",
+      "prompt_completo": "Você é um assistente de relacionamento da Instacar Automóveis. Crie uma mensagem de relacionamento perguntando sobre o veículo do cliente e oferecendo serviços de manutenção e revisão. Seja amigável e prestativo.",
+      "sessoes_habilitadas": ["sobre_empresa"],
+      "configuracoes_empresa_habilitadas": ["politicas.tom_voz", "contato.telefone"],
+      "categoria": "relacionamento",
+      "exemplo_uso": "Use este template para campanhas de relacionamento e follow-up com clientes",
+      "ativo": true,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  ],
+  "instacar_controle_envios": [
+    {
+      "data": "2024-12-20",
+      "total_enviado": 45,
+      "total_erros": 0,
+      "total_duplicados": 3,
+      "total_sem_whatsapp": 2,
+      "campanha_id": "campanha-002",
+      "horario_inicio": "2024-12-20T09:00:00Z",
+      "horario_fim": "2024-12-20T18:00:00Z",
+      "status_processamento": "em_andamento",
+      "created_at": "2024-12-20T09:00:00Z",
+      "updated_at": "2024-12-20T15:30:00Z"
+    },
+    {
+      "data": "2024-12-19",
+      "total_enviado": 200,
+      "total_erros": 1,
+      "total_duplicados": 15,
+      "total_sem_whatsapp": 8,
+      "campanha_id": null,
+      "horario_inicio": "2024-12-19T09:00:00Z",
+      "horario_fim": "2024-12-19T18:00:00Z",
+      "status_processamento": "concluido",
+      "created_at": "2024-12-19T09:00:00Z",
+      "updated_at": "2024-12-19T18:00:00Z"
+    }
+  ],
+  "instacar_erros_criticos": [
+    {
+      "id": "erro-001",
+      "cliente_id": "550e8400-e29b-41d4-a716-446655440005",
+      "telefone": "5511555555555",
+      "tipo_erro": "uazapi",
+      "mensagem_erro": "Falha ao verificar número WhatsApp: Connection timeout",
+      "contexto_erro": {
+        "campanha_id": "campanha-001",
+        "tentativa": 1,
+        "timestamp": "2024-11-25T14:30:00Z"
+      },
+      "stack_trace": null,
+      "tentativas": 1,
+      "status": "pendente",
+      "reprocessado": false,
+      "created_at": "2024-11-25T14:30:00Z",
+      "updated_at": "2024-11-25T14:30:00Z"
+    }
+  ],
+  "instacar_uploads_planilhas": [
+    {
+      "id": "upload-001",
+      "nome_arquivo": "clientes_dezembro_2024.xlsx",
+      "tipo": "xlsx",
+      "total_linhas": 150,
+      "linhas_processadas": 148,
+      "linhas_com_erro": 2,
+      "status": "concluido",
+      "erros": [
+        {
+          "linha": 45,
+          "erro": "Telefone inválido"
+        },
+        {
+          "linha": 78,
+          "erro": "Email inválido"
+        }
+      ],
+      "url_google_sheets": null,
+      "created_at": "2024-12-01T09:00:00Z",
+      "updated_at": "2024-12-01T09:15:00Z"
+    }
+  ]
+}
+

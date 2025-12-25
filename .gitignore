@@ -155,6 +155,12 @@ exports/
 !docs/planilhas-vendas-instacar/*.xlsx  # Manter exemplos
 
 # ----------------------------------------------------------------------------
+# Referências e Clones de Repositórios
+# ----------------------------------------------------------------------------
+# Diretório de referência clonado (não versionar - pode ser recriado via scripts)
+interface-web/instacar-insights-reference/
+
+# ----------------------------------------------------------------------------
 # Outros
 # ----------------------------------------------------------------------------
 *.swp

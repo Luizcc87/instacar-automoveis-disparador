@@ -75,6 +75,25 @@ CREATE POLICY "Anon users can read historico_envios"
   TO anon
   USING (true);
 
+-- Anon users (interface web) podem inserir histórico de envios
+-- Necessário para registro automático de envios individuais com campanha (v2.7.2)
+DROP POLICY IF EXISTS "Anon users can insert historico_envios" ON instacar_historico_envios;
+CREATE POLICY "Anon users can insert historico_envios"
+  ON instacar_historico_envios
+  FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+-- Anon users (interface web) podem atualizar histórico de envios
+-- Caso seja necessário atualizar status de envio posteriormente
+DROP POLICY IF EXISTS "Anon users can update historico_envios" ON instacar_historico_envios;
+CREATE POLICY "Anon users can update historico_envios"
+  ON instacar_historico_envios
+  FOR UPDATE
+  TO anon
+  USING (true)
+  WITH CHECK (true);
+
 -- ============================================================================
 -- Políticas para instacar_controle_envios
 -- ============================================================================

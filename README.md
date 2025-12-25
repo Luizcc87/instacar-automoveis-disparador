@@ -228,6 +228,9 @@ instacar-automoveis-disparador/
 │   ├── n8n/                          # Guias de configuração N8N
 │   │   ├── configuracao.md
 │   │   └── troubleshooting.md
+│   ├── interface-web/                # Design system, padrões de botões e UI/UX
+│   │   ├── GUIA-DESIGN-SYSTEM.md     # Guia completo do design system
+│   │   └── PADROES-BOTOES.md         # Padrões específicos de botões
 │   └── seguranca/                    # Documentação de segurança
 │       ├── rotacao-tokens.md
 │       └── checklist.md
@@ -369,6 +372,8 @@ Tabela `instacar_erros_criticos` (Dead Letter Queue):
 
 📖 **Guia completo**: [docs/n8n/troubleshooting.md](docs/n8n/troubleshooting.md)
 
+📖 **Estrutura do Fluxo de Notificações**: [docs/n8n/estrutura-fluxo-notificacoes.md](docs/n8n/estrutura-fluxo-notificacoes.md) - Documentação detalhada do sistema de notificações, nós críticos e recomendações de manutenção
+
 ## 📚 Documentação Adicional
 
 ### Documentação Base
@@ -376,10 +381,16 @@ Tabela `instacar_erros_criticos` (Dead Letter Queue):
 - [Configuração Supabase](docs/supabase/README.md)
 - [Configuração N8N](docs/n8n/configuracao.md)
 - [Troubleshooting](docs/n8n/troubleshooting.md)
+- [Estrutura do Fluxo de Notificações](docs/n8n/estrutura-fluxo-notificacoes.md) - Sistema de notificações, nós críticos e manutenção
 - [Rotação de Tokens](docs/seguranca/rotacao-tokens.md)
 - [Checklist de Segurança](docs/seguranca/checklist.md)
 - [Documentação Uazapi](docs/uazapi/)
 - [Recursos Úteis do OpenAI Cookbook](docs/openai/openai-cookbook-recursos-uteis.md)
+
+### Design System e Interface Web
+
+- [Guia do Design System](docs/interface-web/GUIA-DESIGN-SYSTEM.md) - **Use quando:** Criar novas páginas, componentes ou modificar estilos. Documenta classes CSS, variáveis, padrões de layout e componentes reutilizáveis baseados no projeto `instacar-insights`.
+- [Padrões de Botões](docs/interface-web/PADROES-BOTOES.md) - **Use quando:** Criar ou modificar botões na interface. Documenta todas as variantes (primary, secondary, destructive, outline, ghost), tamanhos, uso de ícones SVG e regras de padronização.
 
 ### Sistema de Campanhas (NOVO)
 
