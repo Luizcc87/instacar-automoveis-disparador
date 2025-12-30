@@ -816,6 +816,8 @@ button.card-elevated,
 .dropdown-menu {
   position: relative;
   display: inline-block;
+  overflow: visible;
+  z-index: 10000;
 }
 
 .dropdown-content {
@@ -828,7 +830,7 @@ button.card-elevated,
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   min-width: 180px;
-  z-index: 1000;
+  z-index: 10000;
   overflow: hidden;
 }
 
@@ -1171,6 +1173,20 @@ button.card-elevated,
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
+  overflow: visible;
+}
+
+.data-table tbody {
+  overflow: visible;
+}
+
+.data-table tr {
+  overflow: visible;
+}
+
+.data-table td {
+  overflow: visible;
+  position: relative;
 }
 
 .data-table thead {

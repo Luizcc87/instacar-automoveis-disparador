@@ -15552,8 +15552,8 @@ Máximo de 3 parágrafos.</code></pre>
         </div>
 
         <!-- Table -->
-        <div class="card-elevated" style="overflow: hidden;">
-          <table class="data-table">
+        <div class="card-elevated" style="overflow: visible;">
+          <table class="data-table" style="overflow: visible;">
             <thead>
               <tr>
                 <th>Nome</th>
