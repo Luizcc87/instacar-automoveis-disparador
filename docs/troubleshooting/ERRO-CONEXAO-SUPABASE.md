@@ -147,3 +147,4 @@ Se o projeto existe mas ainda não conecta:
 - [Guia de Deploy](deploy/DEPLOY-BRANCH-LAYOUT-REFACTOR.md)
 - [Configuração Supabase](../supabase/schema.sql)
 
+
