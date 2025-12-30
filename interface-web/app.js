@@ -9721,7 +9721,7 @@
         let temMaisRegistros = true;
 
         while (temMaisRegistros) {
-          const queryLote = supabaseClient
+          let queryLote = supabaseClient
             .from("instacar_clientes_envios")
             .select("*")
             .eq("ativo", true)
