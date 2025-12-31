@@ -26,6 +26,7 @@ Este projeto implementa um sistema completo de disparo escalonado de mensagens v
 - ✅ **Seleção de Clientes para Campanhas**: Selecionar todos, alguns ou nenhum cliente por campanha
 - ✅ **Bloqueio de Envios**: Marcar clientes que não devem receber mensagens (opt-out)
 - ✅ **Filtros e Ordenação de Clientes**: Sistema completo de ordenação por nome, último envio, status WhatsApp e bloqueio
+- ✅ **Sistema de Listas Avançado**: Listas reutilizáveis com filtros dinâmicos JSONB, agendamento automático com cron, gerenciamento de lotes e integração completa com campanhas
 
 ## 🎯 Sistema de Campanhas (NOVO)
 
@@ -46,6 +47,25 @@ O sistema agora suporta **múltiplas campanhas de marketing** ao longo do ano:
 📖 **Documentação completa**: [docs/campanhas/README.md](docs/campanhas/README.md)
 
 📖 **Seleção de Clientes e Bloqueio**: [docs/campanhas/SELECAO-CLIENTES-BLOQUEIO.md](docs/campanhas/SELECAO-CLIENTES-BLOQUEIO.md)
+
+## 📋 Sistema de Listas Avançado (NOVO)
+
+O sistema agora suporta **listas reutilizáveis de clientes** com recursos avançados:
+
+- ✅ **Três tipos de listas**: Estáticas (seleção manual), Dinâmicas (filtros JSONB), Baseadas em Campanhas (histórico)
+- ✅ **Filtros dinâmicos JSONB**: Construtor visual de filtros com múltiplas condições (AND/OR)
+- ✅ **Agendamento automático**: Expressões cron para execução automática de listas e lotes
+- ✅ **Gerenciamento de lotes**: Divisão automática de listas em lotes menores para processamento escalonado
+- ✅ **Integração com campanhas**: Vincular listas globais a campanhas ou criar listas específicas
+- ✅ **Teste de filtros em tempo real**: Visualizar quantos clientes atendem aos critérios antes de salvar
+- ✅ **Seleção inteligente**: Botão "Selecionar Apenas Filtrados" para pré-selecionar clientes que atendem aos filtros
+- ✅ **Detecção de conflitos**: Sistema detecta automaticamente conflitos de agendamento entre listas/lotes
+- ✅ **Rate limiting**: Máximo de 5 listas/lotes simultâneos para evitar sobrecarga
+
+📖 **Documentação completa**: 
+- [Guia Completo de Listas](docs/listas/GUIA-COMPLETO-LISTAS.md)
+- [Filtros Dinâmicos JSONB](docs/listas/FILTROS-DINAMICOS-JSONB.md)
+- [Agendamento Cron](docs/listas/AGENDAMENTO-CRON.md)
 
 ## 👥 Interface Web de Gerenciamento de Clientes
 

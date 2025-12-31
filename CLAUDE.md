@@ -14,7 +14,7 @@ Este é um sistema automatizado de disparo de mensagens via WhatsApp para a Inst
 - **OpenAI GPT-4**: Geração de mensagens personalizadas
 - **Google Sheets**: Fonte de dados dos clientes (9 planilhas)
 
-**Versão Atual:** 2.7 (Dezembro 2025 - dashboard aprimorado com histórico de execuções e busca alternativa via histórico de envios, correção do filtro de clientes já enviados com normalização de telefones)
+**Versão Atual:** 2.8 (Dezembro 2025 - Sistema de Listas Avançado: listas reutilizáveis, filtros dinâmicos JSONB, agendamento automático com cron, gerenciamento de lotes, integração completa com campanhas)
 
 ## Arquitetura
 
@@ -101,8 +101,35 @@ Trigger Manual → Buscar Campanha do Supabase
    - Vincula com `instacar_templates_prompt` via `template_prompt_id`
    - Array `sessoes_contexto_ids` (JSONB) para sessões habilitadas
    - Objeto `configuracoes_sobrescritas` (JSONB) para sobrescrever configurações globais
+   - Campo `lista_id` (UUID) - Referência opcional a uma lista global de clientes
 
-**Performance:** 12+ índices estratégicos incluindo índices compostos e parciais para padrões de consulta comuns.
+**Tabelas de Listas de Clientes** (schema: [docs/supabase/schema-listas.sql](docs/supabase/schema-listas.sql)):
+
+9. **`instacar_listas`** - Listas reutilizáveis de clientes
+   - Tipos: `estatica` (seleção manual), `dinamica` (filtros JSONB), `baseada_campanha` (histórico de campanha)
+   - Escopo: `global` (reutilizável) ou `especifica` (vinculada a campanha)
+   - Agendamento: `agendamento_cron` (expressão cron), `agendamento_ativo` (BOOLEAN)
+   - Cache: `total_clientes_cache` (atualizado periodicamente)
+   - Limite: `limite_envios_dia` (padrão: 200)
+
+10. **`instacar_listas_clientes`** - Relacionamento N:N (listas estáticas)
+    - Vincula clientes selecionados manualmente a listas estáticas
+    - Constraint UNIQUE(lista_id, cliente_id)
+
+11. **`instacar_listas_lotes`** - Divisão de listas em lotes menores
+    - Permite processamento escalonado
+    - Cada lote pode ter seu próprio agendamento cron
+    - Armazena `clientes_ids` (JSONB array de UUIDs)
+
+12. **`instacar_listas_execucoes`** - Histórico de execuções de listas/lotes
+    - Rastreia métricas: total_enviado, total_erros, total_duplicados, etc.
+    - Vincula execuções a histórico de envios via `execucao_lista_id`
+
+**Modificações em Tabelas Existentes:**
+
+- **`instacar_historico_envios`**: Adicionados campos `lista_id`, `lote_id`, `execucao_lista_id` para rastreamento
+
+**Performance:** 12+ índices estratégicos incluindo índices compostos e parciais para padrões de consulta comuns. Índices específicos para listas agendadas e lotes pendentes.
 
 ### Estratégia de Limitação de Taxa
 
@@ -128,6 +155,79 @@ Proteção em múltiplas camadas:
 3. Consulta Supabase antes de cada envio verifica se telefone existe
 4. Verifica `total_envios > 0` para confirmar se mensagem já foi enviada
 5. Se existe mas `total_envios = 0`, envia primeira mensagem
+
+### Sistema de Listas Avançado
+
+Sistema completo de listas reutilizáveis para dividir clientes em disparos manuais e automáticos com agendamento individual.
+
+**Tipos de Listas:**
+
+1. **Estáticas**: Seleção manual de clientes (similar ao sistema antigo `instacar_campanhas_clientes`)
+   - Armazenadas em `instacar_listas_clientes` (N:N)
+   - Ideal para listas VIP ou grupos específicos
+
+2. **Dinâmicas**: Filtros JSONB resolvidos em tempo de execução
+   - Estrutura híbrida expansível: `{operador: "AND|OR", condicoes: [{campo, operador, valor}]}`
+   - Função Supabase `resolver_clientes_lista_dinamica()` constrói query SQL dinamicamente
+   - Suporta operadores básicos inicialmente (expansível para avançados)
+
+3. **Baseadas em Campanhas**: Clientes que receberam/não receberam mensagens de outra campanha
+   - Função Supabase `resolver_clientes_lista_baseada_campanha()` resolve critérios
+   - Critérios: `nao_receberam`, `receberam`, `status_envio`, `data_envio`
+
+**Escopo:**
+
+- **Global**: Reutilizável em múltiplas campanhas (aparece no seletor de campanhas)
+- **Específica**: Vinculada a uma campanha (criada automaticamente ao selecionar clientes manualmente)
+
+**Agendamento:**
+
+- Expressões cron para execução automática (ex: `0 9 * * 1-5` = 9h, dias úteis)
+- Detecção automática de conflitos de horário
+- Preview de próximas execuções
+- Rate limiting: máximo 5 listas/lotes simultâneos
+
+**Lotes:**
+
+- Divisão de listas em lotes menores para processamento escalonado
+- Cada lote pode ter seu próprio agendamento cron
+- Auto-split automático baseado em tamanho configurado
+- Visualização de clientes por lote
+
+**Integração com Campanhas:**
+
+- Campo `lista_id` em `instacar_campanhas` para vincular lista global
+- Se campanha tem `lista_id`, usa apenas clientes da lista (desabilita seleção manual)
+- Compatibilidade retroativa: campanhas antigas continuam funcionando com `instacar_campanhas_clientes`
+
+**Interface Web:**
+
+- Aba "Filtros e Seleção" combinada para melhor UX
+- Construtor visual de filtros JSONB com múltiplas condições
+- Botão "Testar Filtros" para visualizar quantos clientes atendem aos critérios em tempo real
+- Botão "Selecionar Apenas Filtrados" para pré-selecionar automaticamente clientes que atendem aos filtros
+- Banner informativo mostrando filtros ativos e contagem de clientes filtrados
+- Pré-seleção automática de clientes filtrados ao criar nova lista
+- Suporte a filtros baseados em campanhas (clientes que receberam/não receberam mensagens)
+
+**Workflow N8N:**
+
+- Schedule Trigger executa a cada 5 minutos verificando listas/lotes agendados
+- Nós: "Verificar Cron", "Resolver Clientes da Lista", "Rate Limiting", "Filtrar Clientes do Lote"
+- Integração: "IF Campanha Tem Lista" → "Buscar Clientes da Lista" → Processar
+- Histórico: Campos `lista_id`, `lote_id`, `execucao_lista_id` em `instacar_historico_envios`
+
+**Migração de Dados:**
+
+- Script `migracao-selecoes-para-listas.sql` migra seleções antigas para sistema de listas
+- Cria listas "Lista Legado: [nome_campanha]" automaticamente
+- Deprecação gradual: tabela `instacar_campanhas_clientes` mantida por 30 dias
+
+**Documentação:**
+
+- [Guia Completo de Listas](docs/listas/GUIA-COMPLETO-LISTAS.md)
+- [Filtros Dinâmicos JSONB](docs/listas/FILTROS-DINAMICOS-JSONB.md)
+- [Agendamento Cron](docs/listas/AGENDAMENTO-CRON.md)
 
 ## Configurações Principais
 
@@ -444,6 +544,66 @@ Veja [docs/n8n/sintaxe-n8n-variaveis.md](docs/n8n/sintaxe-n8n-variaveis.md) para
 6. **Limite de Google Sheets:** Configurado para máximo de 9 planilhas (pode ser estendido no array SHEET_IDS)
 
 ## Mudanças Recentes
+
+### Versão 2.8 (Dezembro 2025 - Sistema de Listas Avançado)
+
+Sistema completo de listas reutilizáveis para dividir clientes em disparos manuais e automáticos:
+
+1. **Três Tipos de Listas**:
+   - **Estáticas**: Seleção manual de clientes (similar ao sistema antigo)
+   - **Dinâmicas**: Filtros JSONB resolvidos em tempo de execução via função Supabase
+   - **Baseadas em Campanhas**: Clientes que receberam/não receberam mensagens de outra campanha
+
+2. **Escopo Global e Específico**:
+   - Listas globais reutilizáveis em múltiplas campanhas
+   - Listas específicas vinculadas a uma campanha
+   - Integração com formulário de campanhas (campo `lista_id`)
+
+3. **Agendamento Automático com Cron**:
+   - Expressões cron para execução automática (ex: `0 9 * * 1-5`)
+   - Detecção automática de conflitos de horário
+   - Preview de próximas execuções
+   - Rate limiting: máximo 5 listas/lotes simultâneos
+
+4. **Gerenciamento de Lotes**:
+   - Divisão de listas em lotes menores para processamento escalonado
+   - Cada lote pode ter seu próprio agendamento cron
+   - Auto-split automático baseado em tamanho configurado
+   - Visualização de clientes por lote
+
+5. **Workflow N8N Atualizado**:
+   - Schedule Trigger executa a cada 5 minutos verificando listas/lotes agendados
+   - Nós: "Verificar Cron", "Resolver Clientes da Lista", "Rate Limiting", "Filtrar Clientes do Lote"
+   - Integração: "IF Campanha Tem Lista" → "Buscar Clientes da Lista" → Processar
+   - Histórico: Campos `lista_id`, `lote_id`, `execucao_lista_id` em `instacar_historico_envios`
+
+6. **Migração de Dados**:
+   - Script `migracao-selecoes-para-listas.sql` migra seleções antigas para sistema de listas
+   - Cria listas "Lista Legado: [nome_campanha]" automaticamente
+   - Deprecação gradual: tabela `instacar_campanhas_clientes` mantida por 30 dias
+
+7. **Interface Web Completa**:
+   - Nova página "Listas de Clientes" com CRUD completo
+   - Construtor visual de filtros JSONB para listas dinâmicas
+   - Modal de seleção manual de clientes (reutiliza funções existentes)
+   - Gerenciamento de lotes com auto-split
+   - Interface de agendamento com construtor cron visual
+   - Detecção de conflitos em tempo real
+
+**Migração SQL**: Execute `docs/supabase/schema-listas.sql` e `docs/supabase/migracao-adicionar-campos-listas.sql` para criar as novas tabelas e campos.
+
+**Melhorias de Interface:**
+
+- Aba "Filtros e Seleção" combinada para melhor experiência do usuário
+- Botão "Selecionar Apenas Filtrados" para pré-selecionar automaticamente clientes que atendem aos filtros dinâmicos
+- Banner informativo mostrando filtros ativos e contagem de clientes filtrados
+- Pré-seleção automática de clientes filtrados ao criar nova lista
+- Teste de filtros em tempo real atualiza a lista de clientes abaixo automaticamente
+
+📖 **Guias completos**: 
+- [docs/listas/GUIA-COMPLETO-LISTAS.md](docs/listas/GUIA-COMPLETO-LISTAS.md)  
+- [docs/listas/FILTROS-DINAMICOS-JSONB.md](docs/listas/FILTROS-DINAMICOS-JSONB.md)
+- [docs/listas/AGENDAMENTO-CRON.md](docs/listas/AGENDAMENTO-CRON.md)
 
 ### Versão 2.4 (Dezembro 2025 - Sistema de Dados Dinâmicos para Agente IA)
 

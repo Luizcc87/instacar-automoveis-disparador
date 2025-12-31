@@ -3535,6 +3535,9 @@
     // Carregar instâncias para o select
     await carregarInstanciasParaSelect();
 
+    // Carregar listas globais para o select
+    await carregarListasGlobaisParaSelect();
+
     // Carregar clientes para seleção
     await carregarClientesParaSelecao();
     
@@ -4407,6 +4410,11 @@
           )
         ).map((cb) => cb.value),
         configuracoes_empresa_sobrescritas: obterConfiguracoesSobrescritas(),
+        lista_id: (() => {
+          const listaSelect = document.getElementById("listaIdCampanha");
+          const valor = listaSelect ? listaSelect.value : null;
+          return valor && valor.trim() !== "" ? valor : null;
+        })(),
         ativo: true,
       };
 
@@ -16242,6 +16250,2258 @@ Máximo de 3 parágrafos.</code></pre>
         </div>
       </div>
     `;
+  };
+
+  /**
+   * Carrega a página de Listas de Clientes
+   */
+  window.loadPageListas = function() {
+    const contentArea = document.getElementById("contentArea");
+    if (!contentArea) return;
+    
+    contentArea.innerHTML = `
+      <div id="alertContainer"></div>
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Listas de Clientes</h2>
+          <button onclick="abrirModalNovaLista()" class="btn btn-primary">+ Nova Lista</button>
+        </div>
+        <div class="card-body">
+          <div id="filtrosListas" style="margin-bottom: 20px;">
+            <input type="text" id="buscaListas" placeholder="Buscar listas..." 
+                   class="form-input" style="max-width: 400px;"
+                   onkeyup="filtrarListas()">
+          </div>
+          <div id="listaListasContainer" class="loading">
+            <p>Carregando listas...</p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Carregar listas
+    setTimeout(() => {
+      const tentarCarregar = () => {
+        if (window.supabaseClient || supabaseClient) {
+          if (typeof window.carregarListas === "function") {
+            window.carregarListas();
+          } else if (typeof carregarListas === "function") {
+            carregarListas();
+          }
+          // Verificar listas legado para mostrar banner
+          verificarListasLegado();
+        } else {
+          setTimeout(tentarCarregar, 500);
+        }
+      };
+      tentarCarregar();
+    }, 100);
+  };
+
+  // ============================================================================
+  // Sistema de Listas de Clientes
+  // ============================================================================
+
+  /**
+   * Verifica se há listas legado migradas e mostra banner
+   */
+  async function verificarListasLegado() {
+    if (!supabaseClient) return;
+
+    try {
+      const { data: listasLegado, error } = await supabaseClient
+        .from("instacar_listas")
+        .select("id")
+        .like("nome", "Lista Legado:%")
+        .limit(1);
+
+      if (error) throw error;
+
+      const banner = document.getElementById("bannerMigracaoListas");
+      if (banner && listasLegado && listasLegado.length > 0) {
+        // Verificar se já foi fechado (localStorage)
+        const bannerFechado = localStorage.getItem("bannerMigracaoListasFechado");
+        if (!bannerFechado) {
+          banner.style.display = "block";
+          // Marcar como fechado quando clicar no X
+          banner.querySelector("button").addEventListener("click", () => {
+            localStorage.setItem("bannerMigracaoListasFechado", "true");
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao verificar listas legado:", error);
+    }
+  }
+
+  /**
+   * Carrega e renderiza todas as listas
+   */
+  window.carregarListas = async function() {
+    if (!supabaseClient) {
+      console.error("Supabase client não inicializado");
+      return;
+    }
+
+    try {
+      const container = document.getElementById("listaListasContainer");
+      if (!container) return;
+
+      container.innerHTML = "<p>Carregando listas...</p>";
+
+      const { data: listas, error } = await supabaseClient
+        .from("instacar_listas")
+        .select("*")
+        .eq("ativo", true)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (!listas || listas.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 40px;">
+            <p style="color: #6b7280; margin-bottom: 20px;">Nenhuma lista encontrada.</p>
+            <button onclick="abrirModalNovaLista()" class="btn btn-primary">Criar Primeira Lista</button>
+          </div>
+        `;
+        return;
+      }
+
+      renderizarListaListas(listas);
+    } catch (error) {
+      console.error("Erro ao carregar listas:", error);
+      const container = document.getElementById("listaListasContainer");
+      if (container) {
+        container.innerHTML = `<p style="color: #dc3545;">Erro ao carregar listas: ${error.message}</p>`;
+      }
+    }
+  };
+
+  /**
+   * Renderiza lista de listas em cards
+   */
+  function renderizarListaListas(listas) {
+    const container = document.getElementById("listaListasContainer");
+    if (!container) return;
+
+    if (listas.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+          <p style="color: #6b7280; margin-bottom: 20px;">Nenhuma lista encontrada.</p>
+          <button onclick="abrirModalNovaLista()" class="btn btn-primary">Criar Primeira Lista</button>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="campanhas-list" style="display: grid; gap: 16px;">
+        ${listas.map(lista => criarCardLista(lista)).join("")}
+      </div>
+    `;
+  }
+
+  /**
+   * Cria HTML do card individual de lista
+   */
+  function criarCardLista(lista) {
+    const tipoBadge = {
+      estatica: { texto: "Estática", cor: "badge-info" },
+      dinamica: { texto: "Dinâmica", cor: "badge-success" },
+      baseada_campanha: { texto: "Baseada em Campanha", cor: "badge-warning" }
+    };
+
+    const escopoBadge = {
+      global: { texto: "Global", cor: "badge-primary" },
+      especifica: { texto: "Específica", cor: "badge-secondary" }
+    };
+
+    const tipo = tipoBadge[lista.tipo] || { texto: lista.tipo, cor: "badge-secondary" };
+    const escopo = escopoBadge[lista.escopo] || { texto: lista.escopo, cor: "badge-secondary" };
+
+    const agendamentoInfo = lista.agendamento_ativo && lista.agendamento_cron
+      ? `<span class="badge badge-success">Agendada: ${lista.agendamento_cron}</span>`
+      : "";
+
+    return `
+      <div class="campanha-card" style="border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; background: white;">
+        <div class="campanha-info">
+          <h3 style="margin: 0 0 8px 0; font-size: 1.25rem; font-weight: 600;">${lista.nome || "Sem nome"}</h3>
+          ${lista.descricao ? `<p class="descricao" style="color: #6b7280; margin-bottom: 12px;">${lista.descricao}</p>` : ""}
+          <div class="badges" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+            <span class="badge ${tipo.cor}">${tipo.texto}</span>
+            <span class="badge ${escopo.cor}">${escopo.texto}</span>
+            ${agendamentoInfo}
+          </div>
+          <div class="meta-info" style="display: flex; gap: 16px; color: #6b7280; font-size: 0.875rem;">
+            <span>📊 ${lista.total_clientes_cache || 0} clientes</span>
+            ${lista.limite_envios_dia ? `<span>📨 ${lista.limite_envios_dia}/dia</span>` : ""}
+            ${lista.ultima_atualizacao ? `<span>🕒 ${formatarTimestampSP(lista.ultima_atualizacao)}</span>` : ""}
+          </div>
+        </div>
+        <div class="actions" style="display: flex; gap: 8px; margin-top: 16px;">
+          <button onclick="editarLista('${lista.id}')" class="btn btn-secondary" style="flex: 1;">✏️ Editar</button>
+          <button onclick="dispararLista('${lista.id}')" class="btn btn-primary" style="flex: 1;">🚀 Disparar</button>
+          <button onclick="excluirLista('${lista.id}')" class="btn btn-danger">🗑️</button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Abre modal para criar nova lista
+   */
+  window.abrirModalNovaLista = function() {
+    listaAtualId = null;
+    mudarAbaLista("geral");
+    document.getElementById("modalCriarEditarLista").style.display = "flex";
+    
+    // Inicializar validação de cron
+    setTimeout(() => {
+      inicializarValidacaoCron();
+    }, 100);
+  };
+
+  /**
+   * Edita uma lista existente
+   */
+  window.editarLista = async function(listaId) {
+    if (!supabaseClient) {
+      alert("Erro: Supabase não inicializado");
+      return;
+    }
+
+    try {
+      const { data: lista, error } = await supabaseClient
+        .from("instacar_listas")
+        .select("*")
+        .eq("id", listaId)
+        .single();
+
+      if (error) throw error;
+
+      listaAtualId = listaId;
+      carregarDadosListaNoModal(lista);
+      mudarAbaLista("geral");
+      document.getElementById("modalCriarEditarLista").style.display = "flex";
+      
+      // Inicializar validação de cron
+      setTimeout(() => {
+        inicializarValidacaoCron();
+        const cron = document.getElementById("agendamentoCron").value;
+        if (cron && document.getElementById("agendamentoAtivo").checked) {
+          calcularProximasExecucoes(cron);
+          detectarConflitosAgendamento(cron, listaId);
+        }
+      }, 100);
+    } catch (error) {
+      console.error("Erro ao carregar lista:", error);
+      alert(`Erro ao carregar lista: ${error.message}`);
+    }
+  };
+
+  /**
+   * Carrega dados da lista no modal
+   */
+  async function carregarDadosListaNoModal(lista) {
+    // Preencher campos do formulário
+    document.getElementById("listaNome").value = lista.nome || "";
+    document.getElementById("listaDescricao").value = lista.descricao || "";
+    document.getElementById("listaTipo").value = lista.tipo || "estatica";
+    document.getElementById("listaEscopo").value = lista.escopo || "global";
+    document.getElementById("listaLimiteEnviosDia").value = lista.limite_envios_dia || 200;
+    
+    // Atualizar visibilidade de campos baseado no tipo
+    atualizarVisibilidadeCamposLista(lista.tipo);
+    
+    // Se tem campanha_id, preencher
+    if (lista.campanha_id) {
+      document.getElementById("listaCampanhaId").value = lista.campanha_id;
+    }
+    
+    // Se é dinâmica, carregar filtros
+    if (lista.tipo === "dinamica" && lista.filtros_dinamicos) {
+      carregarFiltrosDinamicos(lista.filtros_dinamicos);
+    }
+    
+    // Se é baseada em campanha, carregar dados
+    if (lista.tipo === "baseada_campanha") {
+      document.getElementById("listaCampanhaBaseId").value = lista.campanha_base_id || "";
+      document.getElementById("listaCriterioCampanhaBase").value = lista.criterio_campanha_base || "nao_receberam";
+      // Carregar campanhas no select
+      carregarCampanhasParaSelect();
+    }
+    
+    // Agendamento
+    if (lista.agendamento_cron) {
+      document.getElementById("agendamentoCron").value = lista.agendamento_cron;
+    }
+    document.getElementById("agendamentoAtivo").checked = lista.agendamento_ativo || false;
+  }
+
+  /**
+   * Atualiza visibilidade de campos baseado no tipo de lista
+   */
+  function atualizarVisibilidadeCamposLista(tipo) {
+    const filtrosSection = document.getElementById("abaFiltros");
+    const selecaoSection = document.getElementById("abaSelecao");
+    const campanhaBaseSection = document.getElementById("campanhaBaseSection");
+    const criterioCampanhaBaseSection = document.getElementById("criterioCampanhaBaseSection");
+    
+    if (filtrosSection) filtrosSection.style.display = tipo === "dinamica" ? "block" : "none";
+    if (selecaoSection) selecaoSection.style.display = tipo === "estatica" ? "block" : "none";
+    if (campanhaBaseSection) campanhaBaseSection.style.display = tipo === "baseada_campanha" ? "block" : "none";
+    if (criterioCampanhaBaseSection) criterioCampanhaBaseSection.style.display = tipo === "baseada_campanha" ? "block" : "none";
+  }
+
+  /**
+   * Salva ou atualiza uma lista
+   */
+  window.salvarLista = async function() {
+    if (!supabaseClient) {
+      alert("Erro: Supabase não inicializado");
+      return;
+    }
+
+    try {
+      const nome = document.getElementById("listaNome").value.trim();
+      if (!nome) {
+        alert("Nome da lista é obrigatório");
+        return;
+      }
+
+      const tipo = document.getElementById("listaTipo").value;
+      const escopo = document.getElementById("listaEscopo").value;
+      const campanhaId = document.getElementById("listaCampanhaId").value || null;
+      const limiteEnviosDia = parseInt(document.getElementById("listaLimiteEnviosDia").value) || 200;
+
+      // Validar constraints
+      if (escopo === "especifica" && !campanhaId) {
+        alert("Campanha é obrigatória para listas específicas");
+        return;
+      }
+
+      const dadosLista = {
+        nome,
+        descricao: document.getElementById("listaDescricao").value.trim() || null,
+        tipo,
+        escopo,
+        campanha_id: escopo === "especifica" ? campanhaId : null,
+        limite_envios_dia: limiteEnviosDia,
+        agendamento_cron: document.getElementById("agendamentoCron").value.trim() || null,
+        agendamento_ativo: document.getElementById("agendamentoAtivo").checked || false
+      };
+
+      // Adicionar campos específicos por tipo
+      if (tipo === "dinamica") {
+        const filtros = construirObjetoFiltros();
+        if (!filtros) {
+          alert("Filtros dinâmicos são obrigatórios para listas dinâmicas");
+          return;
+        }
+        dadosLista.filtros_dinamicos = filtros;
+      } else if (tipo === "baseada_campanha") {
+        const campanhaBaseId = document.getElementById("listaCampanhaBaseId").value.trim();
+        if (!campanhaBaseId) {
+          alert("Campanha base é obrigatória para listas baseadas em campanha");
+          return;
+        }
+        dadosLista.campanha_base_id = campanhaBaseId;
+        dadosLista.criterio_campanha_base = document.getElementById("listaCriterioCampanhaBase").value || "nao_receberam";
+      }
+
+      let resultado;
+      if (listaAtualId) {
+        // Atualizar
+        const { data, error } = await supabaseClient
+          .from("instacar_listas")
+          .update(dadosLista)
+          .eq("id", listaAtualId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        resultado = data;
+      } else {
+        // Criar
+        const { data, error } = await supabaseClient
+          .from("instacar_listas")
+          .insert(dadosLista)
+          .select()
+          .single();
+
+        if (error) throw error;
+        resultado = data;
+        listaAtualId = resultado.id;
+      }
+
+      // Se é estática e tem seleção de clientes, salvar
+      if (tipo === "estatica" && listaAtualId) {
+        const totalSelecionados = clientesSelecionadosLista.size;
+        if (totalSelecionados === 0) {
+          const confirmacao = confirm(
+            "⚠️ Nenhum cliente selecionado. A lista ficará vazia. Deseja continuar?"
+          );
+          if (!confirmacao) {
+            return; // Cancelar salvamento
+          }
+        }
+        await salvarClientesSelecionadosLista(listaAtualId);
+      }
+
+      // Se é dinâmica, calcular total
+      if (tipo === "dinamica" && listaAtualId) {
+        const total = await calcularTotalClientesDinamicos(listaAtualId);
+        if (total === 0) {
+          const confirmacao = confirm(
+            "⚠️ Esta lista está vazia (0 clientes). Deseja salvar mesmo assim?"
+          );
+          if (!confirmacao) {
+            return; // Cancelar salvamento
+          }
+        }
+      }
+
+      // Se é baseada em campanha, calcular total (aproximado)
+      if (tipo === "baseada_campanha" && listaAtualId) {
+        // Atualizar cache com estimativa (será calculado na primeira execução)
+        const { error: updateError } = await supabaseClient
+          .from("instacar_listas")
+          .update({ ultima_atualizacao: new Date().toISOString() })
+          .eq("id", listaAtualId);
+        if (updateError) console.error("Erro ao atualizar cache:", updateError);
+      }
+
+      alert(listaAtualId ? "Lista atualizada com sucesso!" : "Lista criada com sucesso!");
+      document.getElementById("modalCriarEditarLista").style.display = "none";
+      carregarListas();
+      
+      // Se estava na aba de lotes, recarregar lotes
+      if (listaAtualId && document.getElementById("abaLotes").style.display === "block") {
+        await carregarLotesLista(listaAtualId);
+      }
+    } catch (error) {
+      console.error("Erro ao salvar lista:", error);
+      alert(`Erro ao salvar lista: ${error.message}`);
+    }
+  };
+
+  /**
+   * Exclui uma lista
+   */
+  window.excluirLista = async function(listaId) {
+    if (!confirm("Tem certeza que deseja excluir esta lista?")) {
+      return;
+    }
+
+    if (!supabaseClient) {
+      alert("Erro: Supabase não inicializado");
+      return;
+    }
+
+    try {
+      const { error } = await supabaseClient
+        .from("instacar_listas")
+        .update({ ativo: false })
+        .eq("id", listaId);
+
+      if (error) throw error;
+
+      alert("Lista excluída com sucesso!");
+      carregarListas();
+    } catch (error) {
+      console.error("Erro ao excluir lista:", error);
+      alert(`Erro ao excluir lista: ${error.message}`);
+    }
+  };
+
+  /**
+   * Navegação entre abas do modal
+   */
+  window.mudarAbaLista = function(aba) {
+    // Ocultar todas as abas
+    const abas = ["geral", "filtros", "lotes", "agendamento"];
+    abas.forEach(a => {
+      const abaEl = document.getElementById(`aba${a.charAt(0).toUpperCase() + a.slice(1)}`);
+      const tabEl = document.getElementById(`tab${a.charAt(0).toUpperCase() + a.slice(1)}`);
+      if (abaEl) abaEl.style.display = "none";
+      if (tabEl) tabEl.classList.remove("active");
+    });
+
+    // Mostrar aba selecionada
+    const abaEl = document.getElementById(`aba${aba.charAt(0).toUpperCase() + aba.slice(1)}`);
+    const tabEl = document.getElementById(`tab${aba.charAt(0).toUpperCase() + aba.slice(1)}`);
+    if (abaEl) abaEl.style.display = "block";
+    if (tabEl) tabEl.classList.add("active");
+
+    // Carregar dados específicos da aba
+    if (aba === "filtros") {
+      // Mostrar/ocultar seções baseado no tipo de lista
+      const tipoLista = document.getElementById("listaTipo")?.value;
+      const secaoFiltros = document.getElementById("secaoFiltrosDinamicos");
+      const secaoSelecao = document.getElementById("secaoSelecaoManual");
+      
+      if (tipoLista === "dinamica" || tipoLista === "baseada_campanha") {
+        // Mostrar filtros dinâmicos
+        if (secaoFiltros) secaoFiltros.style.display = "block";
+      } else {
+        // Ocultar filtros dinâmicos para listas estáticas
+        if (secaoFiltros) secaoFiltros.style.display = "none";
+      }
+      
+      // Sempre mostrar seção de seleção manual
+      if (secaoSelecao) secaoSelecao.style.display = "block";
+      
+      // Carregar clientes quando abrir aba de filtros/seleção
+      setTimeout(() => {
+        carregarClientesParaLista();
+      }, 100);
+    } else if (aba === "lotes" && listaAtualId) {
+      setTimeout(() => {
+        carregarLotesLista(listaAtualId);
+      }, 100);
+    }
+  };
+
+  /**
+   * Variável global para ID da lista atual sendo editada
+   */
+  let listaAtualId = null;
+
+  /**
+   * Filtra listas na busca
+   */
+  window.filtrarListas = function() {
+    const busca = document.getElementById("buscaListas").value.toLowerCase();
+    const cards = document.querySelectorAll(".campanha-card");
+    
+    cards.forEach(card => {
+      const texto = card.textContent.toLowerCase();
+      card.style.display = texto.includes(busca) ? "block" : "none";
+    });
+  };
+
+  /**
+   * Salva clientes selecionados para lista estática
+   */
+  async function salvarClientesSelecionadosLista(listaId) {
+    if (!supabaseClient) return;
+
+    try {
+      // Converter Set para Array
+      const clientesSelecionados = Array.from(clientesSelecionadosLista || []);
+      
+      if (clientesSelecionados.length === 0) {
+        // Se não há seleção, deletar todas as seleções antigas
+        await supabaseClient
+          .from("instacar_listas_clientes")
+          .delete()
+          .eq("lista_id", listaId);
+        
+        // Atualizar cache para 0
+        await supabaseClient
+          .from("instacar_listas")
+          .update({ 
+            total_clientes_cache: 0,
+            ultima_atualizacao: new Date().toISOString()
+          })
+          .eq("id", listaId);
+        return;
+      }
+
+      // Deletar seleções antigas
+      await supabaseClient
+        .from("instacar_listas_clientes")
+        .delete()
+        .eq("lista_id", listaId);
+
+      // Inserir novas seleções
+      const registros = clientesSelecionados.map(clienteId => ({
+        lista_id: listaId,
+        cliente_id: clienteId
+      }));
+
+      if (registros.length > 0) {
+        const { error } = await supabaseClient
+          .from("instacar_listas_clientes")
+          .insert(registros);
+
+        if (error) throw error;
+      }
+
+      // Atualizar cache
+      await supabaseClient
+        .from("instacar_listas")
+        .update({ 
+          total_clientes_cache: registros.length,
+          ultima_atualizacao: new Date().toISOString()
+        })
+        .eq("id", listaId);
+    } catch (error) {
+      console.error("Erro ao salvar clientes selecionados:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calcula total de clientes de lista dinâmica
+   */
+  async function calcularTotalClientesDinamicos(listaId) {
+    if (!supabaseClient) return;
+
+    try {
+      const { data, error } = await supabaseClient.rpc("calcular_total_clientes_dinamicos", {
+        p_lista_id: listaId
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error("Erro ao calcular total de clientes dinâmicos:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Constrói string informativa sobre os filtros ativos
+   */
+  function construirInfoFiltros(filtros) {
+    if (!filtros || !filtros.condicoes || filtros.condicoes.length === 0) {
+      return null;
+    }
+
+    const operador = filtros.operador === "OR" ? "OU" : "E";
+    const condicoesTexto = filtros.condicoes.map((condicao, index) => {
+      if (condicao.tipo === "campanha" || condicao.campo === "campanha") {
+        const criterioNome = {
+          "nao_receberam": "não receberam mensagem",
+          "receberam": "receberam mensagem",
+          "enviado": "status: enviado",
+          "erro": "status: erro",
+          "bloqueado": "status: bloqueado"
+        }[condicao.operador] || condicao.operador;
+        return `Campanha (${criterioNome})`;
+      }
+      
+      const campoNome = {
+        "status_whatsapp": "Status WhatsApp",
+        "total_envios": "Total de Envios",
+        "nome_cliente": "Nome do Cliente",
+        "email": "Email",
+        "telefone": "Telefone",
+        "ultimo_envio": "Último Envio",
+        "primeiro_envio": "Primeiro Envio"
+      }[condicao.campo] || condicao.campo;
+      
+      const operadorNome = {
+        "=": "igual a",
+        "!=": "diferente de",
+        ">": "maior que",
+        ">=": "maior ou igual a",
+        "<": "menor que",
+        "<=": "menor ou igual a",
+        "LIKE": "contém"
+      }[condicao.operador] || condicao.operador;
+      
+      return `${campoNome} ${operadorNome} "${condicao.valor}"`;
+    }).join(` ${operador} `);
+
+    return condicoesTexto;
+  }
+
+  /**
+   * Constrói objeto de filtros JSONB
+   */
+  function construirObjetoFiltros() {
+    const condicoes = [];
+    const filtrosContainer = document.getElementById("filtrosDinamicosContainer");
+    
+    if (!filtrosContainer) return null;
+
+    const filtros = filtrosContainer.querySelectorAll(".filtro-condicao");
+    
+    filtros.forEach(filtro => {
+      const campo = filtro.querySelector(".filtro-campo")?.value;
+      
+      // Se for condição de campanha, usar estrutura especial
+      if (campo === "campanha") {
+        const campanhaId = filtro.querySelector(".filtro-campanha-id")?.value;
+        const criterioCampanha = filtro.querySelector(".filtro-criterio-campanha")?.value;
+        
+        if (campanhaId && criterioCampanha) {
+          condicoes.push({
+            campo: "campanha",
+            operador: criterioCampanha, // Usa o critério como operador
+            valor: campanhaId, // ID da campanha como valor
+            tipo: "campanha" // Flag especial para identificar tipo
+          });
+        }
+      } else {
+        // Condição normal
+        const operador = filtro.querySelector(".filtro-operador")?.value;
+        const valor = filtro.querySelector(".filtro-valor")?.value;
+
+        if (campo && operador && valor) {
+          condicoes.push({ campo, operador, valor });
+        }
+      }
+    });
+
+    if (condicoes.length === 0) return null;
+
+    const operadorLogico = document.getElementById("filtroOperadorLogico")?.value || "AND";
+
+    return {
+      operador: operadorLogico,
+      condicoes
+    };
+  }
+
+  /**
+   * Carrega filtros dinâmicos no modal
+   */
+  function carregarFiltrosDinamicos(filtros) {
+    const container = document.getElementById("filtrosDinamicosContainer");
+    if (!container || !filtros) return;
+
+    container.innerHTML = "";
+    
+    if (filtros.condicoes && Array.isArray(filtros.condicoes)) {
+      filtros.condicoes.forEach(condicao => {
+        // Se for condição de campanha, usar parâmetros especiais
+        if (condicao.tipo === "campanha" || condicao.campo === "campanha") {
+          adicionarFiltroCondicao(
+            "campanha",
+            condicao.operador || condicao.criterioCampanha || "nao_receberam",
+            "",
+            condicao.valor || condicao.campanhaId || "",
+            condicao.operador || condicao.criterioCampanha || "nao_receberam"
+          );
+        } else {
+          adicionarFiltroCondicao(condicao.campo, condicao.operador, condicao.valor);
+        }
+      });
+    }
+
+    if (filtros.operador) {
+      const operadorEl = document.getElementById("filtroOperadorLogico");
+      if (operadorEl) operadorEl.value = filtros.operador;
+    }
+  }
+
+  /**
+   * Adiciona nova condição de filtro
+   */
+  window.adicionarFiltroCondicao = function(campo = "", operador = "=", valor = "", campanhaId = "", criterioCampanha = "") {
+    const container = document.getElementById("filtrosDinamicosContainer");
+    if (!container) return;
+
+    const index = container.querySelectorAll(".filtro-condicao").length;
+    const isCampanha = campo === "campanha";
+    
+    // Se for condição de campanha, usar estrutura especial
+    const valorHtml = isCampanha ? `
+      <select class="filtro-campanha-id form-select" style="flex: 1;" onchange="atualizarCriteriosCampanha(this)">
+        <option value="">Selecione uma campanha</option>
+        <!-- Preenchido dinamicamente -->
+      </select>
+      <select class="filtro-criterio-campanha form-select" style="flex: 1;">
+        <option value="nao_receberam" ${criterioCampanha === "nao_receberam" ? "selected" : ""}>Não receberam mensagem</option>
+        <option value="receberam" ${criterioCampanha === "receberam" ? "selected" : ""}>Receberam mensagem</option>
+        <option value="enviado" ${criterioCampanha === "enviado" ? "selected" : ""}>Status: Enviado</option>
+        <option value="erro" ${criterioCampanha === "erro" ? "selected" : ""}>Status: Erro</option>
+        <option value="bloqueado" ${criterioCampanha === "bloqueado" ? "selected" : ""}>Status: Bloqueado</option>
+      </select>
+    ` : `<input type="text" class="filtro-valor form-input" value="${valor}" placeholder="Valor" style="flex: 1;">`;
+    
+    const filtroHtml = `
+      <div class="filtro-condicao" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;">
+        <select class="filtro-campo form-select" style="flex: 1; min-width: 150px;" onchange="atualizarOperadoresFiltro(this)">
+          <option value="status_whatsapp" ${campo === "status_whatsapp" ? "selected" : ""}>Status WhatsApp</option>
+          <option value="total_envios" ${campo === "total_envios" ? "selected" : ""}>Total de Envios</option>
+          <option value="nome_cliente" ${campo === "nome_cliente" ? "selected" : ""}>Nome do Cliente</option>
+          <option value="email" ${campo === "email" ? "selected" : ""}>Email</option>
+          <option value="telefone" ${campo === "telefone" ? "selected" : ""}>Telefone</option>
+          <option value="ultimo_envio" ${campo === "ultimo_envio" ? "selected" : ""}>Último Envio</option>
+          <option value="primeiro_envio" ${campo === "primeiro_envio" ? "selected" : ""}>Primeiro Envio</option>
+          <option value="campanha" ${campo === "campanha" ? "selected" : ""}>Campanha</option>
+        </select>
+        ${!isCampanha ? `<select class="filtro-operador form-select" style="flex: 0 0 120px;">
+          <option value="=" ${operador === "=" ? "selected" : ""}>Igual a</option>
+          <option value="!=" ${operador === "!=" ? "selected" : ""}>Diferente de</option>
+          <option value=">" ${operador === ">" ? "selected" : ""}>Maior que</option>
+          <option value=">=" ${operador === ">=" ? "selected" : ""}>Maior ou igual</option>
+          <option value="<" ${operador === "<" ? "selected" : ""}>Menor que</option>
+          <option value="<=" ${operador === "<=" ? "selected" : ""}>Menor ou igual</option>
+          <option value="LIKE" ${operador === "LIKE" ? "selected" : ""}>Contém</option>
+        </select>` : ''}
+        ${valorHtml}
+        <button onclick="removerFiltroCondicao(this)" class="btn btn-danger">✕</button>
+      </div>
+    `;
+
+    container.insertAdjacentHTML("beforeend", filtroHtml);
+    
+    // Se for condição de campanha, carregar campanhas no select
+    if (isCampanha) {
+      const filtroCondicao = container.querySelectorAll(".filtro-condicao")[index];
+      const selectCampanha = filtroCondicao.querySelector(".filtro-campanha-id");
+      if (selectCampanha) {
+        carregarCampanhasParaFiltro(selectCampanha, campanhaId);
+      }
+    }
+  };
+
+  /**
+   * Atualiza operadores disponíveis baseado no campo selecionado
+   */
+  window.atualizarOperadoresFiltro = function(selectCampo) {
+    const campo = selectCampo.value;
+    const filtroCondicao = selectCampo.closest(".filtro-condicao");
+    const selectOperador = filtroCondicao.querySelector(".filtro-operador");
+    const valorContainer = filtroCondicao.querySelector(".filtro-valor")?.parentElement || 
+                           filtroCondicao.querySelector(".filtro-campanha-id")?.parentElement;
+    
+    // Se for campo de campanha, mostrar campos especiais
+    if (campo === "campanha") {
+      // Esconder operador
+      if (selectOperador) selectOperador.style.display = "none";
+      
+      // Remover input de valor simples se existir
+      const valorAntigo = filtroCondicao.querySelector(".filtro-valor");
+      
+      // Criar estrutura de campanha se não existir
+      if (!filtroCondicao.querySelector(".filtro-campanha-id")) {
+        const valorHtml = `
+          <select class="filtro-campanha-id form-select" style="flex: 1;" onchange="atualizarCriteriosCampanha(this)">
+            <option value="">Selecione uma campanha</option>
+          </select>
+          <select class="filtro-criterio-campanha form-select" style="flex: 1;">
+            <option value="nao_receberam">Não receberam mensagem</option>
+            <option value="receberam">Receberam mensagem</option>
+            <option value="enviado">Status: Enviado</option>
+            <option value="erro">Status: Erro</option>
+            <option value="bloqueado">Status: Bloqueado</option>
+          </select>
+        `;
+        
+        // Remover input de valor antigo se existir
+        if (valorAntigo) {
+          valorAntigo.insertAdjacentHTML("afterend", valorHtml);
+          valorAntigo.remove();
+        } else {
+          // Inserir antes do botão de remover
+          const btnRemover = filtroCondicao.querySelector("button");
+          if (btnRemover) {
+            btnRemover.insertAdjacentHTML("beforebegin", valorHtml);
+          }
+        }
+        
+        // Carregar campanhas
+        const selectCampanha = filtroCondicao.querySelector(".filtro-campanha-id");
+        if (selectCampanha) {
+          carregarCampanhasParaFiltro(selectCampanha);
+        }
+      }
+      return;
+    }
+    
+    // Para campos normais, mostrar operador e input de valor
+    if (selectOperador) selectOperador.style.display = "";
+    
+    // Remover campos de campanha se existirem
+    const campanhaId = filtroCondicao.querySelector(".filtro-campanha-id");
+    const criterioCampanha = filtroCondicao.querySelector(".filtro-criterio-campanha");
+    if (campanhaId || criterioCampanha) {
+      // Criar input de valor simples se não existir
+      if (!filtroCondicao.querySelector(".filtro-valor")) {
+        const valorHtml = `<input type="text" class="filtro-valor form-input" placeholder="Valor" style="flex: 1;">`;
+        if (campanhaId) {
+          campanhaId.insertAdjacentHTML("afterend", valorHtml);
+        } else {
+          const btnRemover = filtroCondicao.querySelector("button");
+          if (btnRemover) {
+            btnRemover.insertAdjacentHTML("beforebegin", valorHtml);
+          }
+        }
+      }
+      // Remover campos de campanha
+      if (campanhaId && campanhaId.parentElement) {
+        campanhaId.parentElement.remove();
+      }
+      if (criterioCampanha && criterioCampanha.parentElement) {
+        criterioCampanha.parentElement.remove();
+      }
+    }
+
+    // Campos numéricos e de data
+    const camposNumericos = ["total_envios", "ultimo_envio", "primeiro_envio"];
+    const camposTexto = ["nome_cliente", "email", "telefone"];
+    
+    // Limpar operadores
+    if (selectOperador) {
+      selectOperador.innerHTML = "";
+      
+      if (camposNumericos.includes(campo)) {
+        // Operadores para campos numéricos/data
+        selectOperador.innerHTML = `
+          <option value="=">Igual a</option>
+          <option value="!=">Diferente de</option>
+          <option value=">">Maior que</option>
+          <option value=">=">Maior ou igual</option>
+          <option value="<">Menor que</option>
+          <option value="<=">Menor ou igual</option>
+        `;
+      } else if (camposTexto.includes(campo)) {
+        // Operadores para campos de texto
+        selectOperador.innerHTML = `
+          <option value="=">Igual a</option>
+          <option value="!=">Diferente de</option>
+          <option value="LIKE">Contém</option>
+        `;
+      } else {
+        // Operadores padrão (para status_whatsapp)
+        selectOperador.innerHTML = `
+          <option value="=">Igual a</option>
+          <option value="!=">Diferente de</option>
+        `;
+      }
+    }
+  };
+  
+  /**
+   * Carrega campanhas para o select de filtro de campanha
+   */
+  async function carregarCampanhasParaFiltro(selectElement, campanhaIdSelecionada = "") {
+    if (!supabaseClient || !selectElement) return;
+
+    try {
+      const { data: campanhas, error } = await supabaseClient
+        .from("instacar_campanhas")
+        .select("id, nome")
+        .eq("ativo", true)
+        .order("nome");
+
+      if (error) throw error;
+
+      // Limpar opções existentes (exceto a primeira)
+      while (selectElement.options.length > 1) {
+        selectElement.remove(1);
+      }
+
+      // Adicionar campanhas
+      if (campanhas && campanhas.length > 0) {
+        campanhas.forEach(campanha => {
+          const option = document.createElement("option");
+          option.value = campanha.id;
+          option.textContent = campanha.nome;
+          if (campanha.id === campanhaIdSelecionada) {
+            option.selected = true;
+          }
+          selectElement.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar campanhas para filtro:", error);
+    }
+  }
+  
+  /**
+   * Atualiza critérios de campanha (placeholder para futuras expansões)
+   */
+  window.atualizarCriteriosCampanha = function(selectCampanha) {
+    // Pode ser expandido no futuro para validar critérios específicos
+    // Por enquanto, apenas mantém os critérios disponíveis
+  };
+
+  /**
+   * Remove condição de filtro
+   */
+  window.removerFiltroCondicao = function(button) {
+    button.closest(".filtro-condicao").remove();
+  };
+
+  /**
+   * Dispara uma lista manualmente
+   */
+  window.dispararLista = async function(listaId) {
+    if (!confirm("Deseja disparar esta lista agora?")) {
+      return;
+    }
+
+    // Implementação básica - será expandida depois
+    alert("Funcionalidade de disparo será implementada em breve");
+  };
+
+  /**
+   * Atualiza visibilidade de campos baseado no escopo
+   */
+  window.atualizarVisibilidadeEscopo = function(escopo) {
+    const campanhaIdSection = document.getElementById("campanhaIdSection");
+    if (campanhaIdSection) {
+      campanhaIdSection.style.display = escopo === "especifica" ? "block" : "none";
+    }
+  };
+
+  /**
+   * Toggle campos de agendamento
+   */
+  window.toggleAgendamento = function() {
+    const ativo = document.getElementById("agendamentoAtivo").checked;
+    const campos = document.getElementById("camposAgendamento");
+    if (campos) {
+      campos.style.display = ativo ? "block" : "none";
+    }
+    
+    if (ativo) {
+      const cron = document.getElementById("agendamentoCron").value;
+      if (cron) {
+        validarExpressaoCron(cron);
+        calcularProximasExecucoes(cron);
+        detectarConflitosAgendamento(cron);
+      }
+    } else {
+      // Limpar validações quando desativar
+      const proximasEl = document.getElementById("proximasExecucoes");
+      const conflitosEl = document.getElementById("conflitosAgendamento");
+      if (proximasEl) proximasEl.innerHTML = "";
+      if (conflitosEl) conflitosEl.innerHTML = "";
+    }
+  };
+
+  /**
+   * Valida expressão cron
+   */
+  window.validarExpressaoCron = function(cron) {
+    if (!cron || cron.trim() === "") {
+      return false;
+    }
+
+    const partes = cron.trim().split(" ");
+    if (partes.length !== 5) {
+      return false;
+    }
+
+    const [min, hr, diaMes, mes, diaSem] = partes;
+
+    // Validar minuto (0-59 ou *)
+    if (min !== "*" && (isNaN(parseInt(min)) || parseInt(min) < 0 || parseInt(min) > 59)) {
+      return false;
+    }
+
+    // Validar hora (0-23 ou *)
+    if (hr !== "*" && (isNaN(parseInt(hr)) || parseInt(hr) < 0 || parseInt(hr) > 23)) {
+      return false;
+    }
+
+    // Validar dia da semana (0-6 ou *)
+    if (diaSem !== "*") {
+      if (diaSem.includes("-")) {
+        const [inicio, fim] = diaSem.split("-").map(Number);
+        if (isNaN(inicio) || isNaN(fim) || inicio < 0 || inicio > 6 || fim < 0 || fim > 6 || inicio > fim) {
+          return false;
+        }
+      } else if (diaSem.includes(",")) {
+        const dias = diaSem.split(",").map(Number);
+        if (dias.some(d => isNaN(d) || d < 0 || d > 6)) {
+          return false;
+        }
+      } else if (isNaN(parseInt(diaSem)) || parseInt(diaSem) < 0 || parseInt(diaSem) > 6) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  /**
+   * Adiciona listener para validar cron em tempo real
+   */
+  function inicializarValidacaoCron() {
+    const cronInput = document.getElementById("agendamentoCron");
+    if (cronInput) {
+      cronInput.addEventListener("input", function() {
+        const cron = this.value;
+        if (cron && cron.trim() !== "") {
+          const valido = validarExpressaoCron(cron);
+          this.style.borderColor = valido ? "#10b981" : "#dc3545";
+          
+          if (valido) {
+            calcularProximasExecucoes(cron);
+            detectarConflitosAgendamento(cron, listaAtualId);
+          } else {
+            const proximasEl = document.getElementById("proximasExecucoes");
+            const conflitosEl = document.getElementById("conflitosAgendamento");
+            if (proximasEl) proximasEl.innerHTML = `<p style="color: #dc3545;">Formato inválido. Use: minuto hora dia_mês mês dia_semana</p>`;
+            if (conflitosEl) conflitosEl.innerHTML = "";
+          }
+        } else {
+          this.style.borderColor = "";
+          const proximasEl = document.getElementById("proximasExecucoes");
+          const conflitosEl = document.getElementById("conflitosAgendamento");
+          if (proximasEl) proximasEl.innerHTML = "";
+          if (conflitosEl) conflitosEl.innerHTML = "";
+        }
+      });
+    }
+  }
+
+  /**
+   * Testa filtros e mostra preview de quantos clientes atendem
+   */
+  window.testarFiltros = async function() {
+    const filtros = construirObjetoFiltros();
+    if (!filtros) {
+      alert("Adicione pelo menos uma condição de filtro");
+      return;
+    }
+
+    const resultadoEl = document.getElementById("resultadoTesteFiltros");
+    if (resultadoEl) {
+      resultadoEl.innerHTML = "<p>Testando filtros...</p>";
+    }
+
+    if (!supabaseClient) {
+      if (resultadoEl) {
+        resultadoEl.innerHTML = `<p style="color: #dc3545;">Erro: Supabase não inicializado.</p>`;
+      }
+      return;
+    }
+
+    // Criar lista temporária para teste
+    try {
+      const tipoLista = document.getElementById("listaTipo")?.value;
+      
+      if (tipoLista !== "dinamica") {
+        if (resultadoEl) {
+          resultadoEl.innerHTML = `<p style="color: #f59e0b;">⚠️ Filtros dinâmicos são apenas para listas do tipo "Dinâmica".</p>`;
+        }
+        return;
+      }
+
+      // Criar lista temporária para testar filtros
+      const { data: listaTemp, error: errorTemp } = await supabaseClient
+        .from("instacar_listas")
+        .insert({
+          nome: "TEMP_TESTE_" + Date.now(),
+          tipo: "dinamica",
+          filtros_dinamicos: filtros,
+          escopo: "global",  // Usar 'global' porque não temos campanha_id vinculada
+          ativo: false
+        })
+        .select()
+        .single();
+      
+      if (errorTemp) {
+        throw errorTemp;
+      }
+
+      // Resolver clientes via função Supabase
+      const { data: clientesIds, error: errorResolucao } = await supabaseClient
+        .rpc("resolver_clientes_lista_dinamica", { p_lista_id: listaTemp.id });
+      
+      // Deletar lista temporária
+      await supabaseClient
+        .from("instacar_listas")
+        .delete()
+        .eq("id", listaTemp.id);
+
+      if (errorResolucao) {
+        throw errorResolucao;
+      }
+
+      const totalClientes = clientesIds ? clientesIds.length : 0;
+      const infoFiltros = construirInfoFiltros(filtros);
+
+      // Mostrar resultado
+      if (resultadoEl) {
+        resultadoEl.innerHTML = `
+          <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 6px; padding: 12px; margin-top: 10px;">
+            <p style="color: #15803d; margin: 0 0 8px 0; font-weight: 600;">✅ Filtros válidos!</p>
+            <p style="color: #166534; margin: 0 0 4px 0; font-size: 0.875rem;">
+              <strong>Filtros aplicados:</strong> ${infoFiltros || "N/A"}
+            </p>
+            <p style="color: #166534; margin: 0; font-size: 0.875rem;">
+              <strong>Total de clientes que atendem aos critérios:</strong> ${totalClientes}
+            </p>
+            ${totalClientes > 0 ? '<p style="color: #166534; margin: 8px 0 0 0; font-size: 0.875rem; font-style: italic;">A lista de clientes abaixo será atualizada automaticamente...</p>' : ''}
+          </div>
+        `;
+      }
+
+      // Recarregar lista de clientes para aplicar os filtros visualmente
+      // Usar um pequeno delay para garantir que o DOM foi atualizado
+      setTimeout(() => {
+        carregarClientesParaLista();
+      }, 500);
+
+    } catch (error) {
+      console.error("Erro ao testar filtros:", error);
+      if (resultadoEl) {
+        resultadoEl.innerHTML = `
+          <div style="background: #fef2f2; border: 1px solid #ef4444; border-radius: 6px; padding: 12px; margin-top: 10px;">
+            <p style="color: #dc2626; margin: 0; font-weight: 600;">❌ Erro ao testar filtros</p>
+            <p style="color: #991b1b; margin: 8px 0 0 0; font-size: 0.875rem;">${error.message || "Erro desconhecido"}</p>
+          </div>
+        `;
+      }
+    }
+  };
+
+  /**
+   * Calcula próximas execuções baseado em cron
+   */
+  function calcularProximasExecucoes(cron, quantidade = 5) {
+    const proximasEl = document.getElementById("proximasExecucoes");
+    if (!proximasEl || !cron) return;
+
+    try {
+      // Validar formato básico de cron (5 partes)
+      const partes = cron.trim().split(" ");
+      if (partes.length !== 5) {
+        proximasEl.innerHTML = `<p style="color: #dc3545;">Formato inválido. Use: minuto hora dia_mês mês dia_semana</p>`;
+        return;
+      }
+
+      // Calcular próximas execuções (implementação simplificada)
+      const agora = new Date();
+      const proximas = [];
+      
+      // Para cada dia dos próximos 30 dias
+      for (let dia = 0; dia < 30 && proximas.length < quantidade; dia++) {
+        const data = new Date(agora);
+        data.setDate(data.getDate() + dia);
+        
+        const [min, hr] = partes;
+        const diaSemana = data.getDay(); // 0 = domingo, 6 = sábado
+        
+        // Verificar se o dia da semana corresponde
+        const diaSemCron = partes[4];
+        let corresponde = false;
+        
+        if (diaSemCron === "*") {
+          corresponde = true;
+        } else if (diaSemCron.includes("-")) {
+          const [inicio, fim] = diaSemCron.split("-").map(Number);
+          corresponde = diaSemana >= inicio && diaSemana <= fim;
+        } else if (diaSemCron.includes(",")) {
+          const dias = diaSemCron.split(",").map(Number);
+          corresponde = dias.includes(diaSemana);
+        } else {
+          corresponde = parseInt(diaSemCron) === diaSemana;
+        }
+        
+        if (corresponde) {
+          const hora = hr === "*" ? agora.getHours() : parseInt(hr);
+          const minuto = min === "*" ? agora.getMinutes() : parseInt(min);
+          
+          const execucao = new Date(data);
+          execucao.setHours(hora, minuto, 0, 0);
+          
+          // Só adicionar se for no futuro
+          if (execucao > agora) {
+            proximas.push(execucao);
+          }
+        }
+      }
+
+      if (proximas.length === 0) {
+        proximasEl.innerHTML = `<p style="color: #f59e0b;">⚠️ Nenhuma execução futura encontrada nos próximos 30 dias.</p>`;
+        return;
+      }
+
+      proximasEl.innerHTML = `
+        <div style="background: #f0f9ff; padding: 12px; border-radius: 6px; border-left: 4px solid #3b82f6;">
+          <p style="margin: 0 0 8px 0; font-weight: 600; color: #1e40af;">Próximas ${Math.min(proximas.length, quantidade)} execuções:</p>
+          <ul style="margin: 0; padding-left: 20px; color: #1e40af;">
+            ${proximas.slice(0, quantidade).map(exec => {
+              const dataFormatada = exec.toLocaleString("pt-BR", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+              });
+              return `<li>${dataFormatada}</li>`;
+            }).join("")}
+          </ul>
+        </div>
+      `;
+    } catch (error) {
+      console.error("Erro ao calcular próximas execuções:", error);
+      proximasEl.innerHTML = `<p style="color: #dc3545;">Erro ao calcular próximas execuções: ${error.message}</p>`;
+    }
+  }
+
+  /**
+   * Detecta conflitos de agendamento
+   */
+  async function detectarConflitosAgendamento(cron, listaId = null) {
+    if (!supabaseClient || !cron) return;
+
+    try {
+      const { data: conflitos, error } = await supabaseClient.rpc("detectar_conflito_agendamento", {
+        p_lista_id: listaId || listaAtualId,
+        p_cron: cron
+      });
+
+      if (error) throw error;
+
+      const conflitosEl = document.getElementById("conflitosAgendamento");
+      if (conflitosEl) {
+        if (conflitos && conflitos.length > 0) {
+          const totalCombinado = conflitos.reduce((sum, c) => sum + (c.total_clientes || 0), 0);
+          conflitosEl.innerHTML = `
+            <div style="background: #fef3c7; padding: 12px; border-radius: 6px; border-left: 4px solid #f59e0b;">
+              <p style="margin: 0; color: #92400e;">
+                ⚠️ Conflito detectado! ${conflitos.length} lista(s)/lote(s) com mesmo horário.<br>
+                Total combinado: ${totalCombinado} clientes ${totalCombinado > 200 ? '(excede limite de 200/dia)' : ''}
+              </p>
+            </div>
+          `;
+        } else {
+          conflitosEl.innerHTML = `<p style="color: #10b981;">✅ Nenhum conflito detectado</p>`;
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao detectar conflitos:", error);
+    }
+  }
+
+  /**
+   * Carrega lotes de uma lista
+   */
+  async function carregarLotesLista(listaId) {
+    if (!supabaseClient || !listaId) return;
+
+    try {
+      const { data: lotes, error } = await supabaseClient
+        .from("instacar_listas_lotes")
+        .select("*")
+        .eq("lista_id", listaId)
+        .order("ordem");
+
+      if (error) throw error;
+
+      const container = document.getElementById("lotesListaContainer");
+      if (!container) return;
+
+      if (!lotes || lotes.length === 0) {
+        container.innerHTML = `
+          <p style="color: #6b7280;">Nenhum lote criado ainda. Use o botão abaixo para gerar lotes automaticamente.</p>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div style="display: grid; gap: 12px;">
+          ${lotes.map((lote, index) => `
+            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: white;">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                <div>
+                  <h4 style="margin: 0 0 4px 0;">${lote.nome || `Lote ${index + 1}`}</h4>
+                  <p style="margin: 0; color: #6b7280; font-size: 0.875rem;">
+                    ${lote.total_clientes || 0} clientes | Ordem: ${lote.ordem || 0}
+                  </p>
+                  ${lote.agendamento_ativo && lote.agendamento_cron ? 
+                    `<p style="margin: 4px 0 0 0; color: #10b981; font-size: 0.875rem;">📅 Agendado: ${lote.agendamento_cron}</p>` : 
+                    ""}
+                  <span class="badge ${lote.status === 'concluido' ? 'badge-success' : lote.status === 'em_andamento' ? 'badge-info' : lote.status === 'erro' ? 'badge-danger' : 'badge-secondary'}">
+                    ${lote.status || 'pendente'}
+                  </span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button onclick="visualizarClientesLote('${lote.id}')" class="btn btn-secondary" style="padding: 6px 12px;">👁️ Ver</button>
+                  <button onclick="editarLote('${lote.id}')" class="btn btn-secondary" style="padding: 6px 12px;">✏️ Editar</button>
+                  <button onclick="dispararLote('${lote.id}')" class="btn btn-primary" style="padding: 6px 12px;">🚀 Disparar</button>
+                  <button onclick="excluirLote('${lote.id}')" class="btn btn-danger" style="padding: 6px 12px;">🗑️</button>
+                </div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    } catch (error) {
+      console.error("Erro ao carregar lotes:", error);
+      const container = document.getElementById("lotesListaContainer");
+      if (container) {
+        container.innerHTML = `<p style="color: #dc3545;">Erro ao carregar lotes: ${error.message}</p>`;
+      }
+    }
+  }
+
+  /**
+   * Gera lotes automaticamente
+   */
+  window.gerarLotesAutomaticos = async function() {
+    if (!listaAtualId) {
+      alert("Salve a lista primeiro antes de gerar lotes");
+      return;
+    }
+
+    if (!supabaseClient) {
+      alert("Erro: Supabase não inicializado");
+      return;
+    }
+
+    const tamanhoLote = prompt("Tamanho de cada lote:", "200");
+    if (!tamanhoLote) return;
+
+    const tamanho = parseInt(tamanhoLote);
+    if (isNaN(tamanho) || tamanho < 1) {
+      alert("Tamanho inválido");
+      return;
+    }
+
+    try {
+      // Buscar total de clientes da lista
+      const { data: lista, error: listaError } = await supabaseClient
+        .from("instacar_listas")
+        .select("total_clientes_cache, tipo")
+        .eq("id", listaAtualId)
+        .single();
+
+      if (listaError) throw listaError;
+
+      const totalClientes = lista.total_clientes_cache || 0;
+      if (totalClientes === 0) {
+        alert("A lista está vazia. Adicione clientes primeiro.");
+        return;
+      }
+
+      const quantidadeLotes = Math.ceil(totalClientes / tamanho);
+
+      if (!confirm(`Isso criará ${quantidadeLotes} lote(s) de aproximadamente ${tamanho} clientes cada. Continuar?`)) {
+        return;
+      }
+
+      // Buscar clientes da lista
+      let clientesIds = [];
+      
+      if (lista.tipo === "estatica") {
+        const { data: clientes, error: clientesError } = await supabaseClient
+          .from("instacar_listas_clientes")
+          .select("cliente_id")
+          .eq("lista_id", listaAtualId);
+
+        if (clientesError) throw clientesError;
+        clientesIds = clientes.map(c => c.cliente_id);
+      } else if (lista.tipo === "dinamica") {
+        // Chamar função RPC para resolver clientes dinâmicos
+        const { data: ids, error: rpcError } = await supabaseClient.rpc("resolver_clientes_lista_dinamica", {
+          p_lista_id: listaAtualId
+        });
+        if (rpcError) throw rpcError;
+        clientesIds = ids || [];
+      } else if (lista.tipo === "baseada_campanha") {
+        // Chamar função RPC para resolver clientes baseados em campanha
+        const { data: ids, error: rpcError } = await supabaseClient.rpc("resolver_clientes_lista_baseada_campanha", {
+          p_lista_id: listaAtualId
+        });
+        if (rpcError) throw rpcError;
+        clientesIds = ids || [];
+      }
+
+      // Criar lotes
+      const lotes = [];
+      for (let i = 0; i < quantidadeLotes; i++) {
+        const inicio = i * tamanho;
+        const fim = Math.min(inicio + tamanho, clientesIds.length);
+        const clientesLote = clientesIds.slice(inicio, fim);
+
+        const { data: lote, error: loteError } = await supabaseClient
+          .from("instacar_listas_lotes")
+          .insert({
+            lista_id: listaAtualId,
+            nome: `Lote ${i + 1}`,
+            ordem: i + 1,
+            clientes_ids: clientesLote,
+            total_clientes: clientesLote.length,
+            status: "pendente"
+          })
+          .select()
+          .single();
+
+        if (loteError) throw loteError;
+        lotes.push(lote);
+      }
+
+      alert(`${lotes.length} lote(s) criado(s) com sucesso!`);
+      await carregarLotesLista(listaAtualId);
+    } catch (error) {
+      console.error("Erro ao gerar lotes:", error);
+      alert(`Erro ao gerar lotes: ${error.message}`);
+    }
+  };
+
+  /**
+   * Edita um lote
+   */
+  window.editarLote = async function(loteId) {
+    if (!supabaseClient) {
+      alert("Erro: Supabase não inicializado");
+      return;
+    }
+
+    try {
+      const { data: lote, error } = await supabaseClient
+        .from("instacar_listas_lotes")
+        .select("*")
+        .eq("id", loteId)
+        .single();
+
+      if (error) throw error;
+
+      const nome = prompt("Nome do lote:", lote.nome || "");
+      if (nome === null) return;
+
+      const ordem = prompt("Ordem:", lote.ordem || 0);
+      if (ordem === null) return;
+
+      const cron = prompt("Agendamento Cron (deixe vazio para desativar):", lote.agendamento_cron || "");
+      
+      const { error: updateError } = await supabaseClient
+        .from("instacar_listas_lotes")
+        .update({
+          nome: nome.trim(),
+          ordem: parseInt(ordem) || 0,
+          agendamento_cron: cron.trim() || null,
+          agendamento_ativo: cron.trim() !== ""
+        })
+        .eq("id", loteId);
+
+      if (updateError) throw updateError;
+
+      alert("Lote atualizado com sucesso!");
+      await carregarLotesLista(lote.lista_id);
+    } catch (error) {
+      console.error("Erro ao editar lote:", error);
+      alert(`Erro ao editar lote: ${error.message}`);
+    }
+  };
+
+  /**
+   * Exclui um lote
+   */
+  window.excluirLote = async function(loteId) {
+    if (!confirm("Tem certeza que deseja excluir este lote?")) {
+      return;
+    }
+
+    if (!supabaseClient) {
+      alert("Erro: Supabase não inicializado");
+      return;
+    }
+
+    try {
+      // Buscar lista_id antes de deletar
+      const { data: lote, error: fetchError } = await supabaseClient
+        .from("instacar_listas_lotes")
+        .select("lista_id")
+        .eq("id", loteId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const { error } = await supabaseClient
+        .from("instacar_listas_lotes")
+        .delete()
+        .eq("id", loteId);
+
+      if (error) throw error;
+
+      alert("Lote excluído com sucesso!");
+      await carregarLotesLista(lote.lista_id);
+    } catch (error) {
+      console.error("Erro ao excluir lote:", error);
+      alert(`Erro ao excluir lote: ${error.message}`);
+    }
+  };
+
+  /**
+   * Visualiza clientes de um lote
+   */
+  window.visualizarClientesLote = async function(loteId) {
+    if (!supabaseClient) {
+      alert("Erro: Supabase não inicializado");
+      return;
+    }
+
+    try {
+      const { data: lote, error } = await supabaseClient
+        .from("instacar_listas_lotes")
+        .select("*")
+        .eq("id", loteId)
+        .single();
+
+      if (error) throw error;
+
+      const clientesIds = lote.clientes_ids || [];
+      
+      if (clientesIds.length === 0) {
+        alert("Este lote está vazio.");
+        return;
+      }
+
+      // Buscar dados dos clientes
+      const { data: clientes, error: clientesError } = await supabaseClient
+        .from("instacar_clientes_envios")
+        .select("id, nome_cliente, telefone, status_whatsapp, total_envios")
+        .in("id", clientesIds);
+
+      if (clientesError) throw clientesError;
+
+      // Criar modal para visualizar clientes
+      const modalHtml = `
+        <div id="modalClientesLote" class="modal" style="display: flex;">
+          <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+              <h2>Clientes do Lote: ${lote.nome || "Sem nome"}</h2>
+              <button onclick="document.getElementById('modalClientesLote').style.display='none'" class="modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+              <p style="margin-bottom: 15px;"><strong>Total:</strong> ${clientes.length} clientes</p>
+              <div style="max-height: 500px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <thead>
+                    <tr style="border-bottom: 2px solid #e5e7eb;">
+                      <th style="padding: 8px; text-align: left;">Nome</th>
+                      <th style="padding: 8px; text-align: left;">Telefone</th>
+                      <th style="padding: 8px; text-align: left;">Status WhatsApp</th>
+                      <th style="padding: 8px; text-align: left;">Total Envios</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${clientes.map(cliente => `
+                      <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 8px;">${cliente.nome_cliente || "Sem nome"}</td>
+                        <td style="padding: 8px;">${cliente.telefone || ""}</td>
+                        <td style="padding: 8px;">
+                          <span class="badge ${cliente.status_whatsapp === 'valid' ? 'badge-valid' : cliente.status_whatsapp === 'invalid' ? 'badge-invalid' : 'badge-unknown'}">
+                            ${cliente.status_whatsapp || 'unknown'}
+                          </span>
+                        </td>
+                        <td style="padding: 8px;">${cliente.total_envios || 0}</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button onclick="document.getElementById('modalClientesLote').style.display='none'" class="btn btn-secondary">Fechar</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Remover modal existente se houver
+      const modalExistente = document.getElementById("modalClientesLote");
+      if (modalExistente) {
+        modalExistente.remove();
+      }
+
+      // Adicionar novo modal
+      document.body.insertAdjacentHTML("beforeend", modalHtml);
+    } catch (error) {
+      console.error("Erro ao visualizar clientes do lote:", error);
+      alert(`Erro ao visualizar clientes: ${error.message}`);
+    }
+  };
+
+  /**
+   * Dispara um lote específico
+   */
+  window.dispararLote = async function(loteId) {
+    if (!confirm("Deseja disparar este lote agora?")) {
+      return;
+    }
+
+    // Implementação básica - será expandida depois com integração ao workflow
+    alert("Funcionalidade de disparo de lote será implementada em breve");
+  };
+
+  /**
+   * Variável para armazenar clientes selecionados na lista
+   */
+  let clientesSelecionadosLista = new Set();
+
+  /**
+   * Carrega clientes para seleção em lista estática
+   */
+  async function carregarClientesParaLista() {
+    const container = document.getElementById("clientesListaContainer");
+    if (!container) {
+      console.error("Container clientesListaContainer não encontrado");
+      return;
+    }
+
+    if (!supabaseClient) {
+      container.innerHTML = `<p style="color: #dc3545;">Erro: Supabase não inicializado. Verifique as configurações.</p>`;
+      console.error("Supabase client não inicializado");
+      return;
+    }
+
+    try {
+      container.innerHTML = "<p>Carregando clientes...</p>";
+
+      // Verificar se há filtros ativos (de lista dinâmica ou baseada em campanha)
+      const tipoLista = document.getElementById("listaTipo")?.value;
+      let filtrosAtivos = null;
+      let clientesFiltrados = null;
+      let infoFiltros = null;
+
+      // Se está editando uma lista dinâmica ou baseada em campanha, aplicar filtros
+      if (listaAtualId && (tipoLista === "dinamica" || tipoLista === "baseada_campanha")) {
+        try {
+          // Buscar dados da lista
+          const { data: lista, error } = await supabaseClient
+            .from("instacar_listas")
+            .select("*")
+            .eq("id", listaAtualId)
+            .single();
+
+          if (!error && lista) {
+            if (lista.tipo === "dinamica" && lista.filtros_dinamicos) {
+              filtrosAtivos = lista.filtros_dinamicos;
+              infoFiltros = construirInfoFiltros(filtrosAtivos);
+              // Resolver clientes via função Supabase
+              const { data: clientesIds, error: errorResolucao } = await supabaseClient
+                .rpc("resolver_clientes_lista_dinamica", { p_lista_id: listaAtualId });
+              
+              if (!errorResolucao && clientesIds) {
+                clientesFiltrados = new Set(clientesIds.map(id => id.toString()));
+              }
+            } else if (lista.tipo === "baseada_campanha" && lista.campanha_base_id) {
+              infoFiltros = `Campanha: ${lista.campanha_base_id} - Critério: ${lista.criterio_campanha_base}`;
+              // Resolver clientes via função Supabase
+              const { data: clientesIds, error: errorResolucao } = await supabaseClient
+                .rpc("resolver_clientes_lista_baseada_campanha", { p_lista_id: listaAtualId });
+              
+              if (!errorResolucao && clientesIds) {
+                clientesFiltrados = new Set(clientesIds.map(id => id.toString()));
+              }
+            }
+          }
+        } catch (error) {
+          console.warn("Erro ao aplicar filtros:", error);
+        }
+      } else {
+        // Verificar se há filtros na aba Filtros (quando usuário está criando lista mas definiu filtros antes)
+        const filtros = construirObjetoFiltros();
+        if (filtros) {
+          filtrosAtivos = filtros;
+          infoFiltros = construirInfoFiltros(filtros);
+          
+          // Se é lista dinâmica, criar lista temporária para resolver clientes
+          if (tipoLista === "dinamica") {
+            try {
+              // Criar lista temporária para resolver filtros
+              // Usar escopo 'global' porque não temos campanha_id (é apenas para teste)
+              const { data: listaTemp, error: errorTemp } = await supabaseClient
+                .from("instacar_listas")
+                .insert({
+                  nome: "TEMP_RESOLVER_" + Date.now(),
+                  tipo: "dinamica",
+                  filtros_dinamicos: filtros,
+                  escopo: "global",  // Usar 'global' porque não temos campanha_id vinculada
+                  ativo: false
+                })
+                .select()
+                .single();
+              
+              if (!errorTemp && listaTemp) {
+                // Resolver clientes via função Supabase
+                const { data: clientesIds, error: errorResolucao } = await supabaseClient
+                  .rpc("resolver_clientes_lista_dinamica", { p_lista_id: listaTemp.id });
+                
+                if (!errorResolucao && clientesIds) {
+                  clientesFiltrados = new Set(clientesIds.map(id => id.toString()));
+                }
+                
+                // Deletar lista temporária
+                await supabaseClient
+                  .from("instacar_listas")
+                  .delete()
+                  .eq("id", listaTemp.id);
+              }
+            } catch (error) {
+              console.warn("Erro ao resolver filtros com lista temporária:", error);
+            }
+          } else {
+            // Para listas estáticas, aplicar filtros manualmente (será feito depois de carregar todos os clientes)
+          }
+        }
+      }
+
+      // Buscar TODOS os clientes elegíveis em lotes (sem limite de 1000 do Supabase)
+      let todosClientes = [];
+      let offset = 0;
+      const limit = 1000; // Lote máximo do Supabase
+
+      while (true) {
+        const { data: clientes, error } = await supabaseClient
+          .from("instacar_clientes_envios")
+          .select("id, nome_cliente, telefone, status_whatsapp")
+          .eq("status_whatsapp", "valid")
+          .order("nome_cliente")
+          .range(offset, offset + limit - 1);
+
+        if (error) {
+          console.error("Erro na query Supabase:", error);
+          throw error;
+        }
+
+        if (!clientes || clientes.length === 0) {
+          break; // Não há mais clientes
+        }
+
+        todosClientes = todosClientes.concat(clientes);
+
+        // Se retornou menos que o limite, chegamos ao fim
+        if (clientes.length < limit) {
+          break;
+        }
+
+        offset += limit;
+      }
+
+      if (todosClientes.length === 0) {
+        container.innerHTML = "<p style='text-align: center; color: #666; padding: 20px;'>Nenhum cliente elegível encontrado. Verifique se há clientes com status WhatsApp válido no banco de dados.</p>";
+        return;
+      }
+
+      const clientes = todosClientes;
+
+      // Aplicar filtros se houver (para filtros definidos manualmente na aba Filtros)
+      if (filtrosAtivos && !clientesFiltrados && tipoLista === "estatica") {
+        // Aplicar filtros manualmente aos clientes carregados
+        clientesFiltrados = new Set();
+        const operadorLogico = filtrosAtivos.operador || "AND";
+        
+        clientes.forEach(cliente => {
+          let atendeFiltros = operadorLogico === "AND";
+          
+          filtrosAtivos.condicoes.forEach(condicao => {
+            let condicaoAtendida = false;
+            
+            if (condicao.tipo === "campanha" || condicao.campo === "campanha") {
+              // Condição de campanha - não podemos verificar aqui sem query adicional
+              // Será tratado depois via RPC
+              condicaoAtendida = false; // Temporário, será resolvido via RPC
+            } else {
+              // Condição normal
+              const valorCampo = cliente[condicao.campo];
+              const valorComparacao = condicao.valor;
+              
+              switch (condicao.operador) {
+                case "=":
+                  condicaoAtendida = String(valorCampo) === String(valorComparacao);
+                  break;
+                case "!=":
+                  condicaoAtendida = String(valorCampo) !== String(valorComparacao);
+                  break;
+                case ">":
+                  condicaoAtendida = Number(valorCampo) > Number(valorComparacao);
+                  break;
+                case ">=":
+                  condicaoAtendida = Number(valorCampo) >= Number(valorComparacao);
+                  break;
+                case "<":
+                  condicaoAtendida = Number(valorCampo) < Number(valorComparacao);
+                  break;
+                case "<=":
+                  condicaoAtendida = Number(valorCampo) <= Number(valorComparacao);
+                  break;
+                case "LIKE":
+                  condicaoAtendida = String(valorCampo).toLowerCase().includes(String(valorComparacao).toLowerCase());
+                  break;
+              }
+            }
+            
+            if (operadorLogico === "AND") {
+              atendeFiltros = atendeFiltros && condicaoAtendida;
+            } else {
+              atendeFiltros = atendeFiltros || condicaoAtendida;
+            }
+          });
+          
+          if (atendeFiltros) {
+            clientesFiltrados.add(cliente.id.toString());
+          }
+        });
+      }
+
+      // Contar clientes filtrados
+      const totalFiltrados = clientesFiltrados ? clientesFiltrados.size : clientes.length;
+      const temFiltros = clientesFiltrados && clientesFiltrados.size < clientes.length;
+
+      // Atualizar banner de filtros ativos na seção correta
+      const infoFiltrosEl = document.getElementById("infoFiltrosAtivos");
+      const textoFiltrosEl = document.getElementById("textoFiltrosAtivos");
+      const totalFiltradosEl = document.getElementById("totalFiltrados");
+      
+      if (infoFiltros && temFiltros) {
+        if (infoFiltrosEl) infoFiltrosEl.style.display = "block";
+        if (textoFiltrosEl) textoFiltrosEl.textContent = infoFiltros;
+        if (totalFiltradosEl) {
+          totalFiltradosEl.textContent = `${totalFiltrados} de ${clientes.length} clientes atendem aos critérios. Clientes filtrados já estão pré-selecionados.`;
+        }
+      } else {
+        if (infoFiltrosEl) infoFiltrosEl.style.display = "none";
+      }
+
+      // Renderizar lista de clientes com checkboxes (usando mesmo padrão visual das campanhas)
+      let html = "";
+
+      html += `
+        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; background: white;">
+          <div style="padding: 12px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <button onclick="selecionarTodosClientesLista()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.875rem;">Selecionar Todos</button>
+            <button onclick="desmarcarTodosClientesLista()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.875rem;">Desmarcar Todos</button>
+            ${temFiltros ? `<button onclick="selecionarApenasFiltradosLista()" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.875rem;">Selecionar Apenas Filtrados</button>` : ''}
+            <span style="margin-left: auto; color: #6b7280; font-size: 0.875rem;">
+              Selecionados: <strong id="contadorSelecaoLista" style="color: #111827;">0</strong> / ${temFiltros ? totalFiltrados : clientes.length}${temFiltros ? ` <span style="color: #9ca3af;">(de ${clientes.length} total)</span>` : ''}
+            </span>
+          </div>
+          <div id="listaClientesSelecaoLista">
+      `;
+
+      clientes.forEach(cliente => {
+        const clienteIdStr = cliente.id.toString();
+        const atendeFiltro = clientesFiltrados ? clientesFiltrados.has(clienteIdStr) : true;
+        const isSelected = clientesSelecionadosLista.has(clienteIdStr) || (atendeFiltro && temFiltros && !listaAtualId);
+        
+        // Se atende ao filtro e há filtros ativos, pré-selecionar
+        if (atendeFiltro && temFiltros && !listaAtualId) {
+          clientesSelecionadosLista.add(clienteIdStr);
+        }
+        
+        const statusBadge = '<span style="color: #4caf50; font-size: 10px;">✅ Válido</span>';
+        const badgeFiltrado = atendeFiltro && temFiltros 
+          ? '<span style="background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; margin-left: 6px;">✓ Filtrado</span>'
+          : '';
+        
+        // Estilo especial para clientes que não atendem ao filtro (quando há filtros ativos)
+        const labelStyle = !atendeFiltro && temFiltros
+          ? 'display: flex; align-items: flex-start; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; gap: 8px; transition: background 0.2s; opacity: 0.5;'
+          : 'display: flex; align-items: flex-start; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; gap: 8px; transition: background 0.2s;';
+        
+        html += `
+          <label style="${labelStyle}">
+            <input
+              type="checkbox"
+              value="${cliente.id}"
+              ${isSelected ? "checked" : ""}
+              ${!atendeFiltro && temFiltros ? "disabled" : ""}
+              onchange="toggleClienteLista('${cliente.id}', this.checked)"
+              style="margin-top: 2px; flex-shrink: 0; width: 18px; height: 18px; cursor: pointer;"
+            />
+            <span style="flex: 1; min-width: 0">
+              <div style="font-weight: 600; margin-bottom: 4px; word-break: break-word; display: flex; align-items: center;">
+                ${cliente.nome_cliente || "-"}
+                ${badgeFiltrado}
+              </div>
+              <div style="color: #666; font-size: 13px; margin-bottom: 2px">${cliente.telefone || "-"}</div>
+              <div>${statusBadge}</div>
+            </span>
+          </label>
+        `;
+      });
+
+      html += `
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = html;
+
+      // Se está editando, marcar clientes já selecionados
+      if (listaAtualId) {
+        await carregarClientesSelecionadosLista(listaAtualId);
+      } else {
+        // Atualizar contador inicial (já inclui pré-seleção de filtrados)
+        atualizarContadorSelecaoLista();
+      }
+      
+      // Armazenar clientes filtrados globalmente para uso em outras funções
+      window.clientesFiltradosLista = clientesFiltrados;
+    } catch (error) {
+      console.error("Erro ao carregar clientes:", error);
+      if (container) {
+        container.innerHTML = `<p style="color: #dc3545; padding: 20px;">
+          <strong>Erro ao carregar clientes:</strong><br>
+          ${error.message || "Erro desconhecido"}<br>
+          <small>Verifique o console do navegador para mais detalhes.</small>
+        </p>`;
+      }
+    }
+  }
+
+  /**
+   * Carrega clientes já selecionados de uma lista
+   */
+  async function carregarClientesSelecionadosLista(listaId) {
+    if (!supabaseClient) return;
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("instacar_listas_clientes")
+        .select("cliente_id")
+        .eq("lista_id", listaId);
+
+      if (error) throw error;
+
+      clientesSelecionadosLista.clear();
+      if (data) {
+        data.forEach(item => {
+          clientesSelecionadosLista.add(item.cliente_id);
+        });
+      }
+
+      // Marcar checkboxes e aplicar estilo visual
+      document.querySelectorAll("#listaClientesSelecaoLista input[type='checkbox']").forEach(checkbox => {
+        const isSelected = clientesSelecionadosLista.has(checkbox.value);
+        checkbox.checked = isSelected;
+        
+        // Aplicar estilo visual
+        const label = checkbox.closest("label");
+        if (label) {
+          label.style.background = isSelected ? "#f0f7ff" : "";
+        }
+      });
+
+      atualizarContadorSelecaoLista();
+    } catch (error) {
+      console.error("Erro ao carregar clientes selecionados:", error);
+    }
+  }
+
+  /**
+   * Toggle seleção de cliente na lista
+   */
+  window.toggleClienteLista = function(clienteId, checked) {
+    if (checked) {
+      clientesSelecionadosLista.add(clienteId);
+    } else {
+      clientesSelecionadosLista.delete(clienteId);
+    }
+    
+    // Adicionar/remover efeito visual
+    const checkbox = document.querySelector(`#listaClientesSelecaoLista input[value="${clienteId}"]`);
+    if (checkbox) {
+      const label = checkbox.closest("label");
+      if (label) {
+        label.style.background = checked ? "#f0f7ff" : "";
+      }
+    }
+    
+    atualizarContadorSelecaoLista();
+  };
+
+  /**
+   * Seleciona todos os clientes
+   */
+  window.selecionarTodosClientesLista = function() {
+    const checkboxes = document.querySelectorAll("#listaClientesSelecaoLista input[type='checkbox']");
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = true;
+      clientesSelecionadosLista.add(checkbox.value);
+      // Adicionar efeito visual ao selecionar
+      const label = checkbox.closest("label");
+      if (label) {
+        label.style.background = "#f0f7ff";
+      }
+    });
+    atualizarContadorSelecaoLista();
+  };
+
+  /**
+   * Desmarca todos os clientes
+   */
+  window.desmarcarTodosClientesLista = function() {
+    const checkboxes = document.querySelectorAll("#listaClientesSelecaoLista input[type='checkbox']");
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = false;
+      // Remover efeito visual ao desmarcar
+      const label = checkbox.closest("label");
+      if (label) {
+        label.style.background = "";
+      }
+    });
+    clientesSelecionadosLista.clear();
+    atualizarContadorSelecaoLista();
+  };
+
+  /**
+   * Seleciona apenas os clientes que atendem aos filtros
+   */
+  window.selecionarApenasFiltradosLista = function() {
+    // Verificar se há clientes filtrados armazenados
+    const clientesFiltrados = window.clientesFiltradosLista;
+    if (!clientesFiltrados || clientesFiltrados.size === 0) {
+      alert("Não há filtros ativos ou nenhum cliente atende aos critérios.");
+      return;
+    }
+
+    // Primeiro, desmarcar todos
+    const checkboxes = document.querySelectorAll("#listaClientesSelecaoLista input[type='checkbox']");
+    clientesSelecionadosLista.clear();
+    
+    checkboxes.forEach(checkbox => {
+      const clienteId = checkbox.value;
+      const atendeFiltro = clientesFiltrados.has(clienteId);
+      
+      if (atendeFiltro) {
+        // Selecionar apenas os que atendem ao filtro
+        checkbox.checked = true;
+        clientesSelecionadosLista.add(clienteId);
+        // Adicionar efeito visual
+        const label = checkbox.closest("label");
+        if (label) {
+          label.style.background = "#f0f7ff";
+        }
+      } else {
+        // Desmarcar os que não atendem
+        checkbox.checked = false;
+        const label = checkbox.closest("label");
+        if (label) {
+          label.style.background = "";
+        }
+      }
+    });
+    
+    atualizarContadorSelecaoLista();
+  };
+
+  /**
+   * Atualiza contador de seleção
+   */
+  function atualizarContadorSelecaoLista() {
+    const contador = document.getElementById("contadorSelecaoLista");
+    if (contador) {
+      contador.textContent = clientesSelecionadosLista.size;
+    }
+  }
+
+  /**
+   * Atualiza visibilidade de campos quando tipo muda
+   */
+  window.atualizarVisibilidadeCamposLista = function(tipo) {
+    atualizarVisibilidadeCamposLista(tipo);
+    
+    // Se mudou para estática, carregar clientes
+    if (tipo === "estatica") {
+      setTimeout(() => {
+        carregarClientesParaLista();
+      }, 100);
+    }
+    
+    // Se mudou para baseada em campanha, carregar campanhas
+    if (tipo === "baseada_campanha") {
+      setTimeout(() => {
+        carregarCampanhasParaSelect();
+      }, 100);
+    }
+  };
+
+  /**
+   * Carrega campanhas para o select de lista baseada em campanha
+   */
+  async function carregarCampanhasParaSelect() {
+    if (!supabaseClient) return;
+
+    try {
+      const { data: campanhas, error } = await supabaseClient
+        .from("instacar_campanhas")
+        .select("id, nome")
+        .eq("ativo", true)
+        .order("nome");
+
+      if (error) throw error;
+
+      const select = document.getElementById("listaCampanhaBaseId");
+      if (!select) return;
+
+      // Limpar opções existentes (exceto a primeira)
+      while (select.options.length > 1) {
+        select.remove(1);
+      }
+
+      // Adicionar campanhas
+      if (campanhas && campanhas.length > 0) {
+        campanhas.forEach(campanha => {
+          const option = document.createElement("option");
+          option.value = campanha.id;
+          option.textContent = campanha.nome;
+          select.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar campanhas:", error);
+    }
+  }
+
+  /**
+   * Carrega listas globais para o select de campanha
+   */
+  async function carregarListasGlobaisParaSelect() {
+    if (!supabaseClient) return;
+
+    try {
+      const { data: listas, error } = await supabaseClient
+        .from("instacar_listas")
+        .select("id, nome")
+        .eq("escopo", "global")
+        .eq("ativo", true)
+        .order("nome");
+
+      if (error) throw error;
+
+      const select = document.getElementById("listaIdCampanha");
+      if (!select) return;
+
+      // Limpar opções existentes (exceto a primeira)
+      while (select.options.length > 1) {
+        select.remove(1);
+      }
+
+      // Adicionar listas
+      if (listas && listas.length > 0) {
+        listas.forEach(lista => {
+          const option = document.createElement("option");
+          option.value = lista.id;
+          option.textContent = lista.nome;
+          select.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar listas globais:", error);
+    }
+  }
+
+  /**
+   * Toggle visibilidade da seleção manual de clientes
+   */
+  window.toggleSelecaoManualClientes = function() {
+    const listaSelect = document.getElementById("listaIdCampanha");
+    const secaoSelecao = document.getElementById("secaoSelecaoManualClientes");
+    
+    if (!listaSelect || !secaoSelecao) return;
+
+    const temLista = listaSelect.value && listaSelect.value.trim() !== "";
+    
+    // Se tem lista selecionada, ocultar seleção manual
+    // Se não tem lista, mostrar seleção manual
+    secaoSelecao.style.display = temLista ? "none" : "block";
+    
+    // Se tem lista, limpar seleção manual
+    if (temLista) {
+      clientesSelecionados.clear();
+      const contador = document.getElementById("contadorClientesSelecionados");
+      if (contador) contador.textContent = "0";
+    }
   };
 
   // Verificar se DOM já está pronto ou aguardar

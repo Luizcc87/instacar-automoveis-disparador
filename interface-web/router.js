@@ -8,6 +8,7 @@
     "/": "dashboard",
     "/dashboard": "dashboard",
     "/campanhas": "campanhas",
+    "/listas": "listas",
     "/clientes": "clientes",
     "/templates": "templates",
     "/agendamentos": "agendamentos",
@@ -22,6 +23,7 @@
   const pageTitles = {
     dashboard: { title: "Dashboard", subtitle: "Visão geral do sistema de disparos" },
     campanhas: { title: "Campanhas", subtitle: "Gerencie suas campanhas de disparo" },
+    listas: { title: "Listas de Clientes", subtitle: "Gerencie listas reutilizáveis de clientes" },
     clientes: { title: "Clientes", subtitle: "Gerencie sua base de contatos" },
     templates: { title: "Templates", subtitle: "Modelos de mensagens para disparo" },
     agendamentos: { title: "Agendamentos", subtitle: "Campanhas programadas para envio" },

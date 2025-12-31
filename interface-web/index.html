@@ -770,7 +770,7 @@
         border-collapse: collapse;
         margin-top: 20px;
         border-radius: 12px;
-        overflow: hidden;
+        overflow: visible;
         border: 1px solid #e5e7eb;
       }
 
@@ -1639,6 +1639,10 @@
             <span class="sidebar-nav-item-icon">✈️</span>
             <span class="sidebar-nav-item-text">Campanhas</span>
           </a>
+          <a href="#/listas" class="sidebar-nav-item" data-page="listas">
+            <span class="sidebar-nav-item-icon">📋</span>
+            <span class="sidebar-nav-item-text">Listas de Clientes</span>
+          </a>
           <a href="#/agendamentos" class="sidebar-nav-item" data-page="agendamentos">
             <span class="sidebar-nav-item-icon">📅</span>
             <span class="sidebar-nav-item-text">Agendamentos</span>
@@ -1704,6 +1708,13 @@
         <!-- Content Area -->
         <div class="content" id="contentArea">
           <div id="alertContainer"></div>
+          
+          <!-- Banner de Migração de Listas -->
+          <div id="bannerMigracaoListas" class="alert alert-info" style="margin: 20px; display: none; padding: 15px; background: #e0f2fe; border: 1px solid #3b82f6; border-radius: 8px; color: #1e40af;">
+            ✅ Suas seleções de clientes foram migradas para o novo sistema de listas.
+            Confira em <a href="#/listas" onclick="if(typeof loadPageListas === 'function') loadPageListas();" style="color: #3b82f6; text-decoration: underline; font-weight: 600;">Listas de Clientes</a>.
+            <button onclick="document.getElementById('bannerMigracaoListas').style.display='none'; localStorage.setItem('bannerMigracaoListasFechado', 'true');" style="float: right; background: none; border: none; font-size: 1.2em; cursor: pointer; color: #1e40af;">✕</button>
+          </div>
           
           <!-- Conteúdo existente (mantido para compatibilidade) -->
           <div id="legacyContent" data-page-content="dashboard">
@@ -4876,8 +4887,36 @@ Registra no histórico (Supabase)
               </div>
             </div>
 
+            <!-- Seção: Lista de Clientes (Opcional) -->
+            <div
+              style="
+                background: #f0f9ff;
+                padding: 15px;
+                border-radius: 6px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-left: 4px solid #3b82f6;
+              "
+            >
+              <h4 style="margin-top: 0; color: #333; margin-bottom: 15px">
+                📋 Lista de Clientes (Opcional)
+              </h4>
+              <div class="form-group">
+                <label>Usar Lista Global</label>
+                <select id="listaIdCampanha" class="form-select" onchange="toggleSelecaoManualClientes()">
+                  <option value="">Usar todos os elegíveis</option>
+                  <!-- Preenchido dinamicamente com listas globais -->
+                </select>
+                <small class="form-text text-muted">
+                  Selecione uma lista global ou deixe vazio para usar todos os clientes elegíveis.
+                  Listas específicas são criadas automaticamente ao selecionar clientes manualmente.
+                </small>
+              </div>
+            </div>
+
             <!-- Seção: Seleção de Clientes -->
             <div
+              id="secaoSelecaoManualClientes"
               style="
                 background: #f0f7ff;
                 padding: 15px;
@@ -5076,6 +5115,164 @@ Registra no histórico (Supabase)
         </form>
       </div>
     </div>
+    </div>
+
+    <!-- Modal Criar/Editar Lista -->
+    <div id="modalCriarEditarLista" class="modal" style="display: none;">
+      <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-header">
+          <h2 id="modalListaTitle">Nova Lista de Clientes</h2>
+          <button onclick="document.getElementById('modalCriarEditarLista').style.display='none'" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <!-- Tabs -->
+          <div class="modal-tabs">
+            <button class="modal-tab active" id="tabGeral" onclick="mudarAbaLista('geral')">Geral</button>
+            <button class="modal-tab" id="tabFiltros" onclick="mudarAbaLista('filtros')">Filtros e Seleção</button>
+            <button class="modal-tab" id="tabLotes" onclick="mudarAbaLista('lotes')">Lotes</button>
+            <button class="modal-tab" id="tabAgendamento" onclick="mudarAbaLista('agendamento')">Agendamento</button>
+          </div>
+
+          <!-- Aba Geral -->
+          <div id="abaGeral" class="modal-tab-content active">
+            <div class="form-group">
+              <label>Nome da Lista *</label>
+              <input type="text" id="listaNome" class="form-input" placeholder="Ex: Clientes VIP, Inativos há 30 dias" required>
+            </div>
+            <div class="form-group">
+              <label>Descrição</label>
+              <textarea id="listaDescricao" class="form-input" rows="3" placeholder="Descrição opcional da lista"></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Tipo de Lista *</label>
+                <select id="listaTipo" class="form-select" onchange="atualizarVisibilidadeCamposLista(this.value)" required>
+                  <option value="estatica">Estática (Seleção Manual)</option>
+                  <option value="dinamica">Dinâmica (Filtros)</option>
+                  <option value="baseada_campanha">Baseada em Campanha</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Escopo *</label>
+                <select id="listaEscopo" class="form-select" onchange="atualizarVisibilidadeEscopo(this.value)" required>
+                  <option value="global">Global (Reutilizável)</option>
+                  <option value="especifica">Específica (Vinculada a Campanha)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" id="campanhaIdSection" style="display: none;">
+              <label>Campanha (Obrigatória para Escopo Específica)</label>
+              <select id="listaCampanhaId" class="form-select">
+                <option value="">Selecione uma campanha</option>
+                <!-- Preenchido dinamicamente -->
+              </select>
+            </div>
+            <div class="form-group" id="campanhaBaseSection" style="display: none;">
+              <label>Campanha Base *</label>
+              <select id="listaCampanhaBaseId" class="form-select" required>
+                <option value="">Selecione uma campanha</option>
+                <!-- Preenchido dinamicamente -->
+              </select>
+              <small class="form-text text-muted">Campanha de referência para filtrar clientes</small>
+            </div>
+            <div class="form-group" id="criterioCampanhaBaseSection" style="display: none;">
+              <label>Critério *</label>
+              <select id="listaCriterioCampanhaBase" class="form-select" required>
+                <option value="nao_receberam">Não receberam mensagem desta campanha</option>
+                <option value="receberam">Receberam mensagem desta campanha</option>
+                <option value="status_envio">Por status de envio</option>
+                <option value="data_envio">Por data de envio</option>
+              </select>
+              <small class="form-text text-muted">Critério para filtrar clientes baseado na campanha selecionada</small>
+            </div>
+            <div class="form-group">
+              <label>Limite de Envios por Dia</label>
+              <input type="number" id="listaLimiteEnviosDia" class="form-input" value="200" min="1" max="1000">
+              <small class="form-text text-muted">Máximo de mensagens que podem ser enviadas por dia usando esta lista</small>
+            </div>
+          </div>
+
+          <!-- Aba Filtros e Seleção (combinada) -->
+          <div id="abaFiltros" class="modal-tab-content" style="display: none;">
+            <!-- Seção de Filtros (para listas dinâmicas) -->
+            <div id="secaoFiltrosDinamicos" style="display: none;">
+              <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; color: #1f2937;">Filtros Dinâmicos</h3>
+              <div class="form-group">
+                <label>Operador Lógico</label>
+                <select id="filtroOperadorLogico" class="form-select">
+                  <option value="AND">E (AND) - Todas as condições devem ser verdadeiras</option>
+                  <option value="OR">OU (OR) - Pelo menos uma condição deve ser verdadeira</option>
+                </select>
+              </div>
+              <div id="filtrosDinamicosContainer">
+                <!-- Filtros serão adicionados aqui dinamicamente -->
+              </div>
+              <button type="button" onclick="adicionarFiltroCondicao()" class="btn btn-secondary">+ Adicionar Condição</button>
+              <div style="margin-top: 20px;">
+                <button type="button" onclick="testarFiltros()" class="btn btn-primary">Testar Filtros</button>
+                <div id="resultadoTesteFiltros" style="margin-top: 10px;"></div>
+              </div>
+            </div>
+
+            <!-- Seção de Seleção Manual (para listas estáticas ou ajuste manual) -->
+            <div id="secaoSelecaoManual" style="margin-top: 30px;">
+              <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; color: #1f2937;">Seleção de Clientes</h3>
+              <p style="color: #6b7280; margin-bottom: 15px;">
+                Selecione os clientes que farão parte desta lista. Apenas clientes elegíveis (ativos, não bloqueados, com WhatsApp válido) são mostrados.
+              </p>
+              <div id="infoFiltrosAtivos" style="display: none; margin-top: 10px; margin-bottom: 15px; padding: 10px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                <strong>🔍 Filtros Ativos:</strong> <span id="textoFiltrosAtivos"></span><br>
+                <span id="totalFiltrados"></span> clientes atendem aos critérios. Clientes filtrados já estão pré-selecionados.
+              </div>
+              <div id="clientesListaContainer" class="loading">
+                <p>Carregando clientes...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Aba Lotes -->
+          <div id="abaLotes" class="modal-tab-content" style="display: none;">
+            <p style="color: #6b7280; margin-bottom: 15px;">
+              Divida esta lista em lotes menores para processamento escalonado.
+            </p>
+            <div id="lotesListaContainer">
+              <p>Lotes serão exibidos aqui após a lista ser salva.</p>
+            </div>
+            <button type="button" onclick="gerarLotesAutomaticos()" class="btn btn-primary" style="margin-top: 15px;">Gerar Lotes Automaticamente</button>
+          </div>
+
+          <!-- Aba Agendamento -->
+          <div id="abaAgendamento" class="modal-tab-content" style="display: none;">
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="agendamentoAtivo" onchange="toggleAgendamento()">
+                Ativar Agendamento Automático
+              </label>
+            </div>
+            <div id="camposAgendamento" style="display: none;">
+              <div class="form-group">
+                <label>Expressão Cron *</label>
+                <input type="text" id="agendamentoCron" class="form-input" placeholder="Ex: 0 9 * * 1-5 (9h, dias úteis)">
+                <small class="form-text text-muted">
+                  Formato: minuto hora dia_mês mês dia_semana<br>
+                  Exemplos: "0 9 * * 1-5" (9h, dias úteis), "30 14 * * *" (14:30, todos os dias)
+                </small>
+              </div>
+              <div id="proximasExecucoes" style="margin-top: 15px;">
+                <!-- Próximas execuções serão exibidas aqui -->
+              </div>
+              <div id="conflitosAgendamento" style="margin-top: 15px;">
+                <!-- Conflitos serão exibidos aqui -->
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalCriarEditarLista').style.display='none'">Cancelar</button>
+            <button type="button" onclick="salvarLista()" class="btn btn-primary">Salvar Lista</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="app.js"></script>
